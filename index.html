@@ -4,381 +4,392 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Hamilton Classic Co-Ed Softball League</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
 :root {
-  --gold: #D4A017;
-  --gold-light: #F5C842;
-  --gold-dim: #8A6A10;
-  --black: #0A0A0A;
-  --dark: #111111;
-  --panel: #1A1A1A;
-  --panel2: #222222;
-  --border: #2E2E2E;
-  --text: #E8E8E8;
-  --muted: #888;
-  --danger: #C0392B;
-  --success: #27AE60;
-  --warning: #E67E22;
+  --navy:    #1a2744;
+  --navy2:   #243058;
+  --red:     #c0392b;
+  --red2:    #e74c3c;
+  --cream:   #f5f0e8;
+  --white:   #ffffff;
+  --gray1:   #f8f7f4;
+  --gray2:   #eeece8;
+  --gray3:   #d0cdc8;
+  --gray4:   #8a8780;
+  --text:    #1a1a1a;
+  --muted:   #6b6864;
+  --border:  #dddbd6;
+  --success: #2ecc71;
+  --warning: #e67e22;
+  --danger:  #c0392b;
+  --shadow:  0 2px 8px rgba(0,0,0,0.08);
+  --radius:  8px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: var(--black);
+  background: var(--gray1);
   color: var(--text);
-  font-family: 'Oswald', sans-serif;
+  font-family: 'Nunito', sans-serif;
   min-height: 100vh;
-  background-image:
-    radial-gradient(ellipse at 20% 0%, rgba(212,160,23,0.08) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 100%, rgba(212,160,23,0.05) 0%, transparent 60%);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
-/* HEADER */
+/* ── HEADER ── */
 .header {
-  background: var(--dark);
-  border-bottom: 2px solid var(--gold);
-  padding: 1.5rem 1.5rem 1rem;
-  position: relative;
-  overflow: hidden;
-}
-.header::before {
-  content: 'W';
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 220px;
-  color: rgba(212,160,23,0.04);
-  position: absolute;
-  right: -20px;
-  top: -40px;
-  line-height: 1;
-  pointer-events: none;
-}
-.header-top {
+  background: var(--navy);
+  padding: 1rem 1.25rem;
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 4px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.18);
 }
-.wu-logo {
-  width: 48px;
-  height: 48px;
-  background: var(--gold);
+.logo {
+  width: 46px; height: 46px;
+  background: var(--red);
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Bebas Neue', sans-serif;
+  display: flex; align-items: center; justify-content: center;
   font-size: 22px;
-  color: var(--black);
   flex-shrink: 0;
-  box-shadow: 0 0 20px rgba(212,160,23,0.4);
+  box-shadow: 0 2px 8px rgba(192,57,43,0.4);
 }
 .header-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 36px;
-  letter-spacing: 3px;
-  color: var(--gold);
-  line-height: 1;
-  text-shadow: 0 0 30px rgba(212,160,23,0.3);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--white);
+  letter-spacing: 0.3px;
+  line-height: 1.2;
 }
 .header-sub {
   font-size: 11px;
-  letter-spacing: 4px;
-  color: var(--muted);
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  font-family: 'Share Tech Mono', monospace;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
-/* TABS */
+/* ── TABS ── */
 .tabs {
+  background: var(--white);
+  border-bottom: 2px solid var(--border);
   display: flex;
-  background: var(--dark);
-  border-bottom: 1px solid var(--border);
-  padding: 0 1rem;
-  gap: 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.tabs::-webkit-scrollbar { display: none; }
 .tab {
-  padding: 12px 20px;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 17px;
-  letter-spacing: 2px;
+  padding: 13px 16px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--muted);
   background: transparent;
   border: none;
-  cursor: pointer;
   border-bottom: 3px solid transparent;
-  margin-bottom: -1px;
-  transition: color 0.2s, border-color 0.2s;
+  margin-bottom: -2px;
+  cursor: pointer;
   white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.3px;
 }
-.tab:hover { color: var(--gold-light); }
-.tab.active {
-  color: var(--gold);
-  border-bottom-color: var(--gold);
-}
+.tab:hover { color: var(--navy); }
+.tab.active { color: var(--navy); border-bottom-color: var(--red); }
 
-/* MAIN */
-.main { padding: 1.5rem; }
+/* ── MAIN ── */
+.main { padding: 1rem; max-width: 900px; margin: 0 auto; }
 .section { display: none; }
 .section.active { display: block; }
 
-/* CARDS */
+/* ── CARDS ── */
 .card {
-  background: var(--panel);
+  background: var(--white);
   border: 1px solid var(--border);
-  border-radius: 2px;
-  padding: 1.25rem;
+  border-radius: var(--radius);
+  padding: 1.1rem 1.1rem 1rem;
   margin-bottom: 1rem;
-  position: relative;
-}
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0;
-  width: 3px; height: 100%;
-  background: var(--gold);
-  border-radius: 2px 0 0 2px;
+  box-shadow: var(--shadow);
 }
 .card-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 18px;
-  letter-spacing: 2px;
-  color: var(--gold);
-  margin-bottom: 1rem;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px; height: 16px;
+  background: var(--red);
+  border-radius: 2px;
 }
 
-/* FORM */
-.row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-.field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+/* ── FORM ── */
+.row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 130px; }
 .field label {
-  font-size: 10px;
-  letter-spacing: 3px;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
-  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 0.8px;
 }
 input[type="text"], input[type="date"], input[type="number"] {
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 2px;
+  background: var(--gray1);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
   color: var(--text);
-  font-family: 'Share Tech Mono', monospace;
+  font-family: 'Nunito', sans-serif;
   font-size: 14px;
-  padding: 8px 10px;
+  font-weight: 600;
+  padding: 9px 11px;
   width: 100%;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
 }
-input:focus { border-color: var(--gold); }
+input:focus {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(26,39,68,0.1);
+  background: var(--white);
+}
 
-/* BUTTONS */
+/* ── BUTTONS ── */
 .btn {
-  padding: 9px 20px;
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  background: transparent;
+  padding: 9px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: var(--white);
   color: var(--muted);
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 16px;
-  letter-spacing: 2px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
-.btn:hover { border-color: var(--gold); color: var(--gold); }
+.btn:hover { border-color: var(--navy); color: var(--navy); }
 .btn-primary {
-  background: var(--gold);
-  color: var(--black);
-  border-color: var(--gold);
-  font-size: 16px;
-  box-shadow: 0 0 15px rgba(212,160,23,0.25);
+  background: var(--navy);
+  color: var(--white);
+  border-color: var(--navy);
 }
-.btn-primary:hover {
-  background: var(--gold-light);
-  border-color: var(--gold-light);
-  box-shadow: 0 0 25px rgba(212,160,23,0.5);
-  color: var(--black);
-}
+.btn-primary:hover { background: var(--navy2); border-color: var(--navy2); }
 
-/* TEAM CHIPS */
-.team-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+/* ── TEAM CHIPS ── */
+.team-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 4px; }
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  background: var(--panel2);
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  font-family: 'Oswald', sans-serif;
+  gap: 7px;
+  padding: 5px 11px;
+  background: var(--gray1);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
   font-size: 13px;
-  color: var(--text);
-  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--navy);
 }
 .chip-del {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1;
-  padding: 0;
+  background: none; border: none; cursor: pointer;
+  color: var(--gray3); font-size: 16px; line-height: 1; padding: 0;
   transition: color 0.15s;
 }
 .chip-del:hover { color: var(--danger); }
 
-/* NOTICE */
+/* ── NOTICE ── */
 .notice {
-  background: var(--panel2);
-  border-left: 3px solid var(--gold-dim);
-  padding: 10px 14px;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.8;
+  background: #f0f4ff;
+  border-left: 4px solid var(--navy2);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy);
+  line-height: 1.7;
   margin-bottom: 1rem;
-  letter-spacing: 0.5px;
+  opacity: 0.85;
 }
 
-/* WEEK HEADER */
+/* ── WEEK HEADER ── */
 .week-header {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
-  letter-spacing: 3px;
-  color: var(--gold);
-  margin: 1.5rem 0 8px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--navy);
+  margin: 1.25rem 0 7px;
   display: flex;
   align-items: center;
   gap: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .week-header::after {
   content: '';
   flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, var(--gold-dim), transparent);
+  height: 2px;
+  background: linear-gradient(to right, var(--border), transparent);
+  border-radius: 1px;
 }
 
-/* GAME ROW */
-.game-block { margin-bottom: 2px; }
+/* ── GAME ROW ── */
 .game-row {
   display: grid;
-  grid-template-columns: 70px 1fr 20px 1fr 80px 55px;
-  gap: 8px;
+  grid-template-columns: 62px 1fr 18px 1fr 72px 52px;
+  gap: 6px;
   align-items: center;
   font-size: 13px;
-  padding: 10px 14px;
-  background: var(--panel2);
+  padding: 9px 12px;
+  background: var(--white);
   border: 1px solid var(--border);
+  border-radius: 6px;
   border-left: 3px solid transparent;
-  margin-bottom: 2px;
-  transition: border-color 0.15s;
+  margin-bottom: 3px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.game-row:hover { border-left-color: var(--navy2); box-shadow: var(--shadow); }
+.game-row.late { border-left-color: #dde4f0; background: var(--gray1); }
+.time-badge {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--red);
   letter-spacing: 0.5px;
 }
-.game-row:hover { border-left-color: var(--gold-dim); }
-.game-row.late { border-left-color: #1a3a1a; }
-.time-badge {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 11px;
-  color: var(--gold);
-  letter-spacing: 1px;
-}
 .time-badge.late { color: var(--muted); }
-.team-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 1px; font-size: 13px; }
-.vs { color: var(--muted); text-align: center; font-size: 11px; font-family: 'Share Tech Mono', monospace; }
-.score-txt { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--muted); }
-
-/* DIAMOND BADGE */
-.dbadge {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 2px;
-  background: rgba(212,160,23,0.15);
-  color: var(--gold);
-  border: 1px solid var(--gold-dim);
+.team-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: 1px;
+  font-size: 13px;
+  color: var(--text);
+}
+.vs { color: var(--gray3); text-align: center; font-size: 11px; font-weight: 700; }
+.score-txt {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+}
+
+/* ── DIAMOND BADGE ── */
+.dbadge {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #e8edf7;
+  color: var(--navy);
+  border: 1px solid #c8d0e8;
+  white-space: nowrap;
+  font-weight: 500;
 }
 .dbadge.nl {
-  background: rgba(230,126,34,0.1);
+  background: #fdf0e8;
   color: var(--warning);
-  border-color: rgba(230,126,34,0.3);
+  border-color: #f5d5b8;
 }
 
-/* HOME TAG */
+/* ── HOME TAG ── */
 .htag {
   font-size: 9px;
   padding: 1px 5px;
-  border-radius: 1px;
-  background: rgba(212,160,23,0.2);
-  color: var(--gold);
-  border: 1px solid var(--gold-dim);
+  border-radius: 3px;
+  background: #fff0ee;
+  color: var(--red);
+  border: 1px solid #f5c8c4;
   margin-left: 4px;
-  letter-spacing: 1px;
-  font-family: 'Share Tech Mono', monospace;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
   vertical-align: middle;
 }
 
-/* SCORE INPUTS */
+/* ── CROSSOVER BADGE ── */
+.cobadge {
+  font-size: 9px; padding: 2px 6px; border-radius: 3px;
+  background: #edf7f0; color: #27ae60;
+  border: 1px solid #b8e8c8;
+  margin-left: 4px; font-weight: 700;
+  font-family: 'Roboto Mono', monospace; vertical-align: middle;
+}
+
+/* ── SCORE INPUTS ── */
 .score-row {
   display: grid;
-  grid-template-columns: 70px 1fr 42px 16px 42px 1fr 68px;
-  gap: 8px;
+  grid-template-columns: 62px 1fr 40px 14px 40px 1fr 64px;
+  gap: 6px;
   align-items: center;
   font-size: 13px;
-  padding: 8px 14px;
-  background: var(--panel2);
+  padding: 8px 12px;
+  background: var(--white);
   border: 1px solid var(--border);
+  border-radius: 6px;
   border-left: 3px solid transparent;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
-.score-row:hover { border-left-color: var(--gold-dim); }
+.score-row:hover { border-left-color: var(--navy2); }
+.score-row.co-game { border-left-color: #b8e8c8; background: #f5fdf7; }
 .si {
-  width: 42px;
-  padding: 5px 6px;
+  width: 40px; padding: 5px 4px;
   text-align: center;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  background: var(--panel);
-  color: var(--gold-light);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px; font-weight: 500;
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  background: var(--gray1);
+  color: var(--navy);
 }
-.si:focus { outline: none; border-color: var(--gold); }
+.si:focus { outline: none; border-color: var(--navy); background: var(--white); }
 
-/* METRICS */
+/* ── SLOT DIVIDER ── */
+.slot-divider {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 5px 0 3px;
+  letter-spacing: 1px;
+}
+
+/* ── METRICS ── */
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 1.25rem;
+  gap: 8px;
+  margin-bottom: 1rem;
 }
 .metric {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-top: 2px solid var(--gold-dim);
-  padding: 14px;
-  border-radius: 2px;
+  background: var(--navy);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  color: var(--white);
 }
 .metric-label {
-  font-size: 9px;
-  letter-spacing: 3px;
-  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
   text-transform: uppercase;
-  font-family: 'Share Tech Mono', monospace;
-  margin-bottom: 6px;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
 }
 .metric-value {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 30px;
-  color: var(--gold);
-  letter-spacing: 2px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--white);
   line-height: 1;
 }
 
-/* STANDINGS TABLE */
-.st-wrap { overflow-x: auto; }
+/* ── STANDINGS TABLE ── */
+.st-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .st {
   width: 100%;
   border-collapse: collapse;
@@ -386,163 +397,153 @@ input:focus { border-color: var(--gold); }
   table-layout: fixed;
 }
 .st th {
-  font-family: 'Share Tech Mono', monospace;
   font-size: 10px;
-  letter-spacing: 2px;
-  color: var(--gold-dim);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--muted);
   text-align: left;
-  padding: 8px 8px;
-  border-bottom: 1px solid var(--gold-dim);
-  background: var(--panel2);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--border);
+  background: var(--gray1);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .st td {
-  padding: 10px 8px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  letter-spacing: 0.5px;
 }
 .st tr:last-child td { border-bottom: none; }
-.st tr:hover td { background: rgba(212,160,23,0.04); }
-.st td.pts {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 18px;
-  color: var(--gold);
-  letter-spacing: 1px;
-}
-.st td.rank {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 18px;
-  color: var(--gold-dim);
-}
-.st td.mono { font-family: 'Share Tech Mono', monospace; color: var(--muted); }
-.st td.warn { color: var(--warning); font-family: 'Share Tech Mono', monospace; }
+.st tr:hover td { background: var(--gray1); }
+.st td.pts { font-size: 16px; font-weight: 800; color: var(--navy); }
+.st td.rank { font-size: 16px; font-weight: 800; color: var(--gray3); }
+.st td.mono { font-family: 'Roboto Mono', monospace; color: var(--muted); font-size: 12px; }
+.st td.warn { color: var(--warning); font-family: 'Roboto Mono', monospace; font-size: 12px; }
 
+/* ── EMPTY STATE ── */
 .empty {
   text-align: center;
-  padding: 3rem;
-  color: var(--muted);
-  font-family: 'Share Tech Mono', monospace;
+  padding: 3rem 1rem;
+  color: var(--gray3);
   font-size: 13px;
-  letter-spacing: 2px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
-.cobadge {
-  font-size: 9px; padding: 1px 6px; border-radius: 1px;
-  background: rgba(39,174,96,0.2); color: #27AE60;
-  border: 1px solid rgba(39,174,96,0.4);
-  margin-left: 4px; letter-spacing: 1px;
-  font-family: 'Share Tech Mono', monospace; vertical-align: middle;
-}
-
-/* DIVIDER */
-.slot-divider {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 3px;
-  color: var(--muted);
-  text-transform: uppercase;
-  padding: 6px 0 4px;
-  opacity: 0.6;
-}
-
-/* H2H MATRIX */
-.matrix-wrap { overflow-x: auto; margin-top: 4px; }
+/* ── MATRIX ── */
+.matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 4px; }
 .matrix {
   border-collapse: collapse;
   font-size: 12px;
-  font-family: 'Share Tech Mono', monospace;
   white-space: nowrap;
 }
 .matrix th {
-  background: var(--panel2);
-  color: var(--gold-dim);
+  background: var(--gray1);
+  color: var(--muted);
   font-size: 10px;
-  letter-spacing: 1px;
-  padding: 7px 10px;
+  font-weight: 700;
+  padding: 6px 8px;
   border: 1px solid var(--border);
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .matrix th.row-label {
   text-align: left;
   color: var(--text);
-  font-family: 'Oswald', sans-serif;
   font-size: 12px;
-  letter-spacing: 1px;
-  padding: 7px 12px;
-  min-width: 160px;
+  padding: 6px 10px;
+  min-width: 140px;
 }
 .matrix td {
-  padding: 7px 10px;
+  padding: 6px 8px;
   border: 1px solid var(--border);
   text-align: center;
-  color: var(--muted);
-  background: var(--panel);
+  color: var(--gray3);
+  background: var(--white);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
 }
-.matrix td.self {
-  background: var(--panel2);
-  color: var(--border);
-}
-.matrix td.played {
-  color: var(--gold);
-  font-weight: 600;
-}
+.matrix td.self { background: var(--gray2); color: var(--border); }
+.matrix td.played { color: var(--navy); font-weight: 700; }
 .matrix td.zero { color: var(--border); }
 
-/* GAMES TABLE */
+/* ── GAMES TABLE ── */
 .games-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .games-table th {
-  font-family: 'Share Tech Mono', monospace;
   font-size: 10px;
-  letter-spacing: 2px;
-  color: var(--gold-dim);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--muted);
   text-align: left;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--gold-dim);
-  background: var(--panel2);
+  border-bottom: 2px solid var(--border);
+  background: var(--gray1);
+  text-transform: uppercase;
 }
 .games-table td {
   padding: 9px 10px;
   border-bottom: 1px solid var(--border);
-  font-family: 'Share Tech Mono', monospace;
+  font-family: 'Roboto Mono', monospace;
   color: var(--muted);
+  font-size: 12px;
 }
 .games-table td:first-child {
-  font-family: 'Oswald', sans-serif;
+  font-family: 'Nunito', sans-serif;
   color: var(--text);
-  font-weight: 600;
-  letter-spacing: 1px;
+  font-weight: 700;
   font-size: 13px;
 }
 .games-table tr:last-child td { border-bottom: none; }
-.games-table tr:hover td { background: rgba(212,160,23,0.04); }
-.games-table td.gold { color: var(--gold); font-weight: 600; }
+.games-table tr:hover td { background: var(--gray1); }
+.games-table td.gold { color: var(--navy); font-weight: 700; }
 
+/* ── MOBILE ── */
 @media (max-width: 600px) {
+  .main { padding: 0.75rem; }
+  .header { padding: 0.85rem 1rem; }
+  .header-title { font-size: 17px; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
-  .game-row { grid-template-columns: 60px 1fr 16px 1fr 65px 44px; font-size: 12px; }
-  .score-row { grid-template-columns: 60px 1fr 38px 12px 38px 1fr 58px; }
+  .game-row {
+    grid-template-columns: 56px 1fr 14px 1fr 62px 44px;
+    font-size: 12px;
+    padding: 8px 10px;
+    gap: 4px;
+  }
+  .score-row {
+    grid-template-columns: 56px 1fr 36px 12px 36px 1fr 56px;
+    padding: 7px 10px;
+    gap: 4px;
+  }
+  .tab { padding: 11px 13px; font-size: 12px; }
+  .card { padding: 0.9rem; }
+  .card-title { font-size: 13px; }
+  .team-name { font-size: 12px; }
+  .st th, .st td { padding: 8px 6px; font-size: 12px; }
+}
+@media (max-width: 380px) {
+  .game-row { grid-template-columns: 50px 1fr 12px 1fr 56px 38px; font-size: 11px; }
+  .header-title { font-size: 15px; }
 }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-top">
-    <div class="wu-logo">W</div>
-    <div>
-      <div class="header-title">Hamilton Classic Co-Ed Softball</div>
-      <div class="header-sub">C.R.E.A.M. — Championships Rule Everything Around Me</div>
-    </div>
+  <div class="logo">⚾</div>
+  <div>
+    <div class="header-title">Hamilton Classic Co-Ed Softball</div>
+    <div class="header-sub">Turner Park · Tuesday Nights · 2026</div>
   </div>
 </div>
 
+
 <div class="tabs">
-  <button class="tab active" onclick="showTab('teams',this)">The Clan</button>
-  <button class="tab" onclick="showTab('schedule',this)">Battles</button>
+  <button class="tab active" onclick="showTab('teams',this)">Teams</button>
+  <button class="tab" onclick="showTab('schedule',this)">Schedule</button>
   <button class="tab" onclick="showTab('scores',this)">Scores</button>
   <button class="tab" onclick="showTab('standings',this)">Standings</button>
   <button class="tab" onclick="showTab('stats',this)">Stats</button>
@@ -579,21 +580,20 @@ input:focus { border-color: var(--gold); }
         </div>
       </div>
       <div class="notice">
-        // 6:30 PM: D9=CO (HOME) vs TEAM A — D13, D14, D12, D5=LEAGUE — ALL 9 TEAMS PLAY, 0 IDLE<br>
-        // 8:15 PM: D9=TEAM B (HOME) vs CO (AWAY) — D12=FRESH LEAGUE PAIR — NO OTHER 8:15 GAMES<br>
-        // D5, D13, D14=SINGLE 6:30 ONLY — D9=CO DH — D12=LEAGUE DH — ALL 5 DIAMONDS EVERY WEEK<br>
-        // CROSSOVER PLAYS ALL 20 WEEKS — 7 TEAMS PLAY 22 GAMES, 2 TEAMS PLAY 23 — MAX DIFF 1
+        6:30 PM: D9=CrossOver (home) vs Team A · D13, D14, D12, D5 = League · All 9 teams play<br>
+        8:15 PM: D9=Team B (home) vs CrossOver (away) · D12=Fresh league pair<br>
+        All 5 diamonds every week · 20 weeks · Every league team plays exactly 22 games
       </div>
       <button class="btn btn-primary" onclick="genSched()">⚔ Generate Schedule</button>
     </div>
   </div>
 
   <div id="tab-schedule" class="section">
-    <div id="so"><div class="empty">// ADD TEAMS AND GENERATE A SCHEDULE FIRST //</div></div>
+    <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
   </div>
 
   <div id="tab-scores" class="section">
-    <div id="sco"><div class="empty">// GENERATE A SCHEDULE FIRST //</div></div>
+    <div id="sco"><div class="empty">Generate a schedule to enter scores</div></div>
   </div>
 
   <div id="tab-standings" class="section">
@@ -601,11 +601,11 @@ input:focus { border-color: var(--gold); }
   </div>
 
   <div id="tab-stats" class="section">
-    <div id="sta"><div class="empty">// GENERATE A SCHEDULE TO SEE STATS //</div></div>
+    <div id="sta"><div class="empty">Generate a schedule to view stats</div></div>
   </div>
 
   <div id="tab-edit" class="section">
-    <div id="edi"><div class="empty">// GENERATE A SCHEDULE TO EDIT GAMES //</div></div>
+    <div id="edi"><div class="empty">Generate a schedule to edit games</div></div>
   </div>
 
 </div>
@@ -683,7 +683,7 @@ document.getElementById('ti').addEventListener('keydown',e=>{if(e.key==='Enter')
 function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);renderTeams();}
 function renderTeams(){
   const el=document.getElementById('tl');
-  if(!G.teams.length){el.innerHTML='<div style="color:var(--muted);font-family:Share Tech Mono,monospace;font-size:12px;padding:8px 0">// NO TEAMS YET //</div>';return;}
+  if(!G.teams.length){el.innerHTML='<div style="color:var(--gray3);font-size:13px;font-weight:700;padding:8px 0">No teams added yet</div>';return;}
   el.innerHTML=G.teams.map(t=>`<span class="chip">${esc(t)}<button class="chip-del" onclick="removeTeam(${JSON.stringify(t)})">×</button></span>`).join('');
 }
 renderTeams();
@@ -702,40 +702,30 @@ function getTues(startStr,endStr){
 
 function genSched(){
   const n=G.teams.length;
-  if(n<4){alert('NEED AT LEAST 4 TEAMS, SON');return;}
+  if(n<4){alert('Need at least 4 teams to generate a schedule');return;}
   const startStr=document.getElementById('ss').value;
   const endStr=document.getElementById('se').value;
   const tues=getTues(startStr,endStr);
-  if(!tues.length){alert('NO TUESDAYS IN THAT RANGE');return;}
+  if(!tues.length){alert('No Tuesdays found in that date range');return;}
 
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
 
-  // RULES (HARD):
-  // D9:  CrossOver DH every week — 6:30 CO home vs TeamA, 8:15 CO away vs TeamB
-  // D12: League DH every week — 6:30 game + fresh league pair at 8:15
-  // D5, D13, D14: Single league game at 6:30 only — used every week
-  // All 5 diamonds used every Tuesday. All 9 league teams play at 6:30 (0 idle).
-  // CrossOver plays all 20 weeks — no CO byes.
-  //
-  // Per night:
-  //   6:30: D9=CO+TeamA, D13=lg, D14=lg, D12=lg, D5=lg → 4 league + 1 CO = 5 games
-  //   8:15: D9=TeamB vs CO, D12=fresh league pair → 1 CO + 1 league = 2 games
-  //   League games: 4+1=5 per night, 20 nights = 100 total
-  //
-  // Pool: 100 games = 28 pairs at 3x + 8 pairs at 2x
-  // Result: 7 teams play 22 games, 2 teams play 23 games (max diff = 1)
+  // Target: every league team plays exactly 22 games
+  // Pool: 27 pairs at 3x + 9 pairs at 2x = 81+18 = 99 league games
+  // Each team: 6 opponents at 3x + 2 opponents at 2x = 18+4 = 22 games exactly
+  // Season: 20 weeks, 5 league games/night × 19 nights = 95, night 20 = 4 (pool exhausted)
+  // Total: 99 games = 22 per team ✓
 
   const allPairs=[];
   for(let i=0;i<leagueTeams.length;i++)
     for(let j=i+1;j<leagueTeams.length;j++)
       allPairs.push([leagueTeams[i],leagueTeams[j]]);
 
-  // Assign 8 pairs as 2x, rest 3x
-  // 7 teams get 2 pairs at 2x (22 games), 2 teams get 1 pair at 2x (23 games)
+  // Assign exactly 9 pairs as 2x — each team gets exactly 2 pairs at 2x
   const twoxCount={};leagueTeams.forEach(t=>twoxCount[t]=0);
   const is2x=new Set();
   for(const[t1,t2] of shuffle([...allPairs])){
-    if(is2x.size>=8)break;
+    if(is2x.size>=9)break;
     if(twoxCount[t1]<2&&twoxCount[t2]<2){
       is2x.add(t1+'||'+t2);twoxCount[t1]++;twoxCount[t2]++;
     }
@@ -747,7 +737,7 @@ function genSched(){
   }
   pool=shuffle(pool);
 
-  // CO opponent tracking — spread evenly across season
+  // CO opponent tracking — 36 CO games / 9 teams = exactly 4 each
   const coCount={};leagueTeams.forEach(t=>coCount[t]=0);
   function pickCO(excl){
     const c=leagueTeams.filter(t=>!excl.includes(t));
@@ -793,11 +783,11 @@ function genSched(){
     if(usedIdx.size>=pool.length)break;
     dateStr=tues[ti];
 
-    // Pick CO opponents for tonight
+    // Pick CO opponents — spread evenly (9 teams * 2 slots * 18 nights / 18 each = 4 per team)
     const coOppA=pickCO([]);coCount[coOppA]++;
     const coOppB=pickCO([coOppA]);coCount[coOppB]++;
 
-    // 6:30 PM ─────────────────────────────────────────────────────────────
+    // 6:30 PM ─────────────────────────────────────────────────────────────────
     // D9: CrossOver (home) vs coOppA
     const[coHome,coAway]=pickHA(CROSSOVER,coOppA);
     hc[coHome]++;
@@ -807,7 +797,7 @@ function genSched(){
     const pairs630=pickPairs(4,[coOppA]);
     [D13,D14,D12,D5].forEach((dm,i)=>{if(pairs630[i])placePair(pairs630[i],dm,'6:30 PM');});
 
-    // 8:15 PM ─────────────────────────────────────────────────────────────
+    // 8:15 PM ─────────────────────────────────────────────────────────────────
     // D9: coOppB (home) vs CrossOver (away)
     hc[coOppB]++;
     sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',diamond:9,lights:true,home:coOppB,away:CROSSOVER,bye:'',crossover:true});
@@ -847,12 +837,12 @@ function monthAccordion(month,inner,mi,prefix){
   const id=prefix+'_m'+mi;
   const nights=inner.split('week-header').length-1;
   return `<div style="margin-bottom:6px">
-    <button onclick="toggleMonth('${id}')" style="width:100%;background:#D4A017;border:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:12px;text-align:left;border-bottom:3px solid #8A6A10">
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:6px;color:#0A0A0A;line-height:1;flex:1">${month}</span>
-      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#0A0A0A;opacity:0.7;letter-spacing:1px">${nights} NIGHTS</span>
-      <span id="arr_${id}" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0A0A0A">▼</span>
+    <button onclick="toggleMonth('${id}')" style="width:100%;background:var(--navy);border:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;text-align:left;border-radius:7px 7px 0 0">
+      <span style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;letter-spacing:0.5px;color:#fff;line-height:1;flex:1;text-transform:uppercase">${month}</span>
+      <span style="font-family:'Roboto Mono',monospace;font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:1px">${nights} NIGHTS</span>
+      <span id="arr_${id}" style="font-size:14px;color:rgba(255,255,255,0.7)">▼</span>
     </button>
-    <div id="${id}" style="display:none;border-left:4px solid #D4A017;border-right:4px solid #D4A017;border-bottom:4px solid #8A6A10;padding:0 8px 8px">
+    <div id="${id}" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;padding:0 8px 8px;background:var(--gray1)">
       ${inner}
     </div>
   </div>`;
@@ -864,9 +854,9 @@ function buildSchedInner(dates,isScore){
     inner+=`<div class="week-header">${fmtDate(dateStr)}</div>`;
     const byeTeam=games[0]?games[0].bye:'';
     if(byeTeam==='CO BYE'){
-      inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#27AE60;letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.4);display:inline-block">// CROSSOVER BYE WEEK //</div>`;
+      inner+=`<div style="font-family:'Roboto Mono',monospace;font-size:11px;font-weight:500;color:#27ae60;letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.3);border-radius:4px;display:inline-block;background:#edf7f0">// CROSSOVER BYE WEEK //</div>`;
     } else if(byeTeam){
-      inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);display:inline-block">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
+      inner+=`<div style="font-family:'Roboto Mono',monospace;font-size:11px;font-weight:500;color:var(--muted);letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);border-radius:4px;display:inline-block;background:var(--gray1)">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
     }
 
     // Work out which diamonds are open at each time slot
@@ -920,7 +910,7 @@ function buildSchedInner(dates,isScore){
 // ── RENDER SCHEDULE ───────────────────────────────────────────────────────────
 function renderSched(){
   const el=document.getElementById('so');
-  if(!G.sched.length){el.innerHTML='<div class="empty">// ADD TEAMS AND GENERATE A SCHEDULE FIRST //</div>';return;}
+  if(!G.sched.length){el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';return;}
   const grouped=groupSched(G.sched);
   el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
 }
@@ -928,9 +918,9 @@ function renderSched(){
 // ── RENDER SCORES ─────────────────────────────────────────────────────────────
 function renderScores(){
   const el=document.getElementById('sco');
-  if(!G.sched.length){el.innerHTML='<div class="empty">// GENERATE A SCHEDULE FIRST //</div>';return;}
+  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to enter scores</div>';return;}
   const grouped=groupSched(G.sched);
-  el.innerHTML=`<div class="notice">// ENTER ACTUAL FINAL SCORES — RUN DIFF AUTO-CAPPED AT +7 FOR STANDINGS //</div>`
+  el.innerHTML=`<div class="notice">Enter final scores · Run differential auto-capped at +7 for standings</div>`
     +grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,true),i,'sk')).join('');
 }
 
@@ -951,7 +941,7 @@ function capRuns(h,a){
 
 function renderStandings(){
   const el=document.getElementById('sto');
-  if(!G.teams.length){el.innerHTML='<div class="empty">// ADD TEAMS FIRST //</div>';return;}
+  if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
   // Exclude CrossOver from standings
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
@@ -985,7 +975,7 @@ function renderStandings(){
     <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.length-gp}</div></div>
     <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
   </div>
-  <div class="notice">// RF/RA CAPPED AT +7 // POINTS DECIDE RANK // CROSSOVER EXCLUDED FROM STANDINGS // H/A = HOME/AWAY SCHEDULED //</div>
+  <div class="notice">RF/RA capped at +7 · Points decide rank · CrossOver excluded from standings · H/A = Home/Away scheduled</div>
   <div class="st-wrap"><table class="st">
     <colgroup><col style="width:28px"><col><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:36px"><col style="width:32px"><col style="width:32px"><col style="width:38px"><col style="width:26px"><col style="width:26px"></colgroup>
     <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th><th>H</th><th>A</th></tr></thead>
@@ -1001,7 +991,7 @@ function renderStandings(){
 // ── STATS ─────────────────────────────────────────────────────────────────────
 function renderStats(){
   const el=document.getElementById('sta');
-  if(!G.sched.length){el.innerHTML='<div class="empty">// GENERATE A SCHEDULE TO SEE STATS //</div>';return;}
+  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to view stats</div>';return;}
   const teams=G.teams;
   const ts={};
   for(const t of teams){ts[t]={sched:0,home:0,away:0,byes:0,dh:0,fields:{}};DIAMONDS.forEach(d=>ts[t].fields[d]=0);}
@@ -1033,7 +1023,7 @@ function renderStats(){
   </div>
   <div class="card">
     <div class="card-title">Games Per Team</div>
-    <div class="notice">// AMBER = HOME/AWAY DIFFERENCE &gt; 1 //</div>
+    <div class="notice">Amber = Home/Away difference &gt; 1</div>
     <table class="games-table"><thead><tr><th>Team</th><th>Total</th><th>Home</th><th>Away</th><th>Byes</th><th>2x Nights</th></tr></thead>
     <tbody>${sorted.map(t=>{const imb=Math.abs(ts[t].home-ts[t].away)>1;return`<tr><td>${esc(t)}</td><td class="gold">${ts[t].sched}</td><td class="${imb?'warn':''}">${ts[t].home}</td><td class="${imb?'warn':''}">${ts[t].away}</td><td>${ts[t].byes}</td><td>${ts[t].dh}</td></tr>`;}).join('')}</tbody></table>
   </div>
@@ -1044,7 +1034,7 @@ function renderStats(){
   </div>
   <div class="card">
     <div class="card-title">Diamond Usage — Per Team</div>
-    <div class="notice">// AMBER = SPREAD &gt; 2 BETWEEN MOST AND LEAST USED DIAMOND //</div>
+    <div class="notice">Amber = Spread &gt; 2 between most and least used diamond</div>
     <div class="matrix-wrap"><table class="matrix">
       <thead><tr><th class="row-label">Team</th>${DIAMONDS.map(d=>`<th>D${d}</th>`).join('')}</tr></thead>
       <tbody>${sorted.map(t=>{
@@ -1057,7 +1047,7 @@ function renderStats(){
   </div>
   <div class="card">
     <div class="card-title">Head-to-Head Matrix</div>
-    <div class="notice">// GAMES SCHEDULED BETWEEN EACH PAIR — GOLD = SCHEDULED //</div>
+    <div class="notice">Games scheduled between each pair</div>
     <div class="matrix-wrap"><table class="matrix">
       <thead><tr><th class="row-label">vs →</th>${teams.map(t=>`<th title="${esc(t)}">${esc(t.length>9?t.slice(0,8)+'…':t)}</th>`).join('')}</tr></thead>
       <tbody>${teams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${teams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}</tr>`).join('')}</tbody>
@@ -1068,30 +1058,30 @@ function renderStats(){
 // ── EDIT GAMES ────────────────────────────────────────────────────────────────
 function renderEdit(){
   const el=document.getElementById('edi');
-  if(!G.sched.length){el.innerHTML='<div class="empty">// GENERATE A SCHEDULE TO EDIT GAMES //</div>';return;}
+  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
   const grp=groupSched(G.sched);
-  let html=`<div class="notice">// CHANGE HOME TEAM, AWAY TEAM, DIAMOND OR TIME FOR ANY GAME — UPDATES APPLY INSTANTLY //</div>`;
+  let html=`<div class="notice">Change home team, away team, diamond or time · Updates apply instantly</div>`;
   grp.forEach(({month,dates},mi)=>{
     let inner='';
     for(const[dateStr,games] of Object.entries(dates)){
       inner+=`<div class="week-header">${fmtDate(dateStr)}</div>`;
       const byeTeam=games[0]?games[0].bye:'';
-      if(byeTeam==='CO BYE') inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#27AE60;letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.4);display:inline-block">// CROSSOVER BYE WEEK //</div>`;
-      else if(byeTeam) inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);display:inline-block">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
+      if(byeTeam==='CO BYE') inner+=`<div style="font-family:'Roboto Mono',monospace;font-size:11px;font-weight:500;color:#27ae60;letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.3);border-radius:4px;display:inline-block;background:#edf7f0">// CROSSOVER BYE WEEK //</div>`;
+      else if(byeTeam) inner+=`<div style="font-family:'Roboto Mono',monospace;font-size:11px;font-weight:500;color:var(--muted);letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);border-radius:4px;display:inline-block;background:var(--gray1)">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
       for(const g of games){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
-        inner+=`<div style="background:var(--panel2);border:1px solid var(--border);border-left:3px solid ${isCO?'#27AE60':'var(--gold-dim)'};padding:8px 10px;margin-bottom:3px;display:grid;grid-template-columns:68px 1fr 1fr 64px 72px;gap:6px;align-items:center">
-          <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--gold)">${g.time}</span>
-          <select onchange="editGame('${g.id}','home',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+        inner+=`<div style="background:var(--white);border:1px solid var(--border);border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'};padding:8px 10px;margin-bottom:3px;display:grid;grid-template-columns:68px 1fr 1fr 64px 72px;gap:6px;align-items:center">
+          <span style="font-family:'Roboto Mono',monospace;font-size:10px;color:var(--red);font-weight:500">${g.time}</span>
+          <select onchange="editGame('${g.id}','home',this.value)" style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;background:var(--gray1);color:var(--text);border:1.5px solid var(--border);padding:5px 7px;border-radius:5px;width:100%">
             ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.home?' selected':''}>${esc(t)}</option>`).join('')}
           </select>
-          <select onchange="editGame('${g.id}','away',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+          <select onchange="editGame('${g.id}','away',this.value)" style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;background:var(--gray1);color:var(--text);border:1.5px solid var(--border);padding:5px 7px;border-radius:5px;width:100%">
             ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
           </select>
-          <select onchange="editGame('${g.id}','diamond',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+          <select onchange="editGame('${g.id}','diamond',this.value)" style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;background:var(--gray1);color:var(--text);border:1.5px solid var(--border);padding:5px 7px;border-radius:5px;width:100%">
             ${DIAMONDS.map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>D${d}</option>`).join('')}
           </select>
-          <select onchange="editGame('${g.id}','time',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+          <select onchange="editGame('${g.id}','time',this.value)" style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;background:var(--gray1);color:var(--text);border:1.5px solid var(--border);padding:5px 7px;border-radius:5px;width:100%">
             <option value="6:30 PM"${g.time==='6:30 PM'?' selected':''}>6:30 PM</option>
             <option value="8:15 PM"${g.time==='8:15 PM'?' selected':''}>8:15 PM</option>
           </select>
@@ -1099,11 +1089,11 @@ function renderEdit(){
       }
     }
     html+=`<div style="margin-bottom:6px">
-      <button onclick="toggleMonth('em${mi}')" style="width:100%;background:#D4A017;border:none;cursor:pointer;padding:10px 16px;display:flex;align-items:center;gap:12px;text-align:left;border-bottom:3px solid #8A6A10">
-        <span style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:5px;color:#0A0A0A;flex:1">${month}</span>
-        <span id="arr_em${mi}" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#0A0A0A">▼</span>
+      <button onclick="toggleMonth('em${mi}')" style="width:100%;background:var(--navy);border:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;text-align:left;border-radius:7px 7px 0 0">
+        <span style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:800;letter-spacing:0.5px;color:#fff;text-transform:uppercase;flex:1">${month}</span>
+        <span id="arr_em${mi}" style="font-size:14px;color:rgba(255,255,255,0.7)">▼</span>
       </button>
-      <div id="em${mi}" style="display:none;border-left:4px solid #D4A017;border-right:4px solid #D4A017;border-bottom:4px solid #8A6A10;padding:0 8px 8px">${inner}</div>
+      <div id="em${mi}" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;padding:0 8px 8px;background:var(--gray1)">${inner}</div>
     </div>`;
   });
   el.innerHTML=html;
