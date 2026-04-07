@@ -542,7 +542,7 @@ input:focus {
 
 
 <div class="tabs">
-  <button class="tab active" onclick="showTab('teams',this)">Settings</button>
+  <button class="tab active" onclick="showTab('teams',this)">Teams</button>
   <button class="tab" onclick="showTab('schedule',this)">Schedule</button>
   <button class="tab" onclick="showTab('scores',this)">Scores</button>
   <button class="tab" onclick="showTab('standings',this)">Standings</button>
@@ -579,24 +579,28 @@ input:focus {
       <div class="row">
         <div class="field">
           <label>Season Start</label>
-          <input type="date" id="ss" value="2026-05-19" />
+          <input type="date" id="ss" value="2026-05-19" oninput="updateGptNotice()" />
         </div>
         <div class="field">
           <label>Season End</label>
-          <input type="date" id="se" value="2026-09-29" />
+          <input type="date" id="se" value="2026-09-29" oninput="updateGptNotice()" />
         </div>
+      </div>
+      <div class="field" style="margin-bottom:0.9rem">
+        <label>Game Nights</label>
+        <div id="day-checks" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
       </div>
       <div class="row">
         <div class="field">
-          <label>Games Per Team (league only, excl. CrossOver)</label>
-          <input type="number" id="gpt" value="22" min="1" max="60" placeholder="e.g. 22" />
+          <label>Games Per Team</label>
+          <input type="number" id="gpt" value="22" min="1" max="60" placeholder="e.g. 22" oninput="updateGptNotice()" />
         </div>
         <div class="field">
           <label>CrossOver Bye Weeks</label>
-          <input type="number" id="cobyes" value="0" min="0" max="10" placeholder="e.g. 3" />
+          <input type="number" id="cobyes" value="0" min="0" max="10" placeholder="e.g. 3" oninput="updateGptNotice()" />
         </div>
       </div>
-      <div class="notice" id="gpt-notice" style="margin-bottom:1rem"></div>
+      <div id="gpt-notice" style="margin-bottom:1rem"></div>
       <button class="btn btn-primary" onclick="genSched()">⚾ Generate Schedule</button>
     </div>
 
@@ -796,77 +800,166 @@ function renderDiamonds(){
 }
 renderDiamonds();
 
+// ── DAYS OF WEEK + SCHEDULE CALCULATOR ───────────────────────────────────────
+const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function initDayChecks(){
+  const el=document.getElementById('day-checks');
+  if(!el)return;
+  el.innerHTML=DAY_NAMES.map((name,i)=>{
+    const checked=i===2?'checked':''; // Tuesday default
+    const activeStyle='border-color:var(--navy);background:var(--navy);color:#fff';
+    const inactiveStyle='border-color:var(--border);background:var(--white);color:var(--text)';
+    return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${checked?activeStyle:inactiveStyle}">
+      <input type="checkbox" value="${i}" ${checked} onchange="onDayChange(${i},this)" style="display:none"> ${name}
+    </label>`;
+  }).join('');
+}
+
+function onDayChange(i,cb){
+  const lbl=document.getElementById('daylabel-'+i);
+  if(lbl){
+    if(cb.checked){
+      lbl.style.borderColor='var(--navy)';lbl.style.background='var(--navy)';lbl.style.color='#fff';
+    } else {
+      lbl.style.borderColor='var(--border)';lbl.style.background='var(--white)';lbl.style.color='var(--text)';
+    }
+  }
+  updateGptNotice();
+}
+
+function getSelectedDays(){
+  const checks=document.querySelectorAll('#day-checks input[type=checkbox]:checked');
+  return Array.from(checks).map(c=>parseInt(c.value));
+}
+
+function getGameNights(startStr,endStr,days){
+  if(!days||!days.length)days=[2];
+  const[sy,sm,sd]=startStr.split('-').map(Number);
+  const[ey,em,ed]=endStr.split('-').map(Number);
+  const d=new Date(sy,sm-1,sd);
+  const end=new Date(ey,em-1,ed);
+  const result=[];
+  while(d<=end){
+    if(days.includes(d.getDay()))result.push(toDateStr(d));
+    d.setDate(d.getDate()+1);
+  }
+  return result;
+}
+
 function updateGptNotice(){
   const noticeEl=document.getElementById('gpt-notice');
   if(!noticeEl)return;
   const gpt=parseInt(document.getElementById('gpt')?.value)||0;
   const cobyes=parseInt(document.getElementById('cobyes')?.value)||0;
-  const tues=getTues(
-    document.getElementById('ss').value,
-    document.getElementById('se').value
-  );
-  const weeks=tues.length;
+  const selectedDays=getSelectedDays();
   const leagueN=G.teams.filter(t=>t!==CROSSOVER).length;
-  if(gpt<1||weeks<1){noticeEl.innerHTML='';return;}
+  const nights=getGameNights(
+    document.getElementById('ss').value,
+    document.getElementById('se').value,
+    selectedDays
+  ).length;
 
-  const activeNights=weeks-cobyes;
-  const byeNights=cobyes;
-
-  // League appearances per night:
-  //   Active night: 9 (all play 6:30) + 2 (D12 DH) + 1 (coOppB D9 8:15) = 12
-  //   Bye night:    8 (4 diamonds * 2, D9 empty) + 2 (D12 DH)            = 10
-  const activeApp=12;
-  const byeApp=10;
-  const totalApp=activeNights*activeApp+byeNights*byeApp;
-  const perTeam=totalApp/leagueN;
-  const isEqual=totalApp%leagueN===0;
-
-  // CO games
-  const coGames=activeNights*2; // CO plays 6:30+8:15 on active nights only
-
-  // Colour-coded status
-  let statusHtml;
-  if(!isEqual){
-    const floor=Math.floor(perTeam);
-    const ceil=Math.ceil(perTeam);
-    const teamsAtCeil=totalApp%leagueN;
-    const teamsAtFloor=leagueN-teamsAtCeil;
-    statusHtml=`<span style="color:var(--red);font-weight:800">✗ NOT EQUAL</span> — `
-      +`${teamsAtFloor} teams get ${floor} games, ${teamsAtCeil} teams get ${ceil} games. `
-      +`Try adjusting CO bye weeks.`;
-  } else if(perTeam===gpt){
-    statusHtml=`<span style="color:var(--success,#27ae60);font-weight:800">✓ EQUAL — ${gpt} games each</span>`;
-  } else {
-    statusHtml=`<span style="color:var(--warning,#e67e22);font-weight:800">⚠ Equal but ${Math.round(perTeam)} games/team</span> `
-      +`(not your target of ${gpt} — adjust bye weeks or target)`;
+  if(nights<1||selectedDays.length<1){
+    noticeEl.innerHTML=`<div class="notice" style="color:var(--muted)">Select at least one game day.</div>`;return;
   }
 
-  noticeEl.innerHTML=
-    `<div style="display:grid;gap:4px">
-      <div><strong>${weeks}</strong> Tuesdays &nbsp;·&nbsp; <strong>${activeNights}</strong> active nights &nbsp;·&nbsp; <strong>${byeNights}</strong> CO bye${byeNights!==1?'s':''} &nbsp;·&nbsp; CO plays <strong>${coGames}</strong> games</div>
-      <div>${statusHtml}</div>
-    </div>`;
+  // Diamond breakdown
+  const dhDiamonds=G.diamonds.filter(d=>d.lights&&d.id!==9);
+  const singleDiamonds=G.diamonds.filter(d=>!d.lights);
+  const dhCount=dhDiamonds.length;
+  const singleCount=singleDiamonds.length;
+
+  // Per-night game counts
+  const coGamesPerNight=2;                                  // D9 6:30 + D9 8:15
+  const lgGamesPerActiveNight=dhCount*2+singleCount+1;      // DH pairs×2 + singles + coOppA slot
+  const totalPerActiveNight=coGamesPerNight+lgGamesPerActiveNight;
+  const lgGamesPerByeNight=dhCount*2+singleCount;           // same but D9 empty
+  const totalPerByeNight=lgGamesPerByeNight;
+
+  // Team appearances per night
+  const activeApp=leagueN+dhCount*2+1;  // all 9 play 6:30 + DH swaps + coOppB
+  const byeApp=(leagueN-1)+dhCount*2;   // 8 play (1 true bye) + DH swaps
+
+  const activeNights=Math.max(0,nights-cobyes);
+  const byeNights=cobyes;
+  const totalApp=activeNights*activeApp+byeNights*byeApp;
+  const perTeam=leagueN>0?totalApp/leagueN:0;
+  const isEqual=leagueN>0&&totalApp%leagueN===0;
+
+  const totalGames=activeNights*totalPerActiveNight+byeNights*totalPerByeNight;
+  const coTotalGames=activeNights*coGamesPerNight;
+  const lgTotalGames=totalGames-coTotalGames;
+
+  // Required slots
+  const reqApp=gpt*leagueN;
+  const slotOk=reqApp<=totalApp;
+  const slotDiff=totalApp-reqApp;
+
+  // Status
+  let statusHtml,statusBg;
+  if(!isEqual){
+    const fl=Math.floor(perTeam),ce=Math.ceil(perTeam),atCe=totalApp%leagueN;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ NOT EQUAL</span> — ${leagueN-atCe} teams get ${fl} games, ${atCe} teams get ${ce} games. Adjust CO bye weeks or season length.`;
+    statusBg='#fff0f0';
+  } else if(isEqual&&Math.round(perTeam)===gpt){
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ EQUAL — ${gpt} games each</span>`;
+    statusBg='#edf7f0';
+  } else {
+    statusHtml=`<span style="color:var(--warning);font-weight:800">⚠ Equal but ${Math.round(perTeam)} games/team</span> — your target is ${gpt}. Adjust bye weeks or target.`;
+    statusBg='#fff8ee';
+  }
+
+  const slotRow=slotOk
+    ?`Capacity <strong>${totalApp}</strong> team-slots · Target needs <strong>${reqApp}</strong> · <span style="color:#27ae60;font-weight:700">+${slotDiff} spare ✓</span>`
+    :`Target needs <strong>${reqApp}</strong> team-slots · Only <strong>${totalApp}</strong> available · <span style="color:var(--red);font-weight:700">short by ${-slotDiff}</span>`;
+
+  noticeEl.innerHTML=`
+  <div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;margin-top:4px">
+    <div style="background:var(--navy);color:#fff;padding:7px 12px;font-weight:800;font-size:11px;letter-spacing:0.8px;text-transform:uppercase">📊 Schedule Calculator</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
+      <div style="padding:8px 12px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Game Nights</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nights}</div>
+        <div style="font-size:11px;color:var(--muted)">${activeNights} active · ${byeNights} CO bye${byeNights!==1?'s':''}</div>
+      </div>
+      <div style="padding:8px 12px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${totalGames}</div>
+        <div style="font-size:11px;color:var(--muted)">CO: ${coTotalGames} · League: ${lgTotalGames}</div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Active Night</div>
+      <div style="display:grid;gap:3px">
+        <div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH (6:30 + 8:15)</span><strong>2 games</strong></div>
+        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(d.name)} — 💡 DH (6:30 + 8:15 swap)</span><strong>2 games</strong></div>`).join('')}
+        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>${esc(d.name)} — 🌙 Single (6:30 only)</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalPerActiveNight} games (${coGamesPerNight} CO + ${lgGamesPerActiveNight} league)</span></div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Team Appearances</div>
+      <div style="display:grid;gap:2px;font-size:12px">
+        <div style="display:flex;justify-content:space-between"><span>${activeNights} active nights × ${activeApp}/night</span><strong>${activeNights*activeApp}</strong></div>
+        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>${byeNights} bye nights × ${byeApp}/night</span><strong style="color:var(--text)">${byeNights*byeApp}</strong></div>
+        <div style="display:flex;justify-content:space-between;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total ÷ ${leagueN} teams</span><span style="color:${isEqual?'#27ae60':'var(--red)'}">${isEqual?Math.round(perTeam)+' each ✓':perTeam.toFixed(2)+' ✗'}</span></div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px">${slotRow}</div>
+    <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
+  </div>`;
 }
 
-// Update notice on any input change
 document.addEventListener('DOMContentLoaded',()=>{
-  ['gpt','cobyes','ss','se'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.addEventListener('input',updateGptNotice);
-  });
+  initDayChecks();
   updateGptNotice();
 });
 
 // ── SCHEDULE GENERATION ───────────────────────────────────────────────────────
 function getTues(startStr,endStr){
-  const[sy,sm,sd]=startStr.split('-').map(Number);
-  const[ey,em,ed]=endStr.split('-').map(Number);
-  const d=new Date(sy,sm-1,sd);
-  const end=new Date(ey,em-1,ed);
-  while(d.getDay()!==2)d.setDate(d.getDate()+1);
-  const days=[];
-  while(d<=end){days.push(toDateStr(d));d.setDate(d.getDate()+7);}
-  return days;
+  // Legacy wrapper — uses selected days
+  return getGameNights(startStr,endStr,getSelectedDays());
 }
 
 function genSched(){
