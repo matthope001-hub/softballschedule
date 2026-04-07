@@ -568,6 +568,13 @@ input:focus {
     </div>
 
     <div class="card">
+      <div class="card-title">Manage Diamonds</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Add, rename, or remove diamonds. Toggle lights on/off. Changes affect the schedule generator.</div>
+      <div id="diamond-list" style="display:grid;gap:8px;margin-bottom:12px"></div>
+      <button class="btn" onclick="addDiamond()" style="font-size:13px">+ Add Diamond</button>
+    </div>
+
+    <div class="card">
       <div class="card-title">Season Settings</div>
       <div class="row">
         <div class="field">
@@ -579,11 +586,17 @@ input:focus {
           <input type="date" id="se" value="2026-09-29" />
         </div>
       </div>
-      <div class="notice">
-        6:30 PM: D9=CrossOver (home) vs Team A · D13, D14, D12, D5 = League · All 9 teams play<br>
-        8:15 PM: D9=Team B (home) vs CrossOver (away) · D12=Fresh league pair<br>
-        All 5 diamonds every week · 20 weeks · Every league team plays exactly 22 games
+      <div class="row">
+        <div class="field">
+          <label>Games Per Team (league only, excl. CrossOver)</label>
+          <input type="number" id="gpt" value="22" min="1" max="60" placeholder="e.g. 22" />
+        </div>
+        <div class="field">
+          <label>CrossOver Bye Weeks</label>
+          <input type="number" id="cobyes" value="0" min="0" max="10" placeholder="e.g. 3" />
+        </div>
       </div>
+      <div class="notice" id="gpt-notice" style="margin-bottom:1rem"></div>
       <button class="btn btn-primary" onclick="genSched()">⚾ Generate Schedule</button>
     </div>
 
@@ -592,68 +605,26 @@ input:focus {
 
       <div style="margin-bottom:1.1rem">
         <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏟 Diamonds</div>
-        <div style="display:grid;gap:6px">
-          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
-            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--red);background:#fff0ee;border:1px solid #f5c8c4;border-radius:4px;padding:2px 6px;text-align:center">D9</span>
-            <span style="color:var(--text)"><strong>CrossOver doubleheader only.</strong> 6:30 PM: CrossOver (home) vs Team A. 8:15 PM: Team B (home) vs CrossOver (away). Different opponents each slot. Used every week.</span>
-          </div>
-          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
-            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--navy);background:#e8edf7;border:1px solid #c8d0e8;border-radius:4px;padding:2px 6px;text-align:center">D12</span>
-            <span style="color:var(--text)"><strong>League doubleheader.</strong> 6:30 PM: league game. 8:15 PM: fresh league pair (different teams than 6:30). Used every week.</span>
-          </div>
-          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
-            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--muted);background:var(--gray1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;text-align:center">D5</span>
-            <span style="color:var(--text)"><strong>Single league game at 6:30 PM only.</strong> No 8:15 PM game ever. Has lights. Used every week.</span>
-          </div>
-          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
-            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--warning);background:#fdf0e8;border:1px solid #f5d5b8;border-radius:4px;padding:2px 6px;text-align:center">D13</span>
-            <span style="color:var(--text)"><strong>Single league game at 6:30 PM only.</strong> No lights — game must finish before dark. Used every week.</span>
-          </div>
-          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
-            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--warning);background:#fdf0e8;border:1px solid #f5d5b8;border-radius:4px;padding:2px 6px;text-align:center">D14</span>
-            <span style="color:var(--text)"><strong>Single league game at 6:30 PM only.</strong> No lights — game must finish before dark. Used every week.</span>
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-bottom:1.1rem">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">📅 Tuesday Night Structure</div>
-        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
-          <div style="display:grid;grid-template-columns:70px 1fr;gap:8px"><span style="font-family:'Roboto Mono',monospace;font-size:11px;color:var(--red);font-weight:600;padding-top:2px">6:30 PM</span><span>D9 = CrossOver (home) vs Team A &nbsp;·&nbsp; D13, D14, D12, D5 = 4 league games</span></div>
-          <div style="display:grid;grid-template-columns:70px 1fr;gap:8px"><span style="font-family:'Roboto Mono',monospace;font-size:11px;color:var(--muted);font-weight:600;padding-top:2px">8:15 PM</span><span>D9 = Team B (home) vs CrossOver (away) &nbsp;·&nbsp; D12 = fresh league pair</span></div>
-          <div style="margin-top:4px;padding:8px 10px;background:var(--gray1);border-radius:6px;border-left:3px solid var(--success);font-size:12px;color:var(--muted)">All 5 diamonds run every Tuesday &nbsp;·&nbsp; All 9 league teams play at 6:30 (zero idle) &nbsp;·&nbsp; 5 league games per night</div>
-        </div>
-      </div>
-
-      <div style="margin-bottom:1.1rem">
-        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">⚖️ Game Balance</div>
-        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
-          <div>Every league team plays <strong>exactly 22 games</strong> — no exceptions.</div>
-          <div>Pool: 27 pairs at 3× + 9 pairs at 2× = 99 league games total.</div>
-          <div>Each team faces 6 opponents 3 times and 2 opponents 2 times.</div>
-          <div>CrossOver plays both slots every week (40 games total across the season).</div>
-        </div>
+        <div id="rules-diamonds" style="display:grid;gap:6px"></div>
       </div>
 
       <div style="margin-bottom:1.1rem">
         <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏆 Standings</div>
         <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
-          <div>CrossOver is <strong>excluded from standings</strong> — they are a guest team.</div>
-          <div>Results vs CrossOver <strong>do count</strong> for league teams' W/L/T records.</div>
-          <div>Run differential is <strong>capped at +7</strong> (e.g. a 12–1 win counts as 8–1).</div>
+          <div>CrossOver is <strong>excluded from standings</strong> — guest team only.</div>
+          <div>Results vs CrossOver <strong>count</strong> for league teams' W/L/T records.</div>
+          <div>Run differential <strong>capped at +7</strong> per game.</div>
           <div>Ranked by points (W=2, T=1, L=0), tiebroken by run differential.</div>
         </div>
       </div>
 
       <div>
         <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">📍 Venue</div>
-        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
-          <div>Turner Park, Hamilton &nbsp;·&nbsp; Tuesday nights &nbsp;·&nbsp; May 19 – Sep 29, 2026 (20 weeks)</div>
-          <div>Lit diamonds: D5, D9, D12 &nbsp;·&nbsp; No lights: D13, D14 (6:30 PM games only)</div>
-        </div>
+        <div style="font-size:13px;color:var(--text)">Turner Park, Hamilton · Tuesday nights</div>
       </div>
     </div>
   </div>
+
 
   <div id="tab-schedule" class="section">
     <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
@@ -679,19 +650,31 @@ input:focus {
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────────────────────
-const S630=[{id:5,l:true},{id:9,l:true},{id:12,l:true},{id:13,l:false},{id:14,l:false}];
-const S815=[{id:9,l:true},{id:12,l:true}];
 const CAP=7;
 const MONTH_NAMES=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
-const DIAMONDS=[5,9,12,13,14];
+// DIAMONDS is now dynamic — always use getDiamondIds() or G.diamonds
+function DIAMONDS(){ return getDiamondIds(); }
 
 let G={
   teams:['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers',
          'One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'],
+  diamonds:[
+    {id:5, name:'Diamond 5',  lights:true},
+    {id:9, name:'Diamond 9',  lights:true},
+    {id:12,name:'Diamond 12', lights:true},
+    {id:13,name:'Diamond 13', lights:false},
+    {id:14,name:'Diamond 14', lights:false}
+  ],
   sched:[],scores:{}
 };
-const CROSSOVER='CrossOver'; // guest team — plays every week, not in our standings
+const CROSSOVER='CrossOver';
 let hc={};
+
+// Derived diamond helpers — always read from G.diamonds
+function getDiamonds(){ return G.diamonds; }
+function getDiamondIds(){ return G.diamonds.map(d=>d.id); }
+function getDiamondName(id){ const d=G.diamonds.find(d=>d.id===id); return d?d.name:'D'+id; }
+function isDiamondLit(id){ const d=G.diamonds.find(d=>d.id===id); return d?d.lights:false; }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -755,6 +738,125 @@ function renderTeams(){
 }
 renderTeams();
 
+// ── DIAMOND MANAGEMENT ────────────────────────────────────────────────────────
+function addDiamond(){
+  const newId=Math.max(0,...G.diamonds.map(d=>d.id))+1;
+  G.diamonds.push({id:newId,name:'Diamond '+newId,lights:true});
+  renderDiamonds();
+}
+function removeDiamond(id){
+  if(G.diamonds.length<=1){alert('Need at least one diamond.');return;}
+  G.diamonds=G.diamonds.filter(d=>d.id!==id);
+  renderDiamonds();
+}
+function updateDiamondName(id,name){
+  const d=G.diamonds.find(d=>d.id===id);
+  if(d) d.name=name;
+}
+function toggleDiamondLights(id){
+  const d=G.diamonds.find(d=>d.id===id);
+  if(d){d.lights=!d.lights;renderDiamonds();}
+}
+function renderRulesDiamonds(){
+  const el=document.getElementById('rules-diamonds');
+  if(!el)return;
+  el.innerHTML=G.diamonds.map(d=>{
+    const dh=d.lights;
+    const color=dh?'var(--red)':'var(--warning)';
+    const bg=dh?'#fff0ee':'#fdf0e8';
+    const border=dh?'#f5c8c4':'#f5d5b8';
+    const label=d.name.length>8?d.name.slice(0,8)+'…':d.name;
+    const rule=dh
+      ?`<strong>Doubleheader.</strong> 6:30 PM game + 8:15 PM same pair H/A swapped. Lights.`
+      :`<strong>Single game 6:30 PM only.</strong> No lights — must finish before dark.`;
+    return`<div style="display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:start;font-size:13px">
+      <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:${color};background:${bg};border:1px solid ${border};border-radius:4px;padding:2px 6px;text-align:center;font-size:11px" title="${esc(d.name)}">${esc(label)}</span>
+      <span>${rule}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderDiamonds(){
+  const el=document.getElementById('diamond-list');
+  if(!el)return;
+  el.innerHTML=G.diamonds.map(d=>`
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 10px;background:var(--gray1);border:1.5px solid var(--border);border-radius:6px">
+      <input type="text" value="${esc(d.name)}" placeholder="Diamond name"
+        onchange="updateDiamondName(${d.id},this.value)"
+        style="font-size:13px;font-weight:700;background:var(--white);border:1.5px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-family:'Nunito',sans-serif;outline:none" />
+      <button onclick="toggleDiamondLights(${d.id})"
+        style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:'Nunito',sans-serif">
+        ${d.lights?'💡 Lights':'🌙 No Lights'}
+      </button>
+      <button onclick="removeDiamond(${d.id})"
+        style="padding:6px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:16px;cursor:pointer;line-height:1;font-family:'Nunito',sans-serif"
+        title="Remove diamond">×</button>
+    </div>`).join('');
+  renderRulesDiamonds();
+}
+renderDiamonds();
+
+function updateGptNotice(){
+  const noticeEl=document.getElementById('gpt-notice');
+  if(!noticeEl)return;
+  const gpt=parseInt(document.getElementById('gpt')?.value)||0;
+  const cobyes=parseInt(document.getElementById('cobyes')?.value)||0;
+  const tues=getTues(
+    document.getElementById('ss').value,
+    document.getElementById('se').value
+  );
+  const weeks=tues.length;
+  const leagueN=G.teams.filter(t=>t!==CROSSOVER).length;
+  if(gpt<1||weeks<1){noticeEl.innerHTML='';return;}
+
+  const activeNights=weeks-cobyes;
+  const byeNights=cobyes;
+
+  // League appearances per night:
+  //   Active night: 9 (all play 6:30) + 2 (D12 DH) + 1 (coOppB D9 8:15) = 12
+  //   Bye night:    8 (4 diamonds * 2, D9 empty) + 2 (D12 DH)            = 10
+  const activeApp=12;
+  const byeApp=10;
+  const totalApp=activeNights*activeApp+byeNights*byeApp;
+  const perTeam=totalApp/leagueN;
+  const isEqual=totalApp%leagueN===0;
+
+  // CO games
+  const coGames=activeNights*2; // CO plays 6:30+8:15 on active nights only
+
+  // Colour-coded status
+  let statusHtml;
+  if(!isEqual){
+    const floor=Math.floor(perTeam);
+    const ceil=Math.ceil(perTeam);
+    const teamsAtCeil=totalApp%leagueN;
+    const teamsAtFloor=leagueN-teamsAtCeil;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ NOT EQUAL</span> — `
+      +`${teamsAtFloor} teams get ${floor} games, ${teamsAtCeil} teams get ${ceil} games. `
+      +`Try adjusting CO bye weeks.`;
+  } else if(perTeam===gpt){
+    statusHtml=`<span style="color:var(--success,#27ae60);font-weight:800">✓ EQUAL — ${gpt} games each</span>`;
+  } else {
+    statusHtml=`<span style="color:var(--warning,#e67e22);font-weight:800">⚠ Equal but ${Math.round(perTeam)} games/team</span> `
+      +`(not your target of ${gpt} — adjust bye weeks or target)`;
+  }
+
+  noticeEl.innerHTML=
+    `<div style="display:grid;gap:4px">
+      <div><strong>${weeks}</strong> Tuesdays &nbsp;·&nbsp; <strong>${activeNights}</strong> active nights &nbsp;·&nbsp; <strong>${byeNights}</strong> CO bye${byeNights!==1?'s':''} &nbsp;·&nbsp; CO plays <strong>${coGames}</strong> games</div>
+      <div>${statusHtml}</div>
+    </div>`;
+}
+
+// Update notice on any input change
+document.addEventListener('DOMContentLoaded',()=>{
+  ['gpt','cobyes','ss','se'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('input',updateGptNotice);
+  });
+  updateGptNotice();
+});
+
 // ── SCHEDULE GENERATION ───────────────────────────────────────────────────────
 function getTues(startStr,endStr){
   const[sy,sm,sd]=startStr.split('-').map(Number);
@@ -768,110 +870,229 @@ function getTues(startStr,endStr){
 }
 
 function genSched(){
-  const n=G.teams.length;
-  if(n<4){alert('Need at least 4 teams to generate a schedule');return;}
+  if(G.teams.length!==10){alert('Need exactly 10 teams including CrossOver. Currently: '+G.teams.length);return;}
   const startStr=document.getElementById('ss').value;
   const endStr=document.getElementById('se').value;
   const tues=getTues(startStr,endStr);
   if(!tues.length){alert('No Tuesdays found in that date range');return;}
 
+  const TARGET=parseInt(document.getElementById('gpt').value)||22;
+  const CO_BYES=Math.max(0,parseInt(document.getElementById('cobyes').value)||0);
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+  const n=leagueTeams.length; // 9
+  const nights=tues.length;   // 20
 
-  // Target: every league team plays exactly 22 games
-  // Pool: 27 pairs at 3x + 9 pairs at 2x = 81+18 = 99 league games
-  // Each team: 6 opponents at 3x + 2 opponents at 2x = 18+4 = 22 games exactly
-  // Season: 20 weeks, 5 league games/night × 19 nights = 95, night 20 = 4 (pool exhausted)
-  // Total: 99 games = 22 per team ✓
+  if(CO_BYES>=nights){alert('CO bye weeks cannot equal or exceed the total number of weeks.');return;}
 
+  // ── VERIFY EQUAL GAMES ────────────────────────────────────────────────────
+  // Active nights: CO plays D9 both slots. All 5 diamonds run.
+  //   League appearances: 9 (6:30) + 2 (D12 DH) + 1 (coOppB D9 8:15) = 12
+  // Bye nights: CO doesn't play. D9 empty. D12/D5/D13/D14 run.
+  //   League appearances: 8 (4 diamonds * 2 teams) + 2 (D12 DH) = 10
+  const activeNights=nights-CO_BYES;
+  const byeNights=CO_BYES;
+  const totalApp=activeNights*12+byeNights*10;
+  if(totalApp%n!==0){
+    const floor=Math.floor(totalApp/n);
+    const ceil=Math.ceil(totalApp/n);
+    const atCeil=totalApp%n;
+    const msg=`With ${nights} weeks and ${CO_BYES} CO bye week(s), games per team won't be equal.\n`
+      +`${n-atCeil} teams would get ${floor} games, ${atCeil} teams would get ${ceil} games.\n\n`
+      +`Try ${CO_BYES+1} or ${CO_BYES+2} bye weeks, or adjust the season dates.`;
+    if(!confirm(msg+'\n\nGenerate anyway?'))return;
+  }
+
+  // ── DIAMOND CONFIG ────────────────────────────────────────────────────────
+  const singleOnlyIds=G.diamonds.filter(d=>!d.lights).map(d=>d.id);  // D13, D14
+  const d12id=G.diamonds.find(d=>d.lights&&d.id!==9)?.id||12;        // D12 (first lit non-D9)
+  const singleLitIds=G.diamonds.filter(d=>d.lights&&d.id!==9&&d.id!==d12id).map(d=>d.id); // D5
+
+  // ── SPREAD BYE NIGHTS EVENLY ──────────────────────────────────────────────
+  const byeNightSet=new Set();
+  if(byeNights>0){
+    const step=nights/byeNights;
+    for(let b=0;b<byeNights;b++){
+      byeNightSet.add(Math.min(Math.round(b*step+step*0.5),nights-1));
+    }
+  }
+
+  // ── BUILD LEAGUE PAIR POOL ────────────────────────────────────────────────
+  // All 9 teams play every night (active or bye) — no true idle.
+  // Active nights: coOppA plays D9 (CO game). Others on D12/D5/D13/D14.
+  // Bye nights: all 9 on D12/D5/D13/D14 — but only 4 diamonds = 8 slots.
+  //   → 1 team has a true league bye on CO bye nights (rotated fairly).
+  //
+  // League game appearances:
+  //   Active: 4 league pairs at 6:30 + coOppA on D9 + D12 DH + coOppB = counted above
+  //   Bye: 4 league pairs at 6:30 only (D9 empty, 1 team true bye) + D12 DH
+  //
+  // Pool: build balanced so each team gets equal total appearances.
+  // Total league appearances = totalApp (already calculated).
+  // Each team: totalApp/n appearances.
+  // League GAME appearances (not CO): totalApp/n - co_appearances_per_team.
+  // CO appearances per team:
+  //   coOppA: activeNights/n ≈ (not always integer — balanced via pool)
+  //   coOppB: activeNights/n ≈ same
+  //   Together: activeNights*2/n per team (if perfectly balanced)
+  // League game appearances per team: totalApp/n - activeNights*2/n
+  //   = (totalApp - activeNights*2)/n
+  //   = (byeNights*10 + activeNights*10)/n  [since 12-2=10 league per active night]
+  //   Wait: active night league appearances = 12 - 2(CO) = 10 per night.
+  //   Bye night league appearances = 10 per night.
+  //   Total league = (activeNights+byeNights)*10 = nights*10.
+  // League games = nights*10/2 = nights*5. Per team = nights*10/n.
+
+  const leagueAppPerTeam=nights*10/n;  // must be integer for equal
+  const lgGamesTotal=Math.round(nights*10/2); // nights*5
+  const lgEachTarget=Math.round(leagueAppPerTeam); // league game appearances per team
+
+  // Build balanced pool: each of n teams appears exactly lgEachTarget times
   const allPairs=[];
-  for(let i=0;i<leagueTeams.length;i++)
-    for(let j=i+1;j<leagueTeams.length;j++)
-      allPairs.push([leagueTeams[i],leagueTeams[j]]);
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)allPairs.push([leagueTeams[i],leagueTeams[j]]);
 
-  // Assign exactly 9 pairs as 2x — each team gets exactly 2 pairs at 2x
-  const twoxCount={};leagueTeams.forEach(t=>twoxCount[t]=0);
-  const is2x=new Set();
-  for(const[t1,t2] of shuffle([...allPairs])){
-    if(is2x.size>=9)break;
-    if(twoxCount[t1]<2&&twoxCount[t2]<2){
-      is2x.add(t1+'||'+t2);twoxCount[t1]++;twoxCount[t2]++;
+  // Use structured round-robin to guarantee exact balance
+  function makeBalancedPool(targetEach){
+    const fullRR=Math.floor(targetEach/(n-1));
+    const remainder=targetEach%(n-1);
+    const pool=[];
+    for(let r=0;r<fullRR;r++) pool.push(...allPairs);
+    if(remainder===0) return pool;
+    // Pick pairs for remainder appearances per team
+    const extraGames=Math.round(n*remainder/2);
+    for(let attempt=0;attempt<300;attempt++){
+      const deg={};leagueTeams.forEach(t=>deg[t]=remainder);
+      const extra=[];
+      const cands=shuffle([...allPairs]);
+      for(const [t1,t2] of cands){
+        if(deg[t1]>0&&deg[t2]>0){extra.push([t1,t2]);deg[t1]--;deg[t2]--;}
+      }
+      if(extra.length===extraGames){pool.push(...extra);return pool;}
     }
-  }
-  let pool=[];
-  for(const[t1,t2] of allPairs){
-    const reps=is2x.has(t1+'||'+t2)?2:3;
-    for(let k=0;k<reps;k++) pool.push([t1,t2]);
-  }
-  pool=shuffle(pool);
-
-  // CO opponent tracking — 36 CO games / 9 teams = exactly 4 each
-  const coCount={};leagueTeams.forEach(t=>coCount[t]=0);
-  function pickCO(excl){
-    const c=leagueTeams.filter(t=>!excl.includes(t));
-    c.sort((a,b)=>coCount[a]-coCount[b]);
-    const min=coCount[c[0]];
-    const tied=c.filter(t=>coCount[t]===min);
-    return tied[Math.floor(Math.random()*tied.length)];
+    return pool; // best effort
   }
 
-  // Pick N non-overlapping pairs from pool excluding given teams
-  function pickPairs(count,excl){
-    const excSet=new Set([CROSSOVER,...excl]);
-    const chosen=[];const used=new Set();
-    for(let pi=0;pi<pool.length&&chosen.length<count;pi++){
-      if(usedIdx.has(pi))continue;
-      const[t1,t2]=pool[pi];
-      if(excSet.has(t1)||excSet.has(t2))continue;
-      if(used.has(t1)||used.has(t2))continue;
-      chosen.push({pi,t1,t2});used.add(t1);used.add(t2);
-    }
-    return chosen;
-  }
+  const lgPool=shuffle(makeBalancedPool(lgEachTarget));
 
-  // Commit a pair to the schedule
-  function placePair(pair,diamond,time,crossover=false){
-    const[home,away]=pickHA(pair.t1,pair.t2);
-    hc[home]++;usedIdx.add(pair.pi);
-    sched.push({id:`g${sched.length}`,date:dateStr,time,diamond:diamond.id,lights:diamond.l,home,away,bye:'',crossover});
-  }
+  // ── PRE-ASSIGN CO OPPONENTS ───────────────────────────────────────────────
+  // coOppA per active night: each team faces CO at 6:30 equally
+  // coOppB per active night: each team faces CO at 8:15 equally
+  // activeNights*2 CO slots / n teams — may not be exactly equal; distribute as evenly as possible
+  const coOppAPool=[];
+  const coOppBPool=[];
+  const coEachBase=Math.floor(activeNights/n);
+  const coEachExtra=activeNights%n;
+  leagueTeams.forEach((t,i)=>{
+    const cnt=coEachBase+(i<coEachExtra?1:0);
+    for(let k=0;k<cnt;k++){coOppAPool.push(t);coOppBPool.push(t);}
+  });
+  shuffle(coOppAPool);shuffle(coOppBPool);
 
+  // ── BUILD SCHEDULE NIGHT BY NIGHT ────────────────────────────────────────
   const sched=[];
-  const usedIdx=new Set();
   hc={};G.teams.forEach(t=>hc[t]=0);
-  let dateStr='';
+  const lgRemaining=[...lgPool];
+  const coARemaining=[...coOppAPool];
+  const coBRemaining=[...coOppBPool];
 
-  const D9={id:9,l:true};
-  const D12={id:12,l:true};
-  const D5={id:5,l:true};
-  const D13={id:13,l:false};
-  const D14={id:14,l:false};
+  // Track true-bye rotation on CO bye nights (1 team sits out each bye night)
+  const trueBye={};leagueTeams.forEach(t=>trueBye[t]=0);
 
-  for(let ti=0;ti<tues.length;ti++){
-    if(usedIdx.size>=pool.length)break;
-    dateStr=tues[ti];
+  for(let ti=0;ti<nights;ti++){
+    const dateStr=tues[ti];
+    const isByeNight=byeNightSet.has(ti);
 
-    // Pick CO opponents — spread evenly (9 teams * 2 slots * 18 nights / 18 each = 4 per team)
-    const coOppA=pickCO([]);coCount[coOppA]++;
-    const coOppB=pickCO([coOppA]);coCount[coOppB]++;
+    if(isByeNight){
+      // ── CO BYE NIGHT ──────────────────────────────────────────────────────
+      // D9 empty. D12/D5/D13/D14 run. 4 diamonds = 8 team slots. 1 team has true bye.
+      // Rotate true bye so each team sits out equally across bye nights.
+      const byeTeam=leagueTeams.reduce((a,b)=>trueBye[a]<=trueBye[b]?a:b);
+      trueBye[byeTeam]++;
 
-    // 6:30 PM ─────────────────────────────────────────────────────────────────
-    // D9: CrossOver (home) vs coOppA
-    const[coHome,coAway]=pickHA(CROSSOVER,coOppA);
-    hc[coHome]++;
-    sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',diamond:9,lights:true,home:coHome,away:coAway,bye:'',crossover:true});
+      const usedByeNight=new Set([byeTeam]);
+      const singleOnly=new Set();
+      const dmOrder=[d12id,...singleLitIds,...singleOnlyIds];
+      let d12pair=null;
 
-    // D13, D14, D12, D5: 4 league games — all 8 remaining league teams play
-    const pairs630=pickPairs(4,[coOppA]);
-    [D13,D14,D12,D5].forEach((dm,i)=>{if(pairs630[i])placePair(pairs630[i],dm,'6:30 PM');});
+      for(const dmId of dmOrder){
+        if(usedByeNight.size>=9)break; // all placed
+        const dm=G.diamonds.find(d=>d.id===dmId);
+        for(let pi=0;pi<lgRemaining.length;pi++){
+          const[t1,t2]=lgRemaining[pi];
+          if(!usedByeNight.has(t1)&&!usedByeNight.has(t2)){
+            lgRemaining.splice(pi,1);
+            const[home,away]=pickHA(t1,t2);
+            hc[home]++;
+            sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',
+              diamond:dmId,lights:dm?.lights||false,home,away,bye:byeTeam,crossover:false});
+            usedByeNight.add(t1);usedByeNight.add(t2);
+            if(!dm?.lights){singleOnly.add(t1);singleOnly.add(t2);}
+            if(dmId===d12id)d12pair={t1,t2,home,away};
+            break;
+          }
+        }
+      }
+      // D12 DH on bye night
+      if(d12pair&&!singleOnly.has(d12pair.t1)&&!singleOnly.has(d12pair.t2)){
+        hc[d12pair.away]++;
+        sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',
+          diamond:d12id,lights:true,home:d12pair.away,away:d12pair.home,bye:byeTeam,crossover:false});
+      }
 
-    // 8:15 PM ─────────────────────────────────────────────────────────────────
-    // D9: coOppB (home) vs CrossOver (away)
-    hc[coOppB]++;
-    sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',diamond:9,lights:true,home:coOppB,away:CROSSOVER,bye:'',crossover:true});
+    } else {
+      // ── ACTIVE NIGHT ──────────────────────────────────────────────────────
+      // D9: CO HOME at 6:30, CO AWAY at 8:15. D12 DH. D5/D13/D14 single.
+      const coOppA=coARemaining.length>0?coARemaining.shift():leagueTeams[ti%n];
+      const usedActive=new Set([CROSSOVER,coOppA]);
+      const singleOnly=new Set();
+      const dmOrder=[d12id,...singleLitIds,...singleOnlyIds];
+      let d12pair=null;
 
-    // D12: fresh league pair (not coOppB)
-    const d12p=pickPairs(1,[coOppB]);
-    if(d12p.length) placePair(d12p[0],D12,'8:15 PM');
+      // D9 6:30: CO HOME vs coOppA AWAY
+      hc[CROSSOVER]++;
+      sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',
+        diamond:9,lights:true,home:CROSSOVER,away:coOppA,bye:'',crossover:true});
+
+      // League games at 6:30
+      for(const dmId of dmOrder){
+        const dm=G.diamonds.find(d=>d.id===dmId);
+        for(let pi=0;pi<lgRemaining.length;pi++){
+          const[t1,t2]=lgRemaining[pi];
+          if(!usedActive.has(t1)&&!usedActive.has(t2)){
+            lgRemaining.splice(pi,1);
+            const[home,away]=pickHA(t1,t2);
+            hc[home]++;
+            sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',
+              diamond:dmId,lights:dm?.lights||false,home,away,bye:'',crossover:false});
+            usedActive.add(t1);usedActive.add(t2);
+            if(!dm?.lights){singleOnly.add(t1);singleOnly.add(t2);}
+            if(dmId===d12id)d12pair={t1,t2,home,away};
+            break;
+          }
+        }
+      }
+
+      // D9 8:15: coOppB HOME vs CO AWAY (must not be D13/D14 team)
+      let coOppB=null;
+      for(let i=0;i<coBRemaining.length;i++){
+        if(!singleOnly.has(coBRemaining[i])){
+          coOppB=coBRemaining.splice(i,1)[0];break;
+        }
+      }
+      if(!coOppB){
+        const el=leagueTeams.filter(t=>!singleOnly.has(t));
+        coOppB=el[Math.floor(Math.random()*el.length)]||leagueTeams[0];
+      }
+      hc[coOppB]++;
+      sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',
+        diamond:9,lights:true,home:coOppB,away:CROSSOVER,bye:'',crossover:true});
+
+      // D12 8:15: DH swap
+      if(d12pair&&!singleOnly.has(d12pair.t1)&&!singleOnly.has(d12pair.t2)){
+        hc[d12pair.away]++;
+        sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',
+          diamond:d12id,lights:true,home:d12pair.away,away:d12pair.home,bye:'',crossover:false});
+      }
+    }
   }
 
   G.sched=sched;G.scores={};
@@ -929,34 +1150,35 @@ function buildSchedInner(dates,isScore){
     // Work out which diamonds are open at each time slot
     const usedAt630=new Set(games.filter(g=>g.time==='6:30 PM').map(g=>g.diamond));
     const usedAt815=new Set(games.filter(g=>g.time==='8:15 PM').map(g=>g.diamond));
-    const allD=[5,9,12,13,14];
+    const allD=getDiamondIds();
+    const litD=G.diamonds.filter(d=>d.lights).map(d=>d.id);
     const openAt630=allD.filter(d=>!usedAt630.has(d));
-    const openAt815=[9,12].filter(d=>!usedAt815.has(d)); // only lit diamonds at 8:15
+    const openAt815=litD.filter(d=>!usedAt815.has(d)); // only lit diamonds can run 8:15
 
     const early=games.filter(g=>g.time==='6:30 PM');
     const late=games.filter(g=>g.time==='8:15 PM');
 
     if(early.length){
       inner+=`<div class="slot-divider">// 6:30 PM`;
-      if(openAt630.length) inner+=` &nbsp;·&nbsp; <span style="color:var(--success,#27AE60)">OPEN: ${openAt630.map(d=>'D'+d).join(', ')}</span>`;
+      if(openAt630.length) inner+=` &nbsp;·&nbsp; <span style="color:var(--success,#27AE60)">OPEN: ${openAt630.map(d=>getDiamondName(d)).join(', ')}</span>`;
       inner+=`</div>`;
       for(const g of early){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const cobadge=isCO?`<span class="cobadge">CROSSOVER</span>`:'';
         if(isScore){
           const sc=G.scores[g.id]||{h:'',a:''};
-          const badge=g.lights?`<span class="dbadge">D${g.diamond}</span>`:`<span class="dbadge nl">D${g.diamond}</span>`;
+          const badge=g.lights?`<span class="dbadge">${getDiamondName(g.diamond)}</span>`:`<span class="dbadge nl">${getDiamondName(g.diamond)}</span>`;
           inner+=`<div class="score-row${isCO?' co-game':''}"><span class="time-badge">6:30 PM</span><span class="team-name">${esc(g.home)}<span class="htag">H</span>${cobadge}</span><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="0" onchange="saveScore('${g.id}')"/><span class="vs">–</span><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="0" onchange="saveScore('${g.id}')"/><span class="team-name">${esc(g.away)}</span>${badge}</div>`;
         } else {
           const sc=G.scores[g.id];const res=sc?`${sc.h}–${sc.a}`:'—';
-          const badge=g.lights?`<span class="dbadge">D${g.diamond} &#9788;</span>`:`<span class="dbadge nl">D${g.diamond}</span>`;
+          const badge=g.lights?`<span class="dbadge">${getDiamondName(g.diamond)} &#9788;</span>`:`<span class="dbadge nl">${getDiamondName(g.diamond)}</span>`;
           inner+=`<div class="game-row"><span class="time-badge">6:30 PM</span><span class="team-name">${esc(g.home)}<span class="htag">H</span>${cobadge}</span><span class="vs">VS</span><span class="team-name">${esc(g.away)}</span>${badge}<span class="score-txt">${res}</span></div>`;
         }
       }
     }
     if(late.length){
       inner+=`<div class="slot-divider" style="margin-top:8px">// 8:15 PM`;
-      if(openAt815.length) inner+=` &nbsp;·&nbsp; <span style="color:var(--success,#27AE60)">OPEN: ${openAt815.map(d=>'D'+d).join(', ')}</span>`;
+      if(openAt815.length) inner+=` &nbsp;·&nbsp; <span style="color:var(--success,#27AE60)">OPEN: ${openAt815.map(d=>getDiamondName(d)).join(', ')}</span>`;
       inner+=`</div>`;
       for(const g of late){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
@@ -1059,69 +1281,89 @@ function renderStandings(){
 function renderStats(){
   const el=document.getElementById('sta');
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to view stats</div>';return;}
-  const teams=G.teams;
+
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER); // for standings/h2h
+  const allTeams=G.teams; // for game count table
   const ts={};
-  for(const t of teams){ts[t]={sched:0,home:0,away:0,byes:0,dh:0,fields:{}};DIAMONDS.forEach(d=>ts[t].fields[d]=0);}
-  const h2h={};
-  for(const t of teams){h2h[t]={};for(const u of teams)h2h[t][u]=0;}
-  const dTotal={};DIAMONDS.forEach(d=>dTotal[d]=0);
-  const nightCount={};const nightBye={};
-  for(const g of G.sched){
-    const dk=g.date;
-    if(g.bye&&!nightBye[dk])nightBye[dk]=g.bye;
-    nightCount[dk+'|'+g.home]=(nightCount[dk+'|'+g.home]||0)+1;
-    nightCount[dk+'|'+g.away]=(nightCount[dk+'|'+g.away]||0)+1;
-    ts[g.home].sched++;ts[g.home].home++;ts[g.home].fields[g.diamond]++;
-    ts[g.away].sched++;ts[g.away].away++;ts[g.away].fields[g.diamond]++;
-    h2h[g.home][g.away]++;h2h[g.away][g.home]++;
-    dTotal[g.diamond]++;
+  for(const t of allTeams){
+    ts[t]={total:0,home:0,away:0,dh:0,fields:{}};
+    getDiamondIds().forEach(d=>ts[t].fields[d]=0);
   }
-  for(const[dk,bt]of Object.entries(nightBye))if(ts[bt])ts[bt].byes++;
-  for(const[key,cnt]of Object.entries(nightCount)){
+  const h2h={};
+  for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]=0;}
+  const dTotal={};getDiamondIds().forEach(d=>dTotal[d]=0);
+  const nightCount={};
+
+  for(const g of G.sched){
+    dTotal[g.diamond]=(dTotal[g.diamond]||0)+1;
+    if(ts[g.home]){ts[g.home].total++;ts[g.home].home++;ts[g.home].fields[g.diamond]++;}
+    if(ts[g.away]){ts[g.away].total++;ts[g.away].away++;ts[g.away].fields[g.diamond]++;}
+    // h2h only between league teams
+    if(ts[g.home]&&ts[g.away]&&g.home!==CROSSOVER&&g.away!==CROSSOVER){
+      h2h[g.home][g.away]++;h2h[g.away][g.home]++;
+    }
+    if(g.home!==CROSSOVER) nightCount[g.date+'|'+g.home]=(nightCount[g.date+'|'+g.home]||0)+1;
+    if(g.away!==CROSSOVER) nightCount[g.date+'|'+g.away]=(nightCount[g.date+'|'+g.away]||0)+1;
+  }
+  for(const[key,cnt] of Object.entries(nightCount)){
     if(cnt>=2){const t=key.split('|').slice(1).join('|');if(ts[t])ts[t].dh++;}
   }
-  const totalNights=Object.keys(nightBye).length;
-  const sorted=[...teams].sort((a,b)=>ts[b].sched-ts[a].sched);
+
+  const totalNights=new Set(G.sched.map(g=>g.date)).size;
+  const sorted=[...allTeams].sort((a,b)=>ts[b].total-ts[a].total);
+
   el.innerHTML=`
   <div class="metric-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.25rem">
     <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
     <div class="metric"><div class="metric-label">Tuesday Nights</div><div class="metric-value">${totalNights}</div></div>
-    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${teams.length}</div></div>
+    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${allTeams.length}</div></div>
   </div>
   <div class="card">
     <div class="card-title">Games Per Team</div>
-    <div class="notice">Amber = Home/Away difference &gt; 1</div>
-    <table class="games-table"><thead><tr><th>Team</th><th>Total</th><th>Home</th><th>Away</th><th>Byes</th><th>2x Nights</th></tr></thead>
-    <tbody>${sorted.map(t=>{const imb=Math.abs(ts[t].home-ts[t].away)>1;return`<tr><td>${esc(t)}</td><td class="gold">${ts[t].sched}</td><td class="${imb?'warn':''}">${ts[t].home}</td><td class="${imb?'warn':''}">${ts[t].away}</td><td>${ts[t].byes}</td><td>${ts[t].dh}</td></tr>`;}).join('')}</tbody></table>
+    <div class="notice">All 10 teams play exactly 24 games · CrossOver marked as guest — excluded from standings · Results vs CrossOver count for league teams</div>
+    <table class="games-table"><thead><tr><th>Team</th><th>Total</th><th>Home</th><th>Away</th><th>2× Nights</th></tr></thead>
+    <tbody>${sorted.map(t=>{
+      const s=ts[t];
+      const isCO=t===CROSSOVER;
+      const imb=Math.abs(s.home-s.away)>1;
+      return`<tr${isCO?' style="opacity:0.6;font-style:italic"':''}>
+        <td>${esc(t)}${isCO?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:var(--success);background:#edf7f0;border:1px solid #b8e8c8;border-radius:3px;padding:1px 5px;font-style:normal">GUEST</span>':''}</td>
+        <td class="gold">${s.total}</td>
+        <td class="${imb?'warn':''}">${s.home}</td>
+        <td class="${imb?'warn':''}">${s.away}</td>
+        <td>${s.dh}</td>
+      </tr>`;
+    }).join('')}</tbody></table>
   </div>
+
   <div class="card">
     <div class="card-title">Diamond Usage — Overall</div>
     <table class="games-table"><thead><tr><th>Diamond</th><th>Lights</th><th>Total Games</th></tr></thead>
-    <tbody>${DIAMONDS.map(d=>`<tr><td>Diamond ${d}</td><td>${[5,9,12].includes(d)?'Yes':'No'}</td><td class="gold">${dTotal[d]}</td></tr>`).join('')}</tbody></table>
+    <tbody>${getDiamondIds().map(d=>`<tr><td>${getDiamondName(d)}</td><td>${isDiamondLit(d)?'Yes':'No'}</td><td class="gold">${dTotal[d]||0}</td></tr>`).join('')}</tbody></table>
   </div>
   <div class="card">
     <div class="card-title">Diamond Usage — Per Team</div>
     <div class="notice">Amber = Spread &gt; 2 between most and least used diamond</div>
     <div class="matrix-wrap"><table class="matrix">
-      <thead><tr><th class="row-label">Team</th>${DIAMONDS.map(d=>`<th>D${d}</th>`).join('')}</tr></thead>
+      <thead><tr><th class="row-label">Team</th>${getDiamondIds().map(d=>`<th title="${getDiamondName(d)}">D${d}</th>`).join('')}</tr></thead>
       <tbody>${sorted.map(t=>{
-        const vals=DIAMONDS.map(d=>ts[t].fields[d]);
+        const vals=getDiamondIds().map(d=>ts[t].fields[d]);
         const imb=Math.max(...vals)-Math.min(...vals)>2;
         const mx=Math.max(...vals);
-        return`<tr><th class="row-label">${esc(t)}</th>${DIAMONDS.map(d=>{const c=ts[t].fields[d];return`<td class="${imb&&c===mx?'warn':c>0?'played':'zero'}">${c}</td>`;}).join('')}</tr>`;
-      }).join('')}</tbody>
+        return`<tr><th class="row-label">${esc(t)}</th>${getDiamondIds().map((d,i)=>`<td class="${vals[i]===mx?'played':''} ${imb?'warn':''}">${vals[i]}</td>`).join('')}</tr>`;
+      }).join('')}
+      </tbody>
     </table></div>
   </div>
   <div class="card">
     <div class="card-title">Head-to-Head Matrix</div>
-    <div class="notice">Games scheduled between each pair</div>
+    <div class="notice">Games scheduled between each pair (league games only)</div>
     <div class="matrix-wrap"><table class="matrix">
-      <thead><tr><th class="row-label">vs →</th>${teams.map(t=>`<th title="${esc(t)}">${esc(t.length>9?t.slice(0,8)+'…':t)}</th>`).join('')}</tr></thead>
-      <tbody>${teams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${teams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}</tr>`).join('')}</tbody>
+      <thead><tr><th class="row-label">vs →</th>${leagueTeams.map(t=>`<th title="${esc(t)}">${esc(t.length>9?t.slice(0,8)+'…':t)}</th>`).join('')}</tr></thead>
+      <tbody>${leagueTeams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${leagueTeams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}</tr>`).join('')}</tbody>
     </table></div>
   </div>`;
 }
-
 // ── EDIT GAMES ────────────────────────────────────────────────────────────────
 function renderEdit(){
   const el=document.getElementById('edi');
@@ -1146,7 +1388,7 @@ function renderEdit(){
             ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
           </select>
           <select onchange="editGame('${g.id}','diamond',this.value)" style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;background:var(--gray1);color:var(--text);border:1.5px solid var(--border);padding:5px 7px;border-radius:5px;width:100%">
-            ${DIAMONDS.map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>D${d}</option>`).join('')}
+            ${getDiamondIds().map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>D${d} — ${getDiamondName(d)}</option>`).join('')}
           </select>
           <select onchange="editGame('${g.id}','time',this.value)" style="font-family:'Nunito',sans-serif;font-size:12px;font-weight:600;background:var(--gray1);color:var(--text);border:1.5px solid var(--border);padding:5px 7px;border-radius:5px;width:100%">
             <option value="6:30 PM"${g.time==='6:30 PM'?' selected':''}>6:30 PM</option>
@@ -1169,7 +1411,10 @@ function renderEdit(){
 function editGame(id,field,value){
   const g=G.sched.find(x=>x.id===id);
   if(!g)return;
-  if(field==='diamond') g.diamond=parseInt(value);
+  if(field==='diamond'){
+    g.diamond=parseInt(value);
+    g.lights=isDiamondLit(g.diamond); // auto-update lights from diamond config
+  }
   else if(field==='home') g.home=value;
   else if(field==='away') g.away=value;
   else if(field==='time') g.time=value;
