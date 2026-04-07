@@ -584,7 +584,74 @@ input:focus {
         8:15 PM: D9=Team B (home) vs CrossOver (away) · D12=Fresh league pair<br>
         All 5 diamonds every week · 20 weeks · Every league team plays exactly 22 games
       </div>
-      <button class="btn btn-primary" onclick="genSched()">⚔ Generate Schedule</button>
+      <button class="btn btn-primary" onclick="genSched()">⚾ Generate Schedule</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Scheduler Rules</div>
+
+      <div style="margin-bottom:1.1rem">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏟 Diamonds</div>
+        <div style="display:grid;gap:6px">
+          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
+            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--red);background:#fff0ee;border:1px solid #f5c8c4;border-radius:4px;padding:2px 6px;text-align:center">D9</span>
+            <span style="color:var(--text)"><strong>CrossOver doubleheader only.</strong> 6:30 PM: CrossOver (home) vs Team A. 8:15 PM: Team B (home) vs CrossOver (away). Different opponents each slot. Used every week.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
+            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--navy);background:#e8edf7;border:1px solid #c8d0e8;border-radius:4px;padding:2px 6px;text-align:center">D12</span>
+            <span style="color:var(--text)"><strong>League doubleheader.</strong> 6:30 PM: league game. 8:15 PM: fresh league pair (different teams than 6:30). Used every week.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
+            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--muted);background:var(--gray1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;text-align:center">D5</span>
+            <span style="color:var(--text)"><strong>Single league game at 6:30 PM only.</strong> No 8:15 PM game ever. Has lights. Used every week.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
+            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--warning);background:#fdf0e8;border:1px solid #f5d5b8;border-radius:4px;padding:2px 6px;text-align:center">D13</span>
+            <span style="color:var(--text)"><strong>Single league game at 6:30 PM only.</strong> No lights — game must finish before dark. Used every week.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:48px 1fr;gap:10px;align-items:start;font-size:13px">
+            <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:var(--warning);background:#fdf0e8;border:1px solid #f5d5b8;border-radius:4px;padding:2px 6px;text-align:center">D14</span>
+            <span style="color:var(--text)"><strong>Single league game at 6:30 PM only.</strong> No lights — game must finish before dark. Used every week.</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.1rem">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">📅 Tuesday Night Structure</div>
+        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
+          <div style="display:grid;grid-template-columns:70px 1fr;gap:8px"><span style="font-family:'Roboto Mono',monospace;font-size:11px;color:var(--red);font-weight:600;padding-top:2px">6:30 PM</span><span>D9 = CrossOver (home) vs Team A &nbsp;·&nbsp; D13, D14, D12, D5 = 4 league games</span></div>
+          <div style="display:grid;grid-template-columns:70px 1fr;gap:8px"><span style="font-family:'Roboto Mono',monospace;font-size:11px;color:var(--muted);font-weight:600;padding-top:2px">8:15 PM</span><span>D9 = Team B (home) vs CrossOver (away) &nbsp;·&nbsp; D12 = fresh league pair</span></div>
+          <div style="margin-top:4px;padding:8px 10px;background:var(--gray1);border-radius:6px;border-left:3px solid var(--success);font-size:12px;color:var(--muted)">All 5 diamonds run every Tuesday &nbsp;·&nbsp; All 9 league teams play at 6:30 (zero idle) &nbsp;·&nbsp; 5 league games per night</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.1rem">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">⚖️ Game Balance</div>
+        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
+          <div>Every league team plays <strong>exactly 22 games</strong> — no exceptions.</div>
+          <div>Pool: 27 pairs at 3× + 9 pairs at 2× = 99 league games total.</div>
+          <div>Each team faces 6 opponents 3 times and 2 opponents 2 times.</div>
+          <div>CrossOver plays both slots every week (40 games total across the season).</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.1rem">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏆 Standings</div>
+        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
+          <div>CrossOver is <strong>excluded from standings</strong> — they are a guest team.</div>
+          <div>Results vs CrossOver <strong>do count</strong> for league teams' W/L/T records.</div>
+          <div>Run differential is <strong>capped at +7</strong> (e.g. a 12–1 win counts as 8–1).</div>
+          <div>Ranked by points (W=2, T=1, L=0), tiebroken by run differential.</div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">📍 Venue</div>
+        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
+          <div>Turner Park, Hamilton &nbsp;·&nbsp; Tuesday nights &nbsp;·&nbsp; May 19 – Sep 29, 2026 (20 weeks)</div>
+          <div>Lit diamonds: D5, D9, D12 &nbsp;·&nbsp; No lights: D13, D14 (6:30 PM games only)</div>
+        </div>
+      </div>
     </div>
   </div>
 
