@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hamilton Classic Co-Ed Softball League</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --gold: #D4A017;
+  --gold-light: #F5C842;
+  --gold-dim: #8A6A10;
+  --black: #0A0A0A;
+  --dark: #111111;
+  --panel: #1A1A1A;
+  --panel2: #222222;
+  --border: #2E2E2E;
+  --text: #E8E8E8;
+  --muted: #888;
+  --danger: #C0392B;
+  --success: #27AE60;
+  --warning: #E67E22;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: 'Oswald', sans-serif;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(212,160,23,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(212,160,23,0.05) 0%, transparent 60%);
+}
+
+/* HEADER */
+.header {
+  background: var(--dark);
+  border-bottom: 2px solid var(--gold);
+  padding: 1.5rem 1.5rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: 'W';
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 220px;
+  color: rgba(212,160,23,0.04);
+  position: absolute;
+  right: -20px;
+  top: -40px;
+  line-height: 1;
+  pointer-events: none;
+}
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.wu-logo {
+  width: 48px;
+  height: 48px;
+  background: var(--gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: var(--black);
+  flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(212,160,23,0.4);
+}
+.header-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  line-height: 1;
+  text-shadow: 0 0 30px rgba(212,160,23,0.3);
+}
+.header-sub {
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: 'Share Tech Mono', monospace;
+  margin-top: 2px;
+}
+
+/* TABS */
+.tabs {
+  display: flex;
+  background: var(--dark);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1rem;
+  gap: 0;
+  overflow-x: auto;
+}
+.tab {
+  padding: 12px 20px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--gold-light); }
+.tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* MAIN */
+.main { padding: 1.5rem; }
+.section { display: none; }
+.section.active { display: block; }
+
+/* CARDS */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--gold);
+  border-radius: 2px 0 0 2px;
+}
+.card-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  margin-bottom: 1rem;
+}
+
+/* FORM */
+.row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+.field label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: 'Share Tech Mono', monospace;
+}
+input[type="text"], input[type="date"], input[type="number"] {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+  padding: 8px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus { border-color: var(--gold); }
+
+/* BUTTONS */
+.btn {
+  padding: 9px 20px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:hover { border-color: var(--gold); color: var(--gold); }
+.btn-primary {
+  background: var(--gold);
+  color: var(--black);
+  border-color: var(--gold);
+  font-size: 16px;
+  box-shadow: 0 0 15px rgba(212,160,23,0.25);
+}
+.btn-primary:hover {
+  background: var(--gold-light);
+  border-color: var(--gold-light);
+  box-shadow: 0 0 25px rgba(212,160,23,0.5);
+  color: var(--black);
+}
+
+/* TEAM CHIPS */
+.team-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+.chip-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.15s;
+}
+.chip-del:hover { color: var(--danger); }
+
+/* NOTICE */
+.notice {
+  background: var(--panel2);
+  border-left: 3px solid var(--gold-dim);
+  padding: 10px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-bottom: 1rem;
+  letter-spacing: 0.5px;
+}
+
+/* WEEK HEADER */
+.week-header {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  margin: 1.5rem 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.week-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--gold-dim), transparent);
+}
+
+/* GAME ROW */
+.game-block { margin-bottom: 2px; }
+.game-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 20px 1fr 80px 55px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  padding: 10px 14px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  margin-bottom: 2px;
+  transition: border-color 0.15s;
+  letter-spacing: 0.5px;
+}
+.game-row:hover { border-left-color: var(--gold-dim); }
+.game-row.late { border-left-color: #1a3a1a; }
+.time-badge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.time-badge.late { color: var(--muted); }
+.team-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 1px; font-size: 13px; }
+.vs { color: var(--muted); text-align: center; font-size: 11px; font-family: 'Share Tech Mono', monospace; }
+.score-txt { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--muted); }
+
+/* DIAMOND BADGE */
+.dbadge {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: rgba(212,160,23,0.15);
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+.dbadge.nl {
+  background: rgba(230,126,34,0.1);
+  color: var(--warning);
+  border-color: rgba(230,126,34,0.3);
+}
+
+/* HOME TAG */
+.htag {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 1px;
+  background: rgba(212,160,23,0.2);
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  margin-left: 4px;
+  letter-spacing: 1px;
+  font-family: 'Share Tech Mono', monospace;
+  vertical-align: middle;
+}
+
+/* SCORE INPUTS */
+.score-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 42px 16px 42px 1fr 68px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  padding: 8px 14px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  margin-bottom: 2px;
+}
+.score-row:hover { border-left-color: var(--gold-dim); }
+.si {
+  width: 42px;
+  padding: 5px 6px;
+  text-align: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+  color: var(--gold-light);
+}
+.si:focus { outline: none; border-color: var(--gold); }
+
+/* METRICS */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 1.25rem;
+}
+.metric {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--gold-dim);
+  padding: 14px;
+  border-radius: 2px;
+}
+.metric-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: 'Share Tech Mono', monospace;
+  margin-bottom: 6px;
+}
+.metric-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+/* STANDINGS TABLE */
+.st-wrap { overflow-x: auto; }
+.st {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+.st th {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--gold-dim);
+  text-align: left;
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--gold-dim);
+  background: var(--panel2);
+  text-transform: uppercase;
+}
+.st td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+.st tr:last-child td { border-bottom: none; }
+.st tr:hover td { background: rgba(212,160,23,0.04); }
+.st td.pts {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.st td.rank {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  color: var(--gold-dim);
+}
+.st td.mono { font-family: 'Share Tech Mono', monospace; color: var(--muted); }
+.st td.warn { color: var(--warning); font-family: 'Share Tech Mono', monospace; }
+
+.empty {
+  text-align: center;
+  padding: 3rem;
+  color: var(--muted);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 2px;
+}
+
+.cobadge {
+  font-size: 9px; padding: 1px 6px; border-radius: 1px;
+  background: rgba(39,174,96,0.2); color: #27AE60;
+  border: 1px solid rgba(39,174,96,0.4);
+  margin-left: 4px; letter-spacing: 1px;
+  font-family: 'Share Tech Mono', monospace; vertical-align: middle;
+}
+
+/* DIVIDER */
+.slot-divider {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 6px 0 4px;
+  opacity: 0.6;
+}
+
+/* H2H MATRIX */
+.matrix-wrap { overflow-x: auto; margin-top: 4px; }
+.matrix {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: 'Share Tech Mono', monospace;
+  white-space: nowrap;
+}
+.matrix th {
+  background: var(--panel2);
+  color: var(--gold-dim);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+.matrix th.row-label {
+  text-align: left;
+  color: var(--text);
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 7px 12px;
+  min-width: 160px;
+}
+.matrix td {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+  color: var(--muted);
+  background: var(--panel);
+}
+.matrix td.self {
+  background: var(--panel2);
+  color: var(--border);
+}
+.matrix td.played {
+  color: var(--gold);
+  font-weight: 600;
+}
+.matrix td.zero { color: var(--border); }
+
+/* GAMES TABLE */
+.games-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.games-table th {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--gold-dim);
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--gold-dim);
+  background: var(--panel2);
+}
+.games-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--muted);
+}
+.games-table td:first-child {
+  font-family: 'Oswald', sans-serif;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 1px;
+  font-size: 13px;
+}
+.games-table tr:last-child td { border-bottom: none; }
+.games-table tr:hover td { background: rgba(212,160,23,0.04); }
+.games-table td.gold { color: var(--gold); font-weight: 600; }
+
+@media (max-width: 600px) {
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .game-row { grid-template-columns: 60px 1fr 16px 1fr 65px 44px; font-size: 12px; }
+  .score-row { grid-template-columns: 60px 1fr 38px 12px 38px 1fr 58px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="wu-logo">W</div>
+    <div>
+      <div class="header-title">Hamilton Classic Co-Ed Softball</div>
+      <div class="header-sub">C.R.E.A.M. — Championships Rule Everything Around Me</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('teams',this)">The Clan</button>
+  <button class="tab" onclick="showTab('schedule',this)">Battles</button>
+  <button class="tab" onclick="showTab('scores',this)">Scores</button>
+  <button class="tab" onclick="showTab('standings',this)">Standings</button>
+  <button class="tab" onclick="showTab('stats',this)">Stats</button>
+  <button class="tab" onclick="showTab('edit',this)">Edit Games</button>
+</div>
+
+<div class="main">
+
+  <div id="tab-teams" class="section active">
+    <div class="card">
+      <div class="card-title">Manage Teams</div>
+      <div class="row">
+        <div class="field">
+          <label>Team Name</label>
+          <input type="text" id="ti" placeholder="Enter team name..." />
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="addTeam()">+ Add</button>
+        </div>
+      </div>
+      <div class="team-list" id="tl"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Season Settings</div>
+      <div class="row">
+        <div class="field">
+          <label>Season Start</label>
+          <input type="date" id="ss" value="2026-05-19" />
+        </div>
+        <div class="field">
+          <label>Season End</label>
+          <input type="date" id="se" value="2026-09-29" />
+        </div>
+      </div>
+      <div class="notice">
+        // 6:30 PM: D9=CO (HOME) vs TEAM A — D13, D14, D12, D5=LEAGUE — ALL 9 TEAMS PLAY, 0 IDLE<br>
+        // 8:15 PM: D9=TEAM B (HOME) vs CO (AWAY) — D12=FRESH LEAGUE PAIR — NO OTHER 8:15 GAMES<br>
+        // D5, D13, D14=SINGLE 6:30 ONLY — D9=CO DH — D12=LEAGUE DH — ALL 5 DIAMONDS EVERY WEEK<br>
+        // CROSSOVER PLAYS ALL 20 WEEKS — 7 TEAMS PLAY 22 GAMES, 2 TEAMS PLAY 23 — MAX DIFF 1
+      </div>
+      <button class="btn btn-primary" onclick="genSched()">⚔ Generate Schedule</button>
+    </div>
+  </div>
+
+  <div id="tab-schedule" class="section">
+    <div id="so"><div class="empty">// ADD TEAMS AND GENERATE A SCHEDULE FIRST //</div></div>
+  </div>
+
+  <div id="tab-scores" class="section">
+    <div id="sco"><div class="empty">// GENERATE A SCHEDULE FIRST //</div></div>
+  </div>
+
+  <div id="tab-standings" class="section">
+    <div id="sto"><div class="empty">// ENTER SCORES TO SEE STANDINGS //</div></div>
+  </div>
+
+  <div id="tab-stats" class="section">
+    <div id="sta"><div class="empty">// GENERATE A SCHEDULE TO SEE STATS //</div></div>
+  </div>
+
+  <div id="tab-edit" class="section">
+    <div id="edi"><div class="empty">// GENERATE A SCHEDULE TO EDIT GAMES //</div></div>
+  </div>
+
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const S630=[{id:5,l:true},{id:9,l:true},{id:12,l:true},{id:13,l:false},{id:14,l:false}];
+const S815=[{id:9,l:true},{id:12,l:true}];
+const CAP=7;
+const MONTH_NAMES=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+const DIAMONDS=[5,9,12,13,14];
+
+let G={
+  teams:['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers',
+         'One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'],
+  sched:[],scores:{}
+};
+const CROSSOVER='CrossOver'; // guest team — plays every week, not in our standings
+let hc={};
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// Always store and use dates as "YYYY-MM-DD" strings — never Date objects in G.sched
+function toDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// Format "YYYY-MM-DD" → "TUESDAY, MAY 19" using local time only
+function fmtDate(s){
+  const[y,m,d]=s.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  return dt.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
+}
+
+// "YYYY-MM-DD" → "MAY 2026"
+function monthLabel(s){
+  const parts=s.split('-');
+  return MONTH_NAMES[parseInt(parts[1],10)-1]+' '+parts[0];
+}
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function pickHA(t1,t2){
+  const h1=hc[t1]||0,h2=hc[t2]||0;
+  if(h1<h2)return[t1,t2];
+  if(h2<h1)return[t2,t1];
+  return Math.random()<0.5?[t1,t2]:[t2,t1];
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function showTab(t,btn){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='schedule')renderSched();
+  if(t==='scores')renderScores();
+  if(t==='standings')renderStandings();
+  if(t==='stats')renderStats();
+  if(t==='edit')renderEdit();
+}
+
+// ── TEAMS ─────────────────────────────────────────────────────────────────────
+function addTeam(){
+  const inp=document.getElementById('ti');
+  const name=inp.value.trim();
+  if(!name||G.teams.includes(name))return;
+  if(G.teams.length>=10){alert("MAX 10 TEAMS, WU-TANG AIN'T FOREVER");return;}
+  G.teams.push(name);inp.value='';renderTeams();
+}
+document.getElementById('ti').addEventListener('keydown',e=>{if(e.key==='Enter')addTeam();});
+function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);renderTeams();}
+function renderTeams(){
+  const el=document.getElementById('tl');
+  if(!G.teams.length){el.innerHTML='<div style="color:var(--muted);font-family:Share Tech Mono,monospace;font-size:12px;padding:8px 0">// NO TEAMS YET //</div>';return;}
+  el.innerHTML=G.teams.map(t=>`<span class="chip">${esc(t)}<button class="chip-del" onclick="removeTeam(${JSON.stringify(t)})">×</button></span>`).join('');
+}
+renderTeams();
+
+// ── SCHEDULE GENERATION ───────────────────────────────────────────────────────
+function getTues(startStr,endStr){
+  const[sy,sm,sd]=startStr.split('-').map(Number);
+  const[ey,em,ed]=endStr.split('-').map(Number);
+  const d=new Date(sy,sm-1,sd);
+  const end=new Date(ey,em-1,ed);
+  while(d.getDay()!==2)d.setDate(d.getDate()+1);
+  const days=[];
+  while(d<=end){days.push(toDateStr(d));d.setDate(d.getDate()+7);}
+  return days;
+}
+
+function genSched(){
+  const n=G.teams.length;
+  if(n<4){alert('NEED AT LEAST 4 TEAMS, SON');return;}
+  const startStr=document.getElementById('ss').value;
+  const endStr=document.getElementById('se').value;
+  const tues=getTues(startStr,endStr);
+  if(!tues.length){alert('NO TUESDAYS IN THAT RANGE');return;}
+
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+
+  // RULES (HARD):
+  // D9:  CrossOver DH every week — 6:30 CO home vs TeamA, 8:15 CO away vs TeamB
+  // D12: League DH every week — 6:30 game + fresh league pair at 8:15
+  // D5, D13, D14: Single league game at 6:30 only — used every week
+  // All 5 diamonds used every Tuesday. All 9 league teams play at 6:30 (0 idle).
+  // CrossOver plays all 20 weeks — no CO byes.
+  //
+  // Per night:
+  //   6:30: D9=CO+TeamA, D13=lg, D14=lg, D12=lg, D5=lg → 4 league + 1 CO = 5 games
+  //   8:15: D9=TeamB vs CO, D12=fresh league pair → 1 CO + 1 league = 2 games
+  //   League games: 4+1=5 per night, 20 nights = 100 total
+  //
+  // Pool: 100 games = 28 pairs at 3x + 8 pairs at 2x
+  // Result: 7 teams play 22 games, 2 teams play 23 games (max diff = 1)
+
+  const allPairs=[];
+  for(let i=0;i<leagueTeams.length;i++)
+    for(let j=i+1;j<leagueTeams.length;j++)
+      allPairs.push([leagueTeams[i],leagueTeams[j]]);
+
+  // Assign 8 pairs as 2x, rest 3x
+  // 7 teams get 2 pairs at 2x (22 games), 2 teams get 1 pair at 2x (23 games)
+  const twoxCount={};leagueTeams.forEach(t=>twoxCount[t]=0);
+  const is2x=new Set();
+  for(const[t1,t2] of shuffle([...allPairs])){
+    if(is2x.size>=8)break;
+    if(twoxCount[t1]<2&&twoxCount[t2]<2){
+      is2x.add(t1+'||'+t2);twoxCount[t1]++;twoxCount[t2]++;
+    }
+  }
+  let pool=[];
+  for(const[t1,t2] of allPairs){
+    const reps=is2x.has(t1+'||'+t2)?2:3;
+    for(let k=0;k<reps;k++) pool.push([t1,t2]);
+  }
+  pool=shuffle(pool);
+
+  // CO opponent tracking — spread evenly across season
+  const coCount={};leagueTeams.forEach(t=>coCount[t]=0);
+  function pickCO(excl){
+    const c=leagueTeams.filter(t=>!excl.includes(t));
+    c.sort((a,b)=>coCount[a]-coCount[b]);
+    const min=coCount[c[0]];
+    const tied=c.filter(t=>coCount[t]===min);
+    return tied[Math.floor(Math.random()*tied.length)];
+  }
+
+  // Pick N non-overlapping pairs from pool excluding given teams
+  function pickPairs(count,excl){
+    const excSet=new Set([CROSSOVER,...excl]);
+    const chosen=[];const used=new Set();
+    for(let pi=0;pi<pool.length&&chosen.length<count;pi++){
+      if(usedIdx.has(pi))continue;
+      const[t1,t2]=pool[pi];
+      if(excSet.has(t1)||excSet.has(t2))continue;
+      if(used.has(t1)||used.has(t2))continue;
+      chosen.push({pi,t1,t2});used.add(t1);used.add(t2);
+    }
+    return chosen;
+  }
+
+  // Commit a pair to the schedule
+  function placePair(pair,diamond,time,crossover=false){
+    const[home,away]=pickHA(pair.t1,pair.t2);
+    hc[home]++;usedIdx.add(pair.pi);
+    sched.push({id:`g${sched.length}`,date:dateStr,time,diamond:diamond.id,lights:diamond.l,home,away,bye:'',crossover});
+  }
+
+  const sched=[];
+  const usedIdx=new Set();
+  hc={};G.teams.forEach(t=>hc[t]=0);
+  let dateStr='';
+
+  const D9={id:9,l:true};
+  const D12={id:12,l:true};
+  const D5={id:5,l:true};
+  const D13={id:13,l:false};
+  const D14={id:14,l:false};
+
+  for(let ti=0;ti<tues.length;ti++){
+    if(usedIdx.size>=pool.length)break;
+    dateStr=tues[ti];
+
+    // Pick CO opponents for tonight
+    const coOppA=pickCO([]);coCount[coOppA]++;
+    const coOppB=pickCO([coOppA]);coCount[coOppB]++;
+
+    // 6:30 PM ─────────────────────────────────────────────────────────────
+    // D9: CrossOver (home) vs coOppA
+    const[coHome,coAway]=pickHA(CROSSOVER,coOppA);
+    hc[coHome]++;
+    sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',diamond:9,lights:true,home:coHome,away:coAway,bye:'',crossover:true});
+
+    // D13, D14, D12, D5: 4 league games — all 8 remaining league teams play
+    const pairs630=pickPairs(4,[coOppA]);
+    [D13,D14,D12,D5].forEach((dm,i)=>{if(pairs630[i])placePair(pairs630[i],dm,'6:30 PM');});
+
+    // 8:15 PM ─────────────────────────────────────────────────────────────
+    // D9: coOppB (home) vs CrossOver (away)
+    hc[coOppB]++;
+    sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',diamond:9,lights:true,home:coOppB,away:CROSSOVER,bye:'',crossover:true});
+
+    // D12: fresh league pair (not coOppB)
+    const d12p=pickPairs(1,[coOppB]);
+    if(d12p.length) placePair(d12p[0],D12,'8:15 PM');
+  }
+
+  G.sched=sched;G.scores={};
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',i===1));
+  document.querySelectorAll('.section').forEach((s,i)=>s.classList.toggle('active',i===1));
+  renderSched();
+}
+
+function groupSched(games){
+  const monthMap={};
+  const monthOrder=[];
+  for(const g of games){
+    const ml=monthLabel(g.date);
+    if(!monthMap[ml]){monthMap[ml]={};monthOrder.push(ml);}
+    if(!monthMap[ml][g.date])monthMap[ml][g.date]=[];
+    monthMap[ml][g.date].push(g);
+  }
+  return monthOrder.map(ml=>({month:ml,dates:monthMap[ml]}));
+}
+
+function toggleMonth(id){
+  const body=document.getElementById(id);
+  const arr=document.getElementById('arr_'+id);
+  const isOpen=body.style.display==='block';
+  body.style.display=isOpen?'none':'block';
+  arr.textContent=isOpen?'▼':'▲';
+}
+
+function monthAccordion(month,inner,mi,prefix){
+  const id=prefix+'_m'+mi;
+  const nights=inner.split('week-header').length-1;
+  return `<div style="margin-bottom:6px">
+    <button onclick="toggleMonth('${id}')" style="width:100%;background:#D4A017;border:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:12px;text-align:left;border-bottom:3px solid #8A6A10">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:6px;color:#0A0A0A;line-height:1;flex:1">${month}</span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#0A0A0A;opacity:0.7;letter-spacing:1px">${nights} NIGHTS</span>
+      <span id="arr_${id}" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#0A0A0A">▼</span>
+    </button>
+    <div id="${id}" style="display:none;border-left:4px solid #D4A017;border-right:4px solid #D4A017;border-bottom:4px solid #8A6A10;padding:0 8px 8px">
+      ${inner}
+    </div>
+  </div>`;
+}
+
+function buildSchedInner(dates,isScore){
+  let inner='';
+  for(const[dateStr,games]of Object.entries(dates)){
+    inner+=`<div class="week-header">${fmtDate(dateStr)}</div>`;
+    const byeTeam=games[0]?games[0].bye:'';
+    if(byeTeam==='CO BYE'){
+      inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#27AE60;letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.4);display:inline-block">// CROSSOVER BYE WEEK //</div>`;
+    } else if(byeTeam){
+      inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);display:inline-block">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
+    }
+
+    // Work out which diamonds are open at each time slot
+    const usedAt630=new Set(games.filter(g=>g.time==='6:30 PM').map(g=>g.diamond));
+    const usedAt815=new Set(games.filter(g=>g.time==='8:15 PM').map(g=>g.diamond));
+    const allD=[5,9,12,13,14];
+    const openAt630=allD.filter(d=>!usedAt630.has(d));
+    const openAt815=[9,12].filter(d=>!usedAt815.has(d)); // only lit diamonds at 8:15
+
+    const early=games.filter(g=>g.time==='6:30 PM');
+    const late=games.filter(g=>g.time==='8:15 PM');
+
+    if(early.length){
+      inner+=`<div class="slot-divider">// 6:30 PM`;
+      if(openAt630.length) inner+=` &nbsp;·&nbsp; <span style="color:var(--success,#27AE60)">OPEN: ${openAt630.map(d=>'D'+d).join(', ')}</span>`;
+      inner+=`</div>`;
+      for(const g of early){
+        const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
+        const cobadge=isCO?`<span class="cobadge">CROSSOVER</span>`:'';
+        if(isScore){
+          const sc=G.scores[g.id]||{h:'',a:''};
+          const badge=g.lights?`<span class="dbadge">D${g.diamond}</span>`:`<span class="dbadge nl">D${g.diamond}</span>`;
+          inner+=`<div class="score-row${isCO?' co-game':''}"><span class="time-badge">6:30 PM</span><span class="team-name">${esc(g.home)}<span class="htag">H</span>${cobadge}</span><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="0" onchange="saveScore('${g.id}')"/><span class="vs">–</span><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="0" onchange="saveScore('${g.id}')"/><span class="team-name">${esc(g.away)}</span>${badge}</div>`;
+        } else {
+          const sc=G.scores[g.id];const res=sc?`${sc.h}–${sc.a}`:'—';
+          const badge=g.lights?`<span class="dbadge">D${g.diamond} &#9788;</span>`:`<span class="dbadge nl">D${g.diamond}</span>`;
+          inner+=`<div class="game-row"><span class="time-badge">6:30 PM</span><span class="team-name">${esc(g.home)}<span class="htag">H</span>${cobadge}</span><span class="vs">VS</span><span class="team-name">${esc(g.away)}</span>${badge}<span class="score-txt">${res}</span></div>`;
+        }
+      }
+    }
+    if(late.length){
+      inner+=`<div class="slot-divider" style="margin-top:8px">// 8:15 PM`;
+      if(openAt815.length) inner+=` &nbsp;·&nbsp; <span style="color:var(--success,#27AE60)">OPEN: ${openAt815.map(d=>'D'+d).join(', ')}</span>`;
+      inner+=`</div>`;
+      for(const g of late){
+        const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
+        const cobadge=isCO?`<span class="cobadge">CROSSOVER</span>`:'';
+        if(isScore){
+          const sc=G.scores[g.id]||{h:'',a:''};
+          inner+=`<div class="score-row"><span class="time-badge late">8:15 PM</span><span class="team-name">${esc(g.home)}<span class="htag">H</span>${cobadge}</span><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="0" onchange="saveScore('${g.id}')"/><span class="vs">–</span><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="0" onchange="saveScore('${g.id}')"/><span class="team-name">${esc(g.away)}</span><span class="dbadge">D${g.diamond} &#9788;</span></div>`;
+        } else {
+          const sc=G.scores[g.id];const res=sc?`${sc.h}–${sc.a}`:'—';
+          inner+=`<div class="game-row late"><span class="time-badge late">8:15 PM</span><span class="team-name">${esc(g.home)}<span class="htag">H</span>${cobadge}</span><span class="vs">VS</span><span class="team-name">${esc(g.away)}</span><span class="dbadge">D${g.diamond} &#9788;</span><span class="score-txt">${res}</span></div>`;
+        }
+      }
+    }
+  }
+  return inner;
+}
+
+// ── RENDER SCHEDULE ───────────────────────────────────────────────────────────
+function renderSched(){
+  const el=document.getElementById('so');
+  if(!G.sched.length){el.innerHTML='<div class="empty">// ADD TEAMS AND GENERATE A SCHEDULE FIRST //</div>';return;}
+  const grouped=groupSched(G.sched);
+  el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
+}
+
+// ── RENDER SCORES ─────────────────────────────────────────────────────────────
+function renderScores(){
+  const el=document.getElementById('sco');
+  if(!G.sched.length){el.innerHTML='<div class="empty">// GENERATE A SCHEDULE FIRST //</div>';return;}
+  const grouped=groupSched(G.sched);
+  el.innerHTML=`<div class="notice">// ENTER ACTUAL FINAL SCORES — RUN DIFF AUTO-CAPPED AT +7 FOR STANDINGS //</div>`
+    +grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,true),i,'sk')).join('');
+}
+
+function saveScore(gid){
+  const h=document.getElementById('sh_'+gid).value;
+  const a=document.getElementById('sa_'+gid).value;
+  if(h!==''&&a!=='')G.scores[gid]={h:parseInt(h),a:parseInt(a)};
+  else delete G.scores[gid];
+  renderSched();
+}
+
+// ── STANDINGS ─────────────────────────────────────────────────────────────────
+function capRuns(h,a){
+  if(h===a)return{ch:h,ca:a};
+  if(h>a)return{ch:Math.min(h,a+CAP),ca:a};
+  return{ch:h,ca:Math.min(a,h+CAP)};
+}
+
+function renderStandings(){
+  const el=document.getElementById('sto');
+  if(!G.teams.length){el.innerHTML='<div class="empty">// ADD TEAMS FIRST //</div>';return;}
+  // Exclude CrossOver from standings
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+  const stats={};
+  for(const t of leagueTeams)stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0,h:0,a:0};
+  for(const g of G.sched){
+    // Count home stats
+    if(stats[g.home]!==undefined)stats[g.home].h++;
+    if(stats[g.away]!==undefined)stats[g.away].a++;
+    const sc=G.scores[g.id];if(!sc)continue;
+    const{ch,ca}=capRuns(sc.h,sc.a);
+    // Only count for league teams (not CrossOver)
+    if(stats[g.home]!==undefined){
+      stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
+      if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
+      else if(sc.a>sc.h){stats[g.home].l++;}
+      else{stats[g.home].tie++;stats[g.home].pts++;}
+    }
+    if(stats[g.away]!==undefined){
+      stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
+      if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
+      else if(sc.h>sc.a){stats[g.away].l++;}
+      else{stats[g.away].tie++;stats[g.away].pts++;}
+    }
+  }
+  const sorted=leagueTeams.slice().sort((a,b)=>stats[b].pts-stats[a].pts||stats[b].w-stats[a].w||(stats[b].rf-stats[b].ra)-(stats[a].rf-stats[a].ra));
+  const gp=Object.values(G.scores).length;
+  el.innerHTML=`
+  <div class="metric-grid">
+    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${leagueTeams.length}</div></div>
+    <div class="metric"><div class="metric-label">Played</div><div class="metric-value">${gp}</div></div>
+    <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.length-gp}</div></div>
+    <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
+  </div>
+  <div class="notice">// RF/RA CAPPED AT +7 // POINTS DECIDE RANK // CROSSOVER EXCLUDED FROM STANDINGS // H/A = HOME/AWAY SCHEDULED //</div>
+  <div class="st-wrap"><table class="st">
+    <colgroup><col style="width:28px"><col><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:36px"><col style="width:32px"><col style="width:32px"><col style="width:38px"><col style="width:26px"><col style="width:26px"></colgroup>
+    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th><th>H</th><th>A</th></tr></thead>
+    <tbody>${sorted.map((t,i)=>{
+      const s=stats[t];const diff=s.rf-s.ra;
+      const ds=s.gp===0?'—':(diff>0?'+'+diff:''+diff);
+      const imb=Math.abs(s.h-s.a)>1;const hac=imb?'warn':'mono';
+      return`<tr><td class="rank">${i+1}</td><td style="font-weight:600;letter-spacing:1px">${esc(t)}</td><td class="mono">${s.gp}</td><td class="mono">${s.w}</td><td class="mono">${s.l}</td><td class="mono">${s.tie}</td><td class="pts">${s.pts}</td><td class="mono">${s.rf}</td><td class="mono">${s.ra}</td><td class="mono">${ds}</td><td class="${hac}">${s.h}</td><td class="${hac}">${s.a}</td></tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function renderStats(){
+  const el=document.getElementById('sta');
+  if(!G.sched.length){el.innerHTML='<div class="empty">// GENERATE A SCHEDULE TO SEE STATS //</div>';return;}
+  const teams=G.teams;
+  const ts={};
+  for(const t of teams){ts[t]={sched:0,home:0,away:0,byes:0,dh:0,fields:{}};DIAMONDS.forEach(d=>ts[t].fields[d]=0);}
+  const h2h={};
+  for(const t of teams){h2h[t]={};for(const u of teams)h2h[t][u]=0;}
+  const dTotal={};DIAMONDS.forEach(d=>dTotal[d]=0);
+  const nightCount={};const nightBye={};
+  for(const g of G.sched){
+    const dk=g.date;
+    if(g.bye&&!nightBye[dk])nightBye[dk]=g.bye;
+    nightCount[dk+'|'+g.home]=(nightCount[dk+'|'+g.home]||0)+1;
+    nightCount[dk+'|'+g.away]=(nightCount[dk+'|'+g.away]||0)+1;
+    ts[g.home].sched++;ts[g.home].home++;ts[g.home].fields[g.diamond]++;
+    ts[g.away].sched++;ts[g.away].away++;ts[g.away].fields[g.diamond]++;
+    h2h[g.home][g.away]++;h2h[g.away][g.home]++;
+    dTotal[g.diamond]++;
+  }
+  for(const[dk,bt]of Object.entries(nightBye))if(ts[bt])ts[bt].byes++;
+  for(const[key,cnt]of Object.entries(nightCount)){
+    if(cnt>=2){const t=key.split('|').slice(1).join('|');if(ts[t])ts[t].dh++;}
+  }
+  const totalNights=Object.keys(nightBye).length;
+  const sorted=[...teams].sort((a,b)=>ts[b].sched-ts[a].sched);
+  el.innerHTML=`
+  <div class="metric-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.25rem">
+    <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
+    <div class="metric"><div class="metric-label">Tuesday Nights</div><div class="metric-value">${totalNights}</div></div>
+    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${teams.length}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Games Per Team</div>
+    <div class="notice">// AMBER = HOME/AWAY DIFFERENCE &gt; 1 //</div>
+    <table class="games-table"><thead><tr><th>Team</th><th>Total</th><th>Home</th><th>Away</th><th>Byes</th><th>2x Nights</th></tr></thead>
+    <tbody>${sorted.map(t=>{const imb=Math.abs(ts[t].home-ts[t].away)>1;return`<tr><td>${esc(t)}</td><td class="gold">${ts[t].sched}</td><td class="${imb?'warn':''}">${ts[t].home}</td><td class="${imb?'warn':''}">${ts[t].away}</td><td>${ts[t].byes}</td><td>${ts[t].dh}</td></tr>`;}).join('')}</tbody></table>
+  </div>
+  <div class="card">
+    <div class="card-title">Diamond Usage — Overall</div>
+    <table class="games-table"><thead><tr><th>Diamond</th><th>Lights</th><th>Total Games</th></tr></thead>
+    <tbody>${DIAMONDS.map(d=>`<tr><td>Diamond ${d}</td><td>${[5,9,12].includes(d)?'Yes':'No'}</td><td class="gold">${dTotal[d]}</td></tr>`).join('')}</tbody></table>
+  </div>
+  <div class="card">
+    <div class="card-title">Diamond Usage — Per Team</div>
+    <div class="notice">// AMBER = SPREAD &gt; 2 BETWEEN MOST AND LEAST USED DIAMOND //</div>
+    <div class="matrix-wrap"><table class="matrix">
+      <thead><tr><th class="row-label">Team</th>${DIAMONDS.map(d=>`<th>D${d}</th>`).join('')}</tr></thead>
+      <tbody>${sorted.map(t=>{
+        const vals=DIAMONDS.map(d=>ts[t].fields[d]);
+        const imb=Math.max(...vals)-Math.min(...vals)>2;
+        const mx=Math.max(...vals);
+        return`<tr><th class="row-label">${esc(t)}</th>${DIAMONDS.map(d=>{const c=ts[t].fields[d];return`<td class="${imb&&c===mx?'warn':c>0?'played':'zero'}">${c}</td>`;}).join('')}</tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Head-to-Head Matrix</div>
+    <div class="notice">// GAMES SCHEDULED BETWEEN EACH PAIR — GOLD = SCHEDULED //</div>
+    <div class="matrix-wrap"><table class="matrix">
+      <thead><tr><th class="row-label">vs →</th>${teams.map(t=>`<th title="${esc(t)}">${esc(t.length>9?t.slice(0,8)+'…':t)}</th>`).join('')}</tr></thead>
+      <tbody>${teams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${teams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}</tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ── EDIT GAMES ────────────────────────────────────────────────────────────────
+function renderEdit(){
+  const el=document.getElementById('edi');
+  if(!G.sched.length){el.innerHTML='<div class="empty">// GENERATE A SCHEDULE TO EDIT GAMES //</div>';return;}
+  const grp=groupSched(G.sched);
+  let html=`<div class="notice">// CHANGE HOME TEAM, AWAY TEAM, DIAMOND OR TIME FOR ANY GAME — UPDATES APPLY INSTANTLY //</div>`;
+  grp.forEach(({month,dates},mi)=>{
+    let inner='';
+    for(const[dateStr,games] of Object.entries(dates)){
+      inner+=`<div class="week-header">${fmtDate(dateStr)}</div>`;
+      const byeTeam=games[0]?games[0].bye:'';
+      if(byeTeam==='CO BYE') inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#27AE60;letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.4);display:inline-block">// CROSSOVER BYE WEEK //</div>`;
+      else if(byeTeam) inner+=`<div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);display:inline-block">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
+      for(const g of games){
+        const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
+        inner+=`<div style="background:var(--panel2);border:1px solid var(--border);border-left:3px solid ${isCO?'#27AE60':'var(--gold-dim)'};padding:8px 10px;margin-bottom:3px;display:grid;grid-template-columns:68px 1fr 1fr 64px 72px;gap:6px;align-items:center">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--gold)">${g.time}</span>
+          <select onchange="editGame('${g.id}','home',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+            ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.home?' selected':''}>${esc(t)}</option>`).join('')}
+          </select>
+          <select onchange="editGame('${g.id}','away',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+            ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
+          </select>
+          <select onchange="editGame('${g.id}','diamond',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+            ${DIAMONDS.map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>D${d}</option>`).join('')}
+          </select>
+          <select onchange="editGame('${g.id}','time',this.value)" style="font-family:'Share Tech Mono',monospace;font-size:11px;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 6px;border-radius:2px;width:100%">
+            <option value="6:30 PM"${g.time==='6:30 PM'?' selected':''}>6:30 PM</option>
+            <option value="8:15 PM"${g.time==='8:15 PM'?' selected':''}>8:15 PM</option>
+          </select>
+        </div>`;
+      }
+    }
+    html+=`<div style="margin-bottom:6px">
+      <button onclick="toggleMonth('em${mi}')" style="width:100%;background:#D4A017;border:none;cursor:pointer;padding:10px 16px;display:flex;align-items:center;gap:12px;text-align:left;border-bottom:3px solid #8A6A10">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:5px;color:#0A0A0A;flex:1">${month}</span>
+        <span id="arr_em${mi}" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#0A0A0A">▼</span>
+      </button>
+      <div id="em${mi}" style="display:none;border-left:4px solid #D4A017;border-right:4px solid #D4A017;border-bottom:4px solid #8A6A10;padding:0 8px 8px">${inner}</div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+function editGame(id,field,value){
+  const g=G.sched.find(x=>x.id===id);
+  if(!g)return;
+  if(field==='diamond') g.diamond=parseInt(value);
+  else if(field==='home') g.home=value;
+  else if(field==='away') g.away=value;
+  else if(field==='time') g.time=value;
+  g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
+  renderSched();
+}
+</script>
+</body>
+</html>
