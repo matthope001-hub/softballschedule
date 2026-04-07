@@ -740,7 +740,6 @@ function renderTeams(){
   if(!G.teams.length){el.innerHTML='<div style="color:var(--gray3);font-size:13px;font-weight:700;padding:8px 0">No teams added yet</div>';return;}
   el.innerHTML=G.teams.map(t=>`<span class="chip">${esc(t)}<button class="chip-del" onclick="removeTeam(${JSON.stringify(t)})">×</button></span>`).join('');
 }
-renderTeams();
 
 // ── DIAMOND MANAGEMENT ────────────────────────────────────────────────────────
 function addDiamond(){
@@ -761,25 +760,6 @@ function toggleDiamondLights(id){
   const d=G.diamonds.find(d=>d.id===id);
   if(d){d.lights=!d.lights;renderDiamonds();}
 }
-function renderRulesDiamonds(){
-  const el=document.getElementById('rules-diamonds');
-  if(!el)return;
-  el.innerHTML=G.diamonds.map(d=>{
-    const dh=d.lights;
-    const color=dh?'var(--red)':'var(--warning)';
-    const bg=dh?'#fff0ee':'#fdf0e8';
-    const border=dh?'#f5c8c4':'#f5d5b8';
-    const label=d.name.length>8?d.name.slice(0,8)+'…':d.name;
-    const rule=dh
-      ?`<strong>Doubleheader.</strong> 6:30 PM game + 8:15 PM same pair H/A swapped. Lights.`
-      :`<strong>Single game 6:30 PM only.</strong> No lights — must finish before dark.`;
-    return`<div style="display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:start;font-size:13px">
-      <span style="font-family:'Roboto Mono',monospace;font-weight:700;color:${color};background:${bg};border:1px solid ${border};border-radius:4px;padding:2px 6px;text-align:center;font-size:11px" title="${esc(d.name)}">${esc(label)}</span>
-      <span>${rule}</span>
-    </div>`;
-  }).join('');
-}
-
 function renderDiamonds(){
   const el=document.getElementById('diamond-list');
   if(!el)return;
@@ -796,9 +776,9 @@ function renderDiamonds(){
         style="padding:6px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:16px;cursor:pointer;line-height:1;font-family:'Nunito',sans-serif"
         title="Remove diamond">×</button>
     </div>`).join('');
-  renderRulesDiamonds();
+  updateGptNotice();
 }
-renderDiamonds();
+// renderDiamonds called in DOMContentLoaded after all functions are defined
 
 // ── DAYS OF WEEK + SCHEDULE CALCULATOR ───────────────────────────────────────
 const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -952,6 +932,8 @@ function updateGptNotice(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  renderTeams();
+  renderDiamonds();
   initDayChecks();
   updateGptNotice();
 });
