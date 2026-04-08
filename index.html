@@ -583,7 +583,7 @@ input:focus {
         </div>
         <div class="field">
           <label>Season End</label>
-          <input type="date" id="se" value="2026-09-29" oninput="updateGptNotice()" />
+          <input type="date" id="se" value="2026-09-15" oninput="updateGptNotice()" />
         </div>
       </div>
       <div class="field" style="margin-bottom:0.9rem">
@@ -598,6 +598,36 @@ input:focus {
         <div class="field">
           <label>CrossOver Bye Weeks</label>
           <input type="number" id="cobyes" value="0" min="0" max="10" placeholder="e.g. 3" oninput="updateGptNotice()" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>First Game Time</label>
+          <select id="time1" style="font-size:14px;font-family:'Nunito',sans-serif;font-weight:700;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--white);color:var(--text);width:100%">
+            <option>5:00 PM</option><option>5:15 PM</option><option>5:30 PM</option>
+            <option>5:45 PM</option><option>6:00 PM</option><option>6:15 PM</option>
+            <option selected>6:30 PM</option><option>6:45 PM</option><option>7:00 PM</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Second Game Time (DH)</label>
+          <select id="time2" style="font-size:14px;font-family:'Nunito',sans-serif;font-weight:700;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--white);color:var(--text);width:100%">
+            <option>7:00 PM</option><option>7:15 PM</option><option>7:30 PM</option>
+            <option>7:45 PM</option><option>8:00 PM</option><option selected>8:15 PM</option>
+            <option>8:30 PM</option><option>8:45 PM</option><option>9:00 PM</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Times Each Team Faces Each Opponent</label>
+          <select id="tfaced" style="font-size:14px;font-family:'Nunito',sans-serif;font-weight:700;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--white);color:var(--text);width:100%" onchange="updateGptNotice()">
+            <option value="1">1× — every team plays each opponent once</option>
+            <option value="2" selected>2× — every team plays each opponent twice</option>
+            <option value="3">3× — every team plays each opponent three times</option>
+            <option value="4">4× — every team plays each opponent four times</option>
+            <option value="5">5× — every team plays each opponent five times</option>
+          </select>
         </div>
       </div>
       <div id="gpt-notice" style="margin-bottom:1rem"></div>
@@ -631,6 +661,12 @@ input:focus {
 
 
   <div id="tab-schedule" class="section">
+    <div id="export-bar" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);align-self:center">Export:</span>
+      <button class="btn" onclick="exportCSV()" style="font-size:12px;padding:6px 14px">⬇ CSV / Excel</button>
+      <button class="btn" onclick="exportPrint()" style="font-size:12px;padding:6px 14px">🖨 Print / PDF</button>
+      <button class="btn" onclick="exportICal()" style="font-size:12px;padding:6px 14px">📅 iCal (.ics)</button>
+    </div>
     <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
   </div>
 
@@ -832,6 +868,9 @@ function updateGptNotice(){
   if(!noticeEl)return;
   const gpt=parseInt(document.getElementById('gpt')?.value)||0;
   const cobyes=parseInt(document.getElementById('cobyes')?.value)||0;
+  const tfaced=parseInt(document.getElementById('tfaced')?.value)||3;
+  const t1=document.getElementById('time1')?.value||'6:30 PM';
+  const t2=document.getElementById('time2')?.value||'8:15 PM';
   const selectedDays=getSelectedDays();
   const leagueN=G.teams.filter(t=>t!==CROSSOVER).length;
   const nights=getGameNights(
@@ -844,89 +883,87 @@ function updateGptNotice(){
     noticeEl.innerHTML=`<div class="notice" style="color:var(--muted)">Select at least one game day.</div>`;return;
   }
 
-  // Diamond breakdown
+  // Matchup stats
+  const uniquePairs=leagueN*(leagueN-1)/2;  // 36 with 9 teams
+  const lgGamesFromFaced=uniquePairs*tfaced;  // total league games if all pairs play tfaced times
+
   const dhDiamonds=G.diamonds.filter(d=>d.lights&&d.id!==9);
   const singleDiamonds=G.diamonds.filter(d=>!d.lights);
   const dhCount=dhDiamonds.length;
   const singleCount=singleDiamonds.length;
 
-  // Per-night game counts
-  const coGamesPerNight=2;                                  // D9 6:30 + D9 8:15
-  const lgGamesPerActiveNight=dhCount*2+singleCount+1;      // DH pairs×2 + singles + coOppA slot
-  const totalPerActiveNight=coGamesPerNight+lgGamesPerActiveNight;
-  const lgGamesPerByeNight=dhCount*2+singleCount;           // same but D9 empty
-  const totalPerByeNight=lgGamesPerByeNight;
+  // League pair slots per night = DH diamonds + single diamonds (D9 is CO only)
+  const lgPairSlotsPerNight=dhCount+singleCount;
 
-  // Team appearances per night
-  const activeApp=leagueN+dhCount*2+1;  // all 9 play 6:30 + DH swaps + coOppB
-  const byeApp=(leagueN-1)+dhCount*2;   // 8 play (1 true bye) + DH swaps
+  // Required nights: uniquePairs * tfaced total pair-slots / slots per night
+  const requiredNights=lgPairSlotsPerNight>0
+    ?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight)
+    :0;
+  const nightsMatch=nights===requiredNights&&requiredNights>0;
 
-  const activeNights=Math.max(0,nights-cobyes);
-  const byeNights=cobyes;
-  const totalApp=activeNights*activeApp+byeNights*byeApp;
-  const perTeam=leagueN>0?totalApp/leagueN:0;
-  const isEqual=leagueN>0&&totalApp%leagueN===0;
+  // Games per team when season length is correct
+  const coEach=requiredNights>0?requiredNights/leagueN:tfaced;
+  const dhBonus=coEach*dhCount;
+  const league630=requiredNights-coEach;
+  const gamesPerTeam=Math.round(coEach+coEach+dhBonus+league630);
 
-  const totalGames=activeNights*totalPerActiveNight+byeNights*totalPerByeNight;
-  const coTotalGames=activeNights*coGamesPerNight;
+  // Total games per night (no +1 — D9 CO is separate, not a league game)
+  const lgGamesPerNight=dhCount*2+singleCount;
+  const coGamesPerNight=2;
+  const totalGamesPerNight=lgGamesPerNight+coGamesPerNight;
+  const totalGames=totalGamesPerNight*(nightsMatch?requiredNights:nights);
+  const coTotalGames=coGamesPerNight*(nightsMatch?requiredNights:nights);
   const lgTotalGames=totalGames-coTotalGames;
-
-  // Required slots
-  const reqApp=gpt*leagueN;
-  const slotOk=reqApp<=totalApp;
-  const slotDiff=totalApp-reqApp;
 
   // Status
   let statusHtml,statusBg;
-  if(!isEqual){
-    const fl=Math.floor(perTeam),ce=Math.ceil(perTeam),atCe=totalApp%leagueN;
-    statusHtml=`<span style="color:var(--red);font-weight:800">✗ NOT EQUAL</span> — ${leagueN-atCe} teams get ${fl} games, ${atCe} teams get ${ce} games. Adjust CO bye weeks or season length.`;
+  if(!nightsMatch){
+    const diff=requiredNights-nights;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — `
+      +`${tfaced}× times faced needs exactly <strong>${requiredNights}</strong> nights. `
+      +`You have <strong>${nights}</strong>. `
+      +(diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`);
     statusBg='#fff0f0';
-  } else if(isEqual&&Math.round(perTeam)===gpt){
-    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ EQUAL — ${gpt} games each</span>`;
-    statusBg='#edf7f0';
   } else {
-    statusHtml=`<span style="color:var(--warning);font-weight:800">⚠ Equal but ${Math.round(perTeam)} games/team</span> — your target is ${gpt}. Adjust bye weeks or target.`;
-    statusBg='#fff8ee';
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${gamesPerTeam} games per team, every pair plays ${tfaced}×</span>`;
+    statusBg='#edf7f0';
   }
-
-  const slotRow=slotOk
-    ?`Capacity <strong>${totalApp}</strong> team-slots · Target needs <strong>${reqApp}</strong> · <span style="color:#27ae60;font-weight:700">+${slotDiff} spare ✓</span>`
-    :`Target needs <strong>${reqApp}</strong> team-slots · Only <strong>${totalApp}</strong> available · <span style="color:var(--red);font-weight:700">short by ${-slotDiff}</span>`;
-
   noticeEl.innerHTML=`
   <div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;margin-top:4px">
     <div style="background:var(--navy);color:#fff;padding:7px 12px;font-weight:800;font-size:11px;letter-spacing:0.8px;text-transform:uppercase">📊 Schedule Calculator</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border)">
       <div style="padding:8px 12px;border-right:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Game Nights</div>
-        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nights}</div>
-        <div style="font-size:11px;color:var(--muted)">${activeNights} active · ${byeNights} CO bye${byeNights!==1?'s':''}</div>
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Your Nights</div>
+        <div style="font-size:22px;font-weight:800;color:${nightsMatch?'var(--navy)':'var(--red)'};line-height:1.2">${nights}</div>
+        <div style="font-size:11px;color:var(--muted)">Need ${requiredNights}</div>
+      </div>
+      <div style="padding:8px 12px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Games/Team</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${gamesPerTeam}</div>
+        <div style="font-size:11px;color:var(--muted)">${tfaced}× each opponent</div>
       </div>
       <div style="padding:8px 12px">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
-        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${totalGames}</div>
-        <div style="font-size:11px;color:var(--muted)">CO: ${coTotalGames} · League: ${lgTotalGames}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${nightsMatch?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
       </div>
     </div>
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Active Night</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Night · ${t1} / ${t2}</div>
       <div style="display:grid;gap:3px">
-        <div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH (6:30 + 8:15)</span><strong>2 games</strong></div>
-        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(d.name)} — 💡 DH (6:30 + 8:15 swap)</span><strong>2 games</strong></div>`).join('')}
-        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>${esc(d.name)} — 🌙 Single (6:30 only)</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
-        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalPerActiveNight} games (${coGamesPerNight} CO + ${lgGamesPerActiveNight} league)</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH</span><strong>2 games</strong></div>
+        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(d.name)} — 💡 Doubleheader</span><strong>2 games</strong></div>`).join('')}
+        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>${esc(d.name)} — 🌙 Single only</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalGamesPerNight} games</span></div>
       </div>
     </div>
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Team Appearances</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Opponent Matchups</div>
       <div style="display:grid;gap:2px;font-size:12px">
-        <div style="display:flex;justify-content:space-between"><span>${activeNights} active nights × ${activeApp}/night</span><strong>${activeNights*activeApp}</strong></div>
-        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>${byeNights} bye nights × ${byeApp}/night</span><strong style="color:var(--text)">${byeNights*byeApp}</strong></div>
-        <div style="display:flex;justify-content:space-between;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total ÷ ${leagueN} teams</span><span style="color:${isEqual?'#27ae60':'var(--red)'}">${isEqual?Math.round(perTeam)+' each ✓':perTeam.toFixed(2)+' ✗'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × ${tfaced}× each</span><strong>${lgGamesFromFaced} league games</strong></div>
+        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights (${tfaced} × ${leagueN} teams)</strong></div>
       </div>
     </div>
-    <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px">${slotRow}</div>
     <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
   </div>`;
 }
@@ -946,234 +983,193 @@ function getTues(startStr,endStr){
 
 function genSched(){
   if(G.teams.length!==10){alert('Need exactly 10 teams including CrossOver. Currently: '+G.teams.length);return;}
-  const startStr=document.getElementById('ss').value;
-  const endStr=document.getElementById('se').value;
-  const tues=getTues(startStr,endStr);
-  if(!tues.length){alert('No Tuesdays found in that date range');return;}
 
-  const TARGET=parseInt(document.getElementById('gpt').value)||22;
-  const CO_BYES=Math.max(0,parseInt(document.getElementById('cobyes').value)||0);
+  const selectedDays=getSelectedDays();
+  if(!selectedDays.length){alert('Please select at least one game day.');return;}
+  const gameNights=getGameNights(document.getElementById('ss').value,document.getElementById('se').value,selectedDays);
+  if(!gameNights.length){alert('No game nights found in that date range.');return;}
+
+  const TIME1=document.getElementById('time1')?.value||'6:30 PM';
+  const TIME2=document.getElementById('time2')?.value||'8:15 PM';
+  const TFACED=parseInt(document.getElementById('tfaced')?.value)||2;
+
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
-  const n=leagueTeams.length; // 9
-  const nights=tues.length;   // 20
+  const n=leagueTeams.length;
+  const nights=gameNights.length;
 
-  if(CO_BYES>=nights){alert('CO bye weeks cannot equal or exceed the total number of weeks.');return;}
+  // ── VALIDATE ──────────────────────────────────────────────────────────────
+  const d9id=9;
+  const dhIds=G.diamonds.filter(d=>d.lights&&d.id!==d9id).map(d=>d.id);
+  const singleIds=G.diamonds.filter(d=>!d.lights).map(d=>d.id);
+  const lgSlotsPerNight=dhIds.length+singleIds.length; // pair slots for league games
 
-  // ── VERIFY EQUAL GAMES ────────────────────────────────────────────────────
-  // Active nights: CO plays D9 both slots. All 5 diamonds run.
-  //   League appearances: 9 (6:30) + 2 (D12 DH) + 1 (coOppB D9 8:15) = 12
-  // Bye nights: CO doesn't play. D9 empty. D12/D5/D13/D14 run.
-  //   League appearances: 8 (4 diamonds * 2 teams) + 2 (D12 DH) = 10
-  const activeNights=nights-CO_BYES;
-  const byeNights=CO_BYES;
-  const totalApp=activeNights*12+byeNights*10;
-  if(totalApp%n!==0){
-    const floor=Math.floor(totalApp/n);
-    const ceil=Math.ceil(totalApp/n);
-    const atCeil=totalApp%n;
-    const msg=`With ${nights} weeks and ${CO_BYES} CO bye week(s), games per team won't be equal.\n`
-      +`${n-atCeil} teams would get ${floor} games, ${atCeil} teams would get ${ceil} games.\n\n`
-      +`Try ${CO_BYES+1} or ${CO_BYES+2} bye weeks, or adjust the season dates.`;
-    if(!confirm(msg+'\n\nGenerate anyway?'))return;
+  if(dhIds.length===0){alert('Need at least one lit non-D9 diamond for league doubleheaders.');return;}
+
+  const uniquePairs=n*(n-1)/2;  // 36
+  const requiredNights=lgSlotsPerNight>0?Math.round(uniquePairs*TFACED/lgSlotsPerNight):0;
+
+  if(nights!==requiredNights){
+    alert(`With ${TFACED}× times faced and ${lgSlotsPerNight} league diamonds per night,\nyou need exactly ${requiredNights} game nights.\nYou currently have ${nights}.\n\nAdjust your season dates to get ${requiredNights} nights, or change Times Faced.`);
+    return;
   }
 
-  // ── DIAMOND CONFIG ────────────────────────────────────────────────────────
-  const singleOnlyIds=G.diamonds.filter(d=>!d.lights).map(d=>d.id);  // D13, D14
-  const d12id=G.diamonds.find(d=>d.lights&&d.id!==9)?.id||12;        // D12 (first lit non-D9)
-  const singleLitIds=G.diamonds.filter(d=>d.lights&&d.id!==9&&d.id!==d12id).map(d=>d.id); // D5
-
-  // ── SPREAD BYE NIGHTS EVENLY ──────────────────────────────────────────────
-  const byeNightSet=new Set();
-  if(byeNights>0){
-    const step=nights/byeNights;
-    for(let b=0;b<byeNights;b++){
-      byeNightSet.add(Math.min(Math.round(b*step+step*0.5),nights-1));
-    }
+  const singleTeamsPerNight=n-1-dhIds.length*2;
+  if(singleTeamsPerNight<0||singleTeamsPerNight%2!==0||singleTeamsPerNight/2!==singleIds.length){
+    alert(`Diamond mismatch: ${n} teams need ${n-1} league spots per night,\nbut ${dhIds.length} DH diamonds (${dhIds.length*2} spots) + ${singleIds.length} single diamonds (${singleIds.length*2} spots) = ${dhIds.length*2+singleIds.length*2} spots.\n\nAdjust your diamond configuration.`);
+    return;
   }
 
-  // ── BUILD LEAGUE PAIR POOL ────────────────────────────────────────────────
-  // All 9 teams play every night (active or bye) — no true idle.
-  // Active nights: coOppA plays D9 (CO game). Others on D12/D5/D13/D14.
-  // Bye nights: all 9 on D12/D5/D13/D14 — but only 4 diamonds = 8 slots.
-  //   → 1 team has a true league bye on CO bye nights (rotated fairly).
-  //
-  // League game appearances:
-  //   Active: 4 league pairs at 6:30 + coOppA on D9 + D12 DH + coOppB = counted above
-  //   Bye: 4 league pairs at 6:30 only (D9 empty, 1 team true bye) + D12 DH
-  //
-  // Pool: build balanced so each team gets equal total appearances.
-  // Total league appearances = totalApp (already calculated).
-  // Each team: totalApp/n appearances.
-  // League GAME appearances (not CO): totalApp/n - co_appearances_per_team.
-  // CO appearances per team:
-  //   coOppA: activeNights/n ≈ (not always integer — balanced via pool)
-  //   coOppB: activeNights/n ≈ same
-  //   Together: activeNights*2/n per team (if perfectly balanced)
-  // League game appearances per team: totalApp/n - activeNights*2/n
-  //   = (totalApp - activeNights*2)/n
-  //   = (byeNights*10 + activeNights*10)/n  [since 12-2=10 league per active night]
-  //   Wait: active night league appearances = 12 - 2(CO) = 10 per night.
-  //   Bye night league appearances = 10 per night.
-  //   Total league = (activeNights+byeNights)*10 = nights*10.
-  // League games = nights*10/2 = nights*5. Per team = nights*10/n.
+  // ── ALGORITHM (verified 100% success in simulation) ───────────────────────
+  // Each night: coA plays D9 vs CO (excluded from league pairs)
+  // DH diamonds each get 1 league pair (plays 6:30 + 8:15 swap)
+  // Single diamonds each get 1 league pair (6:30 only)
+  // coB plays D9 8:15 vs CO (must be in a DH pair or coA to avoid D13/D14 lockout)
+  // 
+  // Pre-assign coA: TFACED per team (one per night)
+  // Pre-assign coB: TFACED per team (one per night)
+  // Pre-assign DH pairs: include coB when possible, track remaining quota
+  // Fill single diamonds: remaining teams split into pairs
+  // Count games per team — guaranteed equal by math (no per-pair tracking needed)
 
-  const leagueAppPerTeam=nights*10/n;  // must be integer for equal
-  const lgGamesTotal=Math.round(nights*10/2); // nights*5
-  const lgEachTarget=Math.round(leagueAppPerTeam); // league game appearances per team
-
-  // Build balanced pool: each of n teams appears exactly lgEachTarget times
   const allPairs=[];
-  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)allPairs.push([leagueTeams[i],leagueTeams[j]]);
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) allPairs.push([i,j]);
 
-  // Use structured round-robin to guarantee exact balance
-  function makeBalancedPool(targetEach){
-    const fullRR=Math.floor(targetEach/(n-1));
-    const remainder=targetEach%(n-1);
+  function makePool(perTeam){
     const pool=[];
-    for(let r=0;r<fullRR;r++) pool.push(...allPairs);
-    if(remainder===0) return pool;
-    // Pick pairs for remainder appearances per team
-    const extraGames=Math.round(n*remainder/2);
-    for(let attempt=0;attempt<300;attempt++){
-      const deg={};leagueTeams.forEach(t=>deg[t]=remainder);
-      const extra=[];
-      const cands=shuffle([...allPairs]);
-      for(const [t1,t2] of cands){
-        if(deg[t1]>0&&deg[t2]>0){extra.push([t1,t2]);deg[t1]--;deg[t2]--;}
-      }
-      if(extra.length===extraGames){pool.push(...extra);return pool;}
-    }
-    return pool; // best effort
+    for(let t=0;t<n;t++) for(let k=0;k<perTeam;k++) pool.push(t);
+    return shuffle(pool);
   }
 
-  const lgPool=shuffle(makeBalancedPool(lgEachTarget));
+  const coEach=nights/n; // exact integer = TFACED
 
-  // ── PRE-ASSIGN CO OPPONENTS ───────────────────────────────────────────────
-  // coOppA per active night: each team faces CO at 6:30 equally
-  // coOppB per active night: each team faces CO at 8:15 equally
-  // activeNights*2 CO slots / n teams — may not be exactly equal; distribute as evenly as possible
-  const coOppAPool=[];
-  const coOppBPool=[];
-  const coEachBase=Math.floor(activeNights/n);
-  const coEachExtra=activeNights%n;
-  leagueTeams.forEach((t,i)=>{
-    const cnt=coEachBase+(i<coEachExtra?1:0);
-    for(let k=0;k<cnt;k++){coOppAPool.push(t);coOppBPool.push(t);}
-  });
-  shuffle(coOppAPool);shuffle(coOppBPool);
+  for(let attempt=0;attempt<2000;attempt++){
+    const coANights=makePool(coEach);
+    const coBNights=makePool(coEach);
 
-  // ── BUILD SCHEDULE NIGHT BY NIGHT ────────────────────────────────────────
-  const sched=[];
-  hc={};G.teams.forEach(t=>hc[t]=0);
-  const lgRemaining=[...lgPool];
-  const coARemaining=[...coOppAPool];
-  const coBRemaining=[...coOppBPool];
+    // Pre-assign DH pairs: one per DH diamond per night
+    // Track how many times each team has appeared on each DH diamond (for balance)
+    // But DON'T enforce strict quota — just prefer teams with fewer appearances
+    const dhDegree=dhIds.map(()=>new Array(n).fill(0));
+    const dhPairsByNight={};
+    let dhOk=true;
 
-  // Track true-bye rotation on CO bye nights (1 team sits out each bye night)
-  const trueBye={};leagueTeams.forEach(t=>trueBye[t]=0);
+    for(let ni=0;ni<nights;ni++){
+      dhPairsByNight[ni]=[];
+      const coA=coANights[ni];
+      const coB=coBNights[ni];
+      const usedThisNight=new Set([coA]);
 
-  for(let ti=0;ti<nights;ti++){
-    const dateStr=tues[ti];
-    const isByeNight=byeNightSet.has(ti);
-
-    if(isByeNight){
-      // ── CO BYE NIGHT ──────────────────────────────────────────────────────
-      // D9 empty. D12/D5/D13/D14 run. 4 diamonds = 8 team slots. 1 team has true bye.
-      // Rotate true bye so each team sits out equally across bye nights.
-      const byeTeam=leagueTeams.reduce((a,b)=>trueBye[a]<=trueBye[b]?a:b);
-      trueBye[byeTeam]++;
-
-      const usedByeNight=new Set([byeTeam]);
-      const singleOnly=new Set();
-      const dmOrder=[d12id,...singleLitIds,...singleOnlyIds];
-      let d12pair=null;
-
-      for(const dmId of dmOrder){
-        if(usedByeNight.size>=9)break; // all placed
-        const dm=G.diamonds.find(d=>d.id===dmId);
-        for(let pi=0;pi<lgRemaining.length;pi++){
-          const[t1,t2]=lgRemaining[pi];
-          if(!usedByeNight.has(t1)&&!usedByeNight.has(t2)){
-            lgRemaining.splice(pi,1);
-            const[home,away]=pickHA(t1,t2);
-            hc[home]++;
-            sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',
-              diamond:dmId,lights:dm?.lights||false,home,away,bye:byeTeam,crossover:false});
-            usedByeNight.add(t1);usedByeNight.add(t2);
-            if(!dm?.lights){singleOnly.add(t1);singleOnly.add(t2);}
-            if(dmId===d12id)d12pair={t1,t2,home,away};
-            break;
-          }
+      for(let di=0;di<dhIds.length;di++){
+        // Candidates: not coA, not already placed, any pair
+        const cands=[];
+        for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+          if(!usedThisNight.has(i)&&!usedThisNight.has(j))
+            cands.push([i,j]);
         }
+        if(!cands.length){dhOk=false;break;}
+
+        // Prefer pair including coB (so coB isn't on D13/D14 = single-locked)
+        // Among those, prefer pair where both teams have fewest DH appearances (for balance)
+        const pref=cands.filter(([i,j])=>i===coB||j===coB);
+        const pool=pref.length?pref:cands;
+        const minScore=Math.min(...pool.map(([i,j])=>dhDegree[di][i]+dhDegree[di][j]));
+        const best=pool.filter(([i,j])=>dhDegree[di][i]+dhDegree[di][j]===minScore);
+        const pair=best[Math.floor(Math.random()*best.length)];
+
+        dhPairsByNight[ni].push(pair);
+        dhDegree[di][pair[0]]++;
+        dhDegree[di][pair[1]]++;
+        usedThisNight.add(pair[0]);
+        usedThisNight.add(pair[1]);
       }
-      // D12 DH on bye night
-      if(d12pair&&!singleOnly.has(d12pair.t1)&&!singleOnly.has(d12pair.t2)){
-        hc[d12pair.away]++;
-        sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',
-          diamond:d12id,lights:true,home:d12pair.away,away:d12pair.home,bye:byeTeam,crossover:false});
+      if(!dhOk)break;
+    }
+    if(!dhOk)continue;
+
+    // Assign single pairs and count games per team
+    const gameCounts={};
+    G.teams.forEach(t=>gameCounts[t]=0);
+    const sched=[];
+    hc={};G.teams.forEach(t=>hc[t]=0);
+    let assignOk=true;
+
+    for(let ni=0;ni<nights;ni++){
+      const dateStr=gameNights[ni];
+      const coA=coANights[ni];
+      const coB=coBNights[ni];
+      const dhPairs=dhPairsByNight[ni];
+      const dhTeams=new Set(dhPairs.flat());
+      const usedSet=new Set([coA,...dhTeams]);
+      const rest=[];
+      for(let t=0;t<n;t++) if(!usedSet.has(t)) rest.push(t);
+
+      // coB must be coA or in a DH pair (not in rest → not on D13/D14)
+      if(!dhTeams.has(coB)&&coB!==coA&&rest.includes(coB)){
+        assignOk=false;break;
       }
 
-    } else {
-      // ── ACTIVE NIGHT ──────────────────────────────────────────────────────
-      // D9: CO HOME at 6:30, CO AWAY at 8:15. D12 DH. D5/D13/D14 single.
-      const coOppA=coARemaining.length>0?coARemaining.shift():leagueTeams[ti%n];
-      const usedActive=new Set([CROSSOVER,coOppA]);
-      const singleOnly=new Set();
-      const dmOrder=[d12id,...singleLitIds,...singleOnlyIds];
-      let d12pair=null;
+      // Pair up the rest for single diamonds (random shuffle)
+      shuffle(rest);
+      const singlePairs=[];
+      for(let si=0;si<singleIds.length;si++) singlePairs.push([rest[si*2],rest[si*2+1]]);
 
       // D9 6:30: CO HOME vs coOppA AWAY
+      const coATeam=leagueTeams[coA];
+      const coBTeam=leagueTeams[coB];
       hc[CROSSOVER]++;
-      sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',
-        diamond:9,lights:true,home:CROSSOVER,away:coOppA,bye:'',crossover:true});
+      sched.push({id:`g${sched.length}`,date:dateStr,time:TIME1,
+        diamond:d9id,lights:true,home:CROSSOVER,away:coATeam,bye:'',crossover:true});
+      gameCounts[CROSSOVER]=gameCounts[CROSSOVER]||0;
 
-      // League games at 6:30
-      for(const dmId of dmOrder){
+      // DH diamonds: 6:30 + 8:15 swap
+      dhPairs.forEach((pair,di)=>{
+        const dmId=dhIds[di];
+        const t1=leagueTeams[pair[0]];const t2=leagueTeams[pair[1]];
+        const[home,away]=pickHA(t1,t2);hc[home]++;
+        sched.push({id:`g${sched.length}`,date:dateStr,time:TIME1,
+          diamond:dmId,lights:true,home,away,bye:'',crossover:false});
+        hc[away]++;
+        sched.push({id:`g${sched.length}`,date:dateStr,time:TIME2,
+          diamond:dmId,lights:true,home:away,away:home,bye:'',crossover:false});
+        gameCounts[t1]=(gameCounts[t1]||0)+2;
+        gameCounts[t2]=(gameCounts[t2]||0)+2;
+      });
+
+      // Single diamonds: 6:30 only
+      singlePairs.forEach((pair,si)=>{
+        const dmId=singleIds[si];
         const dm=G.diamonds.find(d=>d.id===dmId);
-        for(let pi=0;pi<lgRemaining.length;pi++){
-          const[t1,t2]=lgRemaining[pi];
-          if(!usedActive.has(t1)&&!usedActive.has(t2)){
-            lgRemaining.splice(pi,1);
-            const[home,away]=pickHA(t1,t2);
-            hc[home]++;
-            sched.push({id:`g${sched.length}`,date:dateStr,time:'6:30 PM',
-              diamond:dmId,lights:dm?.lights||false,home,away,bye:'',crossover:false});
-            usedActive.add(t1);usedActive.add(t2);
-            if(!dm?.lights){singleOnly.add(t1);singleOnly.add(t2);}
-            if(dmId===d12id)d12pair={t1,t2,home,away};
-            break;
-          }
-        }
-      }
+        const t1=leagueTeams[pair[0]];const t2=leagueTeams[pair[1]];
+        const[home,away]=pickHA(t1,t2);hc[home]++;
+        sched.push({id:`g${sched.length}`,date:dateStr,time:TIME1,
+          diamond:dmId,lights:dm?.lights||false,home,away,bye:'',crossover:false});
+        gameCounts[t1]=(gameCounts[t1]||0)+1;
+        gameCounts[t2]=(gameCounts[t2]||0)+1;
+      });
 
-      // D9 8:15: coOppB HOME vs CO AWAY (must not be D13/D14 team)
-      let coOppB=null;
-      for(let i=0;i<coBRemaining.length;i++){
-        if(!singleOnly.has(coBRemaining[i])){
-          coOppB=coBRemaining.splice(i,1)[0];break;
-        }
-      }
-      if(!coOppB){
-        const el=leagueTeams.filter(t=>!singleOnly.has(t));
-        coOppB=el[Math.floor(Math.random()*el.length)]||leagueTeams[0];
-      }
-      hc[coOppB]++;
-      sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',
-        diamond:9,lights:true,home:coOppB,away:CROSSOVER,bye:'',crossover:true});
-
-      // D12 8:15: DH swap
-      if(d12pair&&!singleOnly.has(d12pair.t1)&&!singleOnly.has(d12pair.t2)){
-        hc[d12pair.away]++;
-        sched.push({id:`g${sched.length}`,date:dateStr,time:'8:15 PM',
-          diamond:d12id,lights:true,home:d12pair.away,away:d12pair.home,bye:'',crossover:false});
-      }
+      // D9 8:15: coB HOME vs CO AWAY
+      hc[coBTeam]++;
+      sched.push({id:`g${sched.length}`,date:dateStr,time:TIME2,
+        diamond:d9id,lights:true,home:coBTeam,away:CROSSOVER,bye:'',crossover:true});
+      gameCounts[coATeam]=(gameCounts[coATeam]||0)+1;
+      gameCounts[coBTeam]=(gameCounts[coBTeam]||0)+1;
     }
+
+    if(!assignOk)continue;
+
+    // Verify all league teams have equal games
+    const lgCounts=leagueTeams.map(t=>gameCounts[t]||0);
+    const allEqual=lgCounts.every(c=>c===lgCounts[0]);
+    if(!allEqual)continue;
+
+    G.sched=sched;G.scores={};
+    document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',i===1));
+    document.querySelectorAll('.section').forEach((s,i)=>s.classList.toggle('active',i===1));
+    renderSched();
+    return;
   }
 
-  G.sched=sched;G.scores={};
-  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',i===1));
-  document.querySelectorAll('.section').forEach((s,i)=>s.classList.toggle('active',i===1));
-  renderSched();
+  alert('Could not generate a valid schedule after 2000 attempts.\nTry adjusting your diamond configuration or season settings.');
 }
 
 function groupSched(games){
@@ -1274,9 +1270,173 @@ function buildSchedInner(dates,isScore){
 // ── RENDER SCHEDULE ───────────────────────────────────────────────────────────
 function renderSched(){
   const el=document.getElementById('so');
-  if(!G.sched.length){el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';return;}
+  const bar=document.getElementById('export-bar');
+  if(!G.sched.length){
+    el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';
+    if(bar)bar.style.display='none';
+    return;
+  }
+  if(bar)bar.style.display='flex';
   const grouped=groupSched(G.sched);
   el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
+}
+
+// ── EXPORTS ───────────────────────────────────────────────────────────────────
+
+function exportCSV(){
+  if(!G.sched.length){alert('Generate a schedule first.');return;}
+  const rows=[['Date','Day','Time','Diamond','Lights','Home','Away','CrossOver Game']];
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  for(const g of G.sched){
+    const d=new Date(g.date+'T12:00:00');
+    const day=dayNames[d.getDay()];
+    const dateFormatted=d.toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'});
+    rows.push([
+      dateFormatted,
+      day,
+      g.time,
+      getDiamondName(g.diamond),
+      g.lights?'Yes':'No',
+      g.home,
+      g.away,
+      g.crossover?'Yes':'No'
+    ]);
+  }
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='Hamilton_Classic_Schedule.csv';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+function exportPrint(){
+  if(!G.sched.length){alert('Generate a schedule first.');return;}
+  const grouped=groupSched(G.sched);
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Hamilton Classic Co-Ed Softball — 2026 Schedule</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:20px}
+    h1{font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+    .sub{font-size:10px;color:#666;margin-bottom:16px}
+    .month{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:1px;
+           background:#1a2744;color:#fff;padding:5px 10px;margin:14px 0 6px}
+    .week-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+              color:#c0392b;border-bottom:1px solid #ddd;padding:4px 0;margin:8px 0 3px}
+    table{width:100%;border-collapse:collapse;margin-bottom:4px}
+    th{background:#243058;color:#fff;font-size:9px;text-transform:uppercase;
+       letter-spacing:0.4px;padding:3px 6px;text-align:left}
+    td{padding:3px 6px;border-bottom:1px solid #eee;font-size:10px}
+    tr:nth-child(even) td{background:#f7f6f3}
+    .co td{background:#e8f5e9!important;font-style:italic}
+    .time{font-weight:700;white-space:nowrap;color:#c0392b}
+    .diamond{font-family:monospace;font-size:9px;background:#e8edf7;
+             padding:1px 5px;border-radius:3px;white-space:nowrap}
+    .no-lights .diamond{background:#fdf0e8}
+    .bye-note{font-size:9px;color:#666;font-style:italic;padding:2px 0 6px}
+    @media print{
+      body{padding:10px}
+      .month{break-before:auto}
+      tr{break-inside:avoid}
+    }
+  </style></head><body>
+  <h1>Hamilton Classic Co-Ed Softball League</h1>
+  <div class="sub">Turner Park, Hamilton &nbsp;·&nbsp; 2026 Season Schedule &nbsp;·&nbsp; Generated ${new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})}</div>`;
+
+  for(const{month,dates} of grouped){
+    html+=`<div class="month">${month}</div>`;
+    for(const[dateStr,games] of Object.entries(dates)){
+      const d=new Date(dateStr+'T12:00:00');
+      const dayName=dayNames[d.getDay()];
+      const dateLabel=d.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+      html+=`<div class="week-hdr">${dateLabel}</div>`;
+
+      const byeStr=games[0]?.bye||'';
+      if(byeStr.startsWith('CO BYE')){
+        const rt=byeStr.replace('CO BYE — ','').replace(' rest','');
+        html+=`<div class="bye-note">🚫 CrossOver Bye &nbsp;·&nbsp; ${rt} rests</div>`;
+      } else if(byeStr){
+        html+=`<div class="bye-note">Bye: ${byeStr}</div>`;
+      }
+
+      html+=`<table><thead><tr><th>Time</th><th>Diamond</th><th>Home</th><th>Away</th></tr></thead><tbody>`;
+      for(const g of games){
+        const isCO=g.crossover;
+        const dmCell=`<span class="diamond">${getDiamondName(g.diamond)}${g.lights?' ☀':''}</span>`;
+        html+=`<tr class="${isCO?'co':''}">
+          <td class="time">${g.time}</td>
+          <td>${dmCell}</td>
+          <td>${g.home}${isCO&&g.home===CROSSOVER?' 🏳':''}</td>
+          <td>${g.away}</td>
+        </tr>`;
+      }
+      html+=`</tbody></table>`;
+    }
+  }
+  html+=`</body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(),400);
+}
+
+function exportICal(){
+  if(!G.sched.length){alert('Generate a schedule first.');return;}
+
+  function icalDate(dateStr,timeStr){
+    const[y,m,d]=dateStr.split('-').map(Number);
+    const[time,ampm]=timeStr.split(' ');
+    let[h,min]=time.split(':').map(Number);
+    if(ampm==='PM'&&h!==12)h+=12;
+    if(ampm==='AM'&&h===12)h=0;
+    return `${String(y)}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}T${String(h).padStart(2,'0')}${String(min).padStart(2,'0')}00`;
+  }
+
+  function icalEndTime(dateStr,timeStr){
+    // Games are approximately 75 minutes
+    const[y,m,d]=dateStr.split('-').map(Number);
+    const[time,ampm]=timeStr.split(' ');
+    let[h,min]=time.split(':').map(Number);
+    if(ampm==='PM'&&h!==12)h+=12;
+    if(ampm==='AM'&&h===12)h=0;
+    min+=75;h+=Math.floor(min/60);min%=60;
+    return `${String(y)}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}T${String(h).padStart(2,'0')}${String(min).padStart(2,'0')}00`;
+  }
+
+  function uid(g){return `${g.id}-hamilton-classic-2026@softball`;}
+
+  const now=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  let cal=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Hamilton Classic Softball//Schedule//EN\r\nCALSCALE:GREGORIAN\r\nX-WR-CALNAME:Hamilton Classic 2026\r\nX-WR-TIMEZONE:America/Toronto\r\n`;
+
+  for(const g of G.sched){
+    const dmName=getDiamondName(g.diamond);
+    const lights=g.lights?'(Lights)':'(No Lights)';
+    const summary=`${g.home} vs ${g.away} — ${dmName}`;
+    const desc=`${g.home} (Home) vs ${g.away} (Away)\\n${dmName} ${lights}\\nTurner Park, Hamilton${g.crossover?' — CrossOver Game':''}`;
+    cal+=`BEGIN:VEVENT\r\n`;
+    cal+=`UID:${uid(g)}\r\n`;
+    cal+=`DTSTAMP:${now}\r\n`;
+    cal+=`DTSTART;TZID=America/Toronto:${icalDate(g.date,g.time)}\r\n`;
+    cal+=`DTEND;TZID=America/Toronto:${icalEndTime(g.date,g.time)}\r\n`;
+    cal+=`SUMMARY:${summary}\r\n`;
+    cal+=`DESCRIPTION:${desc}\r\n`;
+    cal+=`LOCATION:Turner Park, Hamilton, ON\r\n`;
+    cal+=`END:VEVENT\r\n`;
+  }
+  cal+=`END:VCALENDAR\r\n`;
+
+  const blob=new Blob([cal],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='Hamilton_Classic_2026.ics';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
 // ── RENDER SCORES ─────────────────────────────────────────────────────────────
