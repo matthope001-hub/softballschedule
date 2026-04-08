@@ -207,11 +207,13 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
 .metric-value { font-size: 26px; font-weight: 800; color: #fff; line-height: 1; }
 
 /* ── MATRIX / STATS TABLES ── */
-.matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.matrix { border-collapse: collapse; font-size: 12px; white-space: nowrap; }
-.matrix th { background: var(--gray1); color: var(--muted); font-size: 10px; font-weight: 700; padding: 6px 8px; border: 1px solid var(--border); text-align: center; text-transform: uppercase; letter-spacing: 0.4px; }
-.matrix th.row-label { text-align: left; color: var(--text); font-size: 12px; padding: 6px 10px; min-width: 130px; }
-.matrix td { padding: 6px 8px; border: 1px solid var(--border); text-align: center; color: var(--gray3); background: var(--white); font-family: var(--mono); }
+.matrix-wrap { overflow-x: visible; }
+.matrix { border-collapse: collapse; font-size: 12px; width: 100%; }
+.matrix th { background: var(--gray1); color: var(--muted); font-size: 10px; font-weight: 700; padding: 4px 6px; border: 1px solid var(--border); text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
+.matrix th.col-head { vertical-align: bottom; text-align: center; padding: 4px 2px 6px; width: 36px; max-width: 36px; }
+.matrix th.col-head span { display: block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: 0; line-height: 1; padding: 0 2px; }
+.matrix th.row-label { text-align: left; color: var(--text); font-size: 12px; font-weight: 600; padding: 6px 10px; white-space: nowrap; min-width: 0; }
+.matrix td { padding: 5px 4px; border: 1px solid var(--border); text-align: center; color: var(--gray3); background: var(--white); font-family: var(--mono); font-size: 12px; width: 36px; }
 .matrix td.self { background: var(--gray2); color: var(--border); }
 .matrix td.played { color: var(--navy); font-weight: 700; }
 
@@ -279,17 +281,17 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
 
 
 <div class="tabs">
-  <button class="tab active" onclick="showTab('teams',this)">Teams</button>
-  <button class="tab" onclick="showTab('schedule',this)">Schedule</button>
+  <button class="tab active" onclick="showTab('schedule',this)">Schedule</button>
   <button class="tab" onclick="showTab('scores',this)">Scores</button>
   <button class="tab" onclick="showTab('standings',this)">Standings</button>
   <button class="tab" onclick="showTab('stats',this)">Stats</button>
   <button class="tab" onclick="showTab('edit',this)">Edit Games</button>
+  <button class="tab" onclick="showTab('teams',this)">Settings</button>
 </div>
 
 <div class="main">
 
-  <div id="tab-teams" class="section active">
+  <div id="tab-teams" class="section">
     <div class="card">
       <div class="card-title">Manage Teams</div>
       <div class="row">
@@ -397,7 +399,7 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
   </div>
 
 
-  <div id="tab-schedule" class="section">
+  <div id="tab-schedule" class="section active">
     <div id="export-bar" class="export-bar">
       <span class="export-label">Export:</span>
       <button class="btn" onclick="exportCSV()" style="font-size:12px;padding:6px 14px">⬇ CSV / Excel</button>
@@ -1324,17 +1326,12 @@ function capRuns(h,a){
 function renderStandings(){
   const el=document.getElementById('sto');
   if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
-  // Exclude CrossOver from standings
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
-  for(const t of leagueTeams)stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0,h:0,a:0};
+  for(const t of leagueTeams)stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
   for(const g of G.sched){
-    // Count home stats
-    if(stats[g.home]!==undefined)stats[g.home].h++;
-    if(stats[g.away]!==undefined)stats[g.away].a++;
     const sc=G.scores[g.id];if(!sc)continue;
     const{ch,ca}=capRuns(sc.h,sc.a);
-    // Only count for league teams (not CrossOver)
     if(stats[g.home]!==undefined){
       stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
       if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
@@ -1357,15 +1354,14 @@ function renderStandings(){
     <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.length-gp}</div></div>
     <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
   </div>
-  <div class="notice">RF/RA capped at +7 · Points decide rank · CrossOver excluded from standings · H/A = Home/Away scheduled</div>
+  <div class="notice">RF/RA capped at +7 per game · Points: W=2 T=1 L=0 · CrossOver excluded</div>
   <div class="st-wrap"><table class="st">
-    <colgroup><col style="width:28px"><col><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:36px"><col style="width:32px"><col style="width:32px"><col style="width:38px"><col style="width:26px"><col style="width:26px"></colgroup>
-    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th><th>H</th><th>A</th></tr></thead>
+    <colgroup><col style="width:28px"><col><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:42px"><col style="width:36px"><col style="width:36px"><col style="width:44px"></colgroup>
+    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th></tr></thead>
     <tbody>${sorted.map((t,i)=>{
       const s=stats[t];const diff=s.rf-s.ra;
       const ds=s.gp===0?'—':(diff>0?'+'+diff:''+diff);
-      const imb=Math.abs(s.h-s.a)>1;const hac=imb?'warn':'mono';
-      return`<tr><td class="rank">${i+1}</td><td style="font-weight:600;letter-spacing:1px">${esc(t)}</td><td class="mono">${s.gp}</td><td class="mono">${s.w}</td><td class="mono">${s.l}</td><td class="mono">${s.tie}</td><td class="pts">${s.pts}</td><td class="mono">${s.rf}</td><td class="mono">${s.ra}</td><td class="mono">${ds}</td><td class="${hac}">${s.h}</td><td class="${hac}">${s.a}</td></tr>`;
+      return`<tr><td class="rank">${i+1}</td><td style="font-weight:600">${esc(t)}</td><td class="mono">${s.gp}</td><td class="mono">${s.w}</td><td class="mono">${s.l}</td><td class="mono">${s.tie}</td><td class="pts">${s.pts}</td><td class="mono">${s.rf}</td><td class="mono">${s.ra}</td><td class="mono">${ds}</td></tr>`;
     }).join('')}</tbody>
   </table></div>`;
 }
@@ -1383,7 +1379,8 @@ function renderStats(){
     getDiamondIds().forEach(d=>ts[t].fields[d]=0);
   }
   const h2h={};
-  for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]=0;}
+  const coGames={};  // coGames[t] = number of games vs CrossOver
+  for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]=0;coGames[t]=0;}
   const dTotal={};getDiamondIds().forEach(d=>dTotal[d]=0);
   const nightCount={};
 
@@ -1391,10 +1388,13 @@ function renderStats(){
     dTotal[g.diamond]=(dTotal[g.diamond]||0)+1;
     if(ts[g.home]){ts[g.home].total++;ts[g.home].home++;ts[g.home].fields[g.diamond]++;}
     if(ts[g.away]){ts[g.away].total++;ts[g.away].away++;ts[g.away].fields[g.diamond]++;}
-    // h2h only between league teams
+    // h2h between league teams only
     if(ts[g.home]&&ts[g.away]&&g.home!==CROSSOVER&&g.away!==CROSSOVER){
       h2h[g.home][g.away]++;h2h[g.away][g.home]++;
     }
+    // CO game tracking
+    if(g.home===CROSSOVER&&coGames[g.away]!==undefined) coGames[g.away]++;
+    if(g.away===CROSSOVER&&coGames[g.home]!==undefined) coGames[g.home]++;
     if(g.home!==CROSSOVER) nightCount[g.date+'|'+g.home]=(nightCount[g.date+'|'+g.home]||0)+1;
     if(g.away!==CROSSOVER) nightCount[g.date+'|'+g.away]=(nightCount[g.date+'|'+g.away]||0)+1;
   }
@@ -1450,10 +1450,10 @@ function renderStats(){
   </div>
   <div class="card">
     <div class="card-title">Head-to-Head Matrix</div>
-    <div class="notice">Games scheduled between each pair (league games only)</div>
+    <div class="notice">Games scheduled between each pair (league games only) · <span style="color:var(--green);font-weight:600">CO</span> = games vs CrossOver</div>
     <div class="matrix-wrap"><table class="matrix">
-      <thead><tr><th class="row-label">vs →</th>${leagueTeams.map(t=>`<th title="${esc(t)}">${esc(t.length>9?t.slice(0,8)+'…':t)}</th>`).join('')}</tr></thead>
-      <tbody>${leagueTeams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${leagueTeams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}</tr>`).join('')}</tbody>
+      <thead><tr><th class="row-label">vs →</th>${leagueTeams.map(t=>`<th class="col-head"><span>${esc(t)}</span></th>`).join('')}<th class="col-head" style="background:#f0fff4;border-color:#bbf7d0"><span style="color:#15803d">CrossOver</span></th></tr></thead>
+      <tbody>${leagueTeams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${leagueTeams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}<td style="background:#f0fff4;color:#15803d;font-weight:700;border-color:#bbf7d0;font-family:var(--mono)">${coGames[r]||0}</td></tr>`).join('')}</tbody>
     </table></div>
   </div>`;
 }
