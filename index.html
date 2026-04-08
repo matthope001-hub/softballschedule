@@ -397,6 +397,7 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
       </div>
       <div id="gpt-notice" style="margin-bottom:1rem"></div>
       <button class="btn btn-primary" onclick="genSched()">⚾ Generate Schedule</button>
+      <button class="btn" onclick="clearData()" style="color:var(--red);border-color:var(--red);margin-left:8px">🗑 Clear All Data</button>
     </div>
 
     <div class="card">
@@ -672,10 +673,10 @@ function addTeam(){
   const name=inp.value.trim();
   if(!name||G.teams.includes(name))return;
   if(G.teams.length>=10){alert("MAX 10 TEAMS, WU-TANG AIN'T FOREVER");return;}
-  G.teams.push(name);inp.value='';renderTeams();
+  G.teams.push(name);inp.value='';saveData();renderTeams();
 }
 document.getElementById('ti').addEventListener('keydown',e=>{if(e.key==='Enter')addTeam();});
-function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);renderTeams();}
+function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);saveData();renderTeams();}
 function renderTeams(){
   const el=document.getElementById('tl');
   if(!G.teams.length){el.innerHTML='<div style="color:var(--gray3);font-size:13px;font-weight:700;padding:8px 0">No teams added yet</div>';return;}
@@ -694,7 +695,8 @@ function renderTeams(){
 }
 
 // ── DIAMOND MANAGEMENT ────────────────────────────────────────────────────────
-function addDiamond(){
+function addDiamond(){// saved below
+
   const newId=Math.max(0,...G.diamonds.map(d=>d.id))+1;
   G.diamonds.push({id:newId,name:'Diamond '+newId,lights:true});
   renderDiamonds();
@@ -884,12 +886,6 @@ function updateGptNotice(){
   </div>`;
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
-  renderTeams();
-  renderDiamonds();
-  initDayChecks();
-  updateGptNotice();
-});
 
 // ── SCHEDULE GENERATION ───────────────────────────────────────────────────────
 function getTues(startStr,endStr){
@@ -1138,6 +1134,7 @@ function genSched(){
     G.sched   = sched;
     schedFilterTeam = null;
     G.scores  = {};
+    saveData();
     document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', i===1));
     document.querySelectorAll('.section').forEach((s,i) => s.classList.toggle('active', i===1));
     renderSched();
@@ -1483,6 +1480,7 @@ function saveScore(gid){
   const a=document.getElementById('sa_'+gid)?.value;
   if(h!==''&&a!=='')G.scores[gid]={h:parseInt(h),a:parseInt(a),weather:false};
   else delete G.scores[gid];
+  saveData();
   renderSched();
   renderStandings();
 }
@@ -1490,6 +1488,7 @@ function saveScore(gid){
 function weatherCancel(gid){
   // Rule 8.0: cancelled game = 7-7 tie
   G.scores[gid]={h:7,a:7,weather:true};
+  saveData();
   const sh=document.getElementById('sh_'+gid);
   const sa=document.getElementById('sa_'+gid);
   if(sh)sh.value=7;
@@ -1863,14 +1862,62 @@ function editGame(id,field,value){
   if(!g)return;
   if(field==='diamond'){
     g.diamond=parseInt(value);
-    g.lights=isDiamondLit(g.diamond); // auto-update lights from diamond config
+    g.lights=isDiamondLit(g.diamond);
   }
   else if(field==='home') g.home=value;
   else if(field==='away') g.away=value;
   else if(field==='time') g.time=value;
   g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
+  saveData();
   renderSched();
 }
+
+// ── PERSISTENCE ───────────────────────────────────────────────────────────────
+const STORAGE_KEY='hccsl_2026';
+
+function saveData(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      teams:   G.teams,
+      diamonds:G.diamonds,
+      sched:   G.sched,
+      scores:  G.scores
+    }));
+  }catch(e){ console.warn('Save failed:', e); }
+}
+
+function loadData(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const d=JSON.parse(raw);
+    if(d.teams)   G.teams   = d.teams;
+    if(d.diamonds)G.diamonds= d.diamonds;
+    if(d.sched)   G.sched   = d.sched;
+    if(d.scores)  G.scores  = d.scores;
+    return true;
+  }catch(e){ console.warn('Load failed:', e); return false; }
+}
+
+function clearData(){
+  if(!confirm('Clear ALL saved data — teams, schedule and scores? This cannot be undone.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// Init on page load
+document.addEventListener('DOMContentLoaded', function(){
+  loadData();
+  renderTeams();
+  renderDiamonds();
+  renderRulesDiamonds();
+  initDayChecks();
+  updateGptNotice();
+  if(G.sched.length){
+    renderSched();
+    renderStandings();
+  }
+});
 </script>
 </body>
 </html>
