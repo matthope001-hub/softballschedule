@@ -152,7 +152,9 @@ input.si:focus { border-color: var(--navy) !important; }
 .gt tr:hover td { background: #f8f8f8; }
 .gt tr.g-late td { background: #f5f7ff; }
 .gt tr.g-late:hover td { background: #eef1fb; }
-.gt td.g-time { width: 60px; padding-left: 14px; padding-right: 4px; border-left: 3px solid transparent; }
+.gt td.g-num { width: 52px; padding-left: 14px; padding-right: 4px; }
+.gnum { font-family: var(--mono); font-size: 10px; color: var(--gray3); font-weight: 600; letter-spacing: 0.3px; white-space: nowrap; }
+.gt td.g-time { width: 60px; padding-left: 4px; padding-right: 4px; border-left: 3px solid transparent; }
 .gt tr:hover td.g-time { border-left-color: var(--navy2); }
 .gt tr.g-late td.g-time { border-left-color: #a5b4fc; }
 .gt td.g-home { width: 30%; font-weight: 700; }
@@ -861,6 +863,7 @@ function genSched(){
 
     // Build schedule night by night
     const sched = [];
+    const YEAR = new Date(gameNights[0]+'T12:00:00').getFullYear().toString().slice(-2);
     hc = {}; G.teams.forEach(t => hc[t] = 0);
     const gameCounts = {};
     leagueTeams.forEach(t => gameCounts[t] = 0);
@@ -890,7 +893,7 @@ function genSched(){
       hc[CROSSOVER]++;
       gameCounts[coATeam]++;
       sched.push({
-        id:`g${sched.length}`, date:dateStr, time:TIME1,
+        id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
         diamond:d9id, lights:true, home:CROSSOVER, away:coATeam, bye:'', crossover:true
       });
 
@@ -902,13 +905,13 @@ function genSched(){
         const [home, away] = pickHA(t1, t2);
         hc[home]++; gameCounts[t1]++; gameCounts[t2]++;
         sched.push({
-          id:`g${sched.length}`, date:dateStr, time:TIME1,
+          id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
           diamond:dmId, lights:true, home, away, bye:'', crossover:false
         });
         // 8:15 DH swap (H/A reversed)
         hc[away]++; gameCounts[t1]++; gameCounts[t2]++;
         sched.push({
-          id:`g${sched.length}`, date:dateStr, time:TIME2,
+          id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME2,
           diamond:dmId, lights:true, home:away, away:home, bye:'', crossover:false
         });
       });
@@ -921,7 +924,7 @@ function genSched(){
         const [home, away] = pickHA(t1, t2);
         hc[home]++; gameCounts[t1]++; gameCounts[t2]++;
         sched.push({
-          id:`g${sched.length}`, date:dateStr, time:TIME1,
+          id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
           diamond:dmId, lights:false, home, away, bye:'', crossover:false
         });
         // ── NO 8:15 game for noLit diamonds ─────────────────────────────
@@ -931,7 +934,7 @@ function genSched(){
       // coB === coA, so this team now has 1 CO game at 6:30 + 1 CO game at 8:15 = 2 total
       hc[coBTeam]++; gameCounts[coBTeam]++;
       sched.push({
-        id:`g${sched.length}`, date:dateStr, time:TIME2,
+        id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME2,
         diamond:d9id, lights:true, home:coBTeam, away:CROSSOVER, bye:'', crossover:true
       });
     }
@@ -1003,12 +1006,13 @@ function buildSchedInner(dates,isScore){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const cobadge=isCO?`<span class="cobadge">CO</span>`:'';
         const badge=g.lights?`<span class="dbadge">${getDiamondName(g.diamond)} ☀</span>`:`<span class="dbadge nl">${getDiamondName(g.diamond)}</span>`;
+        const gnum=`<span class="gnum">#${g.id}</span>`;
         if(isScore){
           const sc=G.scores[g.id]||{h:'',a:''};
-          inner+=`<tr class="${isCO?'co-row':''}"><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home"><span>${esc(g.home)}</span><span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td></tr>`;
+          inner+=`<tr class="${isCO?'co-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home"><span>${esc(g.home)}</span><span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td></tr>`;
         } else {
           const sc=G.scores[g.id];const res=sc?sc.h+'–'+sc.a:'—';
-          inner+=`<tr><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${res}</td></tr>`;
+          inner+=`<tr><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${res}</td></tr>`;
         }
       }
       inner+='</table>';
@@ -1022,12 +1026,13 @@ function buildSchedInner(dates,isScore){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const cobadge=isCO?`<span class="cobadge">CO</span>`:'';
         const badge=`<span class="dbadge">${getDiamondName(g.diamond)} ☀</span>`;
+        const gnum=`<span class="gnum">#${g.id}</span>`;
         if(isScore){
           const sc=G.scores[g.id]||{h:'',a:''};
-          inner+=`<tr class="g-late${isCO?' co-row':''}"><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td></tr>`;
+          inner+=`<tr class="g-late${isCO?' co-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td></tr>`;
         } else {
           const sc=G.scores[g.id];const res=sc?sc.h+'–'+sc.a:'—';
-          inner+=`<tr class="g-late"><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${res}</td></tr>`;
+          inner+=`<tr class="g-late"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${res}</td></tr>`;
         }
       }
       inner+='</table>';
@@ -1102,13 +1107,14 @@ function renderSched(){
 
 function exportCSV(){
   if(!G.sched.length){alert('Generate a schedule first.');return;}
-  const rows=[['Date','Day','Time','Diamond','Lights','Home','Away','CrossOver Game']];
+  const rows=[['Game #','Date','Day','Time','Diamond','Lights','Home','Away','CrossOver Game']];
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   for(const g of G.sched){
     const d=new Date(g.date+'T12:00:00');
     const day=dayNames[d.getDay()];
     const dateFormatted=d.toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'});
     rows.push([
+      '#'+g.id,
       dateFormatted,
       day,
       g.time,
