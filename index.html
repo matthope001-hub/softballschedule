@@ -667,6 +667,10 @@ input:focus {
       <button class="btn" onclick="exportPrint()" style="font-size:12px;padding:6px 14px">🖨 Print / PDF</button>
       <button class="btn" onclick="exportICal()" style="font-size:12px;padding:6px 14px">📅 iCal (.ics)</button>
     </div>
+    <div id="team-filter-bar" style="display:none;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);margin-bottom:7px">Filter by Team</div>
+      <div id="team-filter-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
     <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
   </div>
 
@@ -774,7 +778,18 @@ function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);renderTeams();}
 function renderTeams(){
   const el=document.getElementById('tl');
   if(!G.teams.length){el.innerHTML='<div style="color:var(--gray3);font-size:13px;font-weight:700;padding:8px 0">No teams added yet</div>';return;}
-  el.innerHTML=G.teams.map(t=>`<span class="chip">${esc(t)}<button class="chip-del" onclick="removeTeam(${JSON.stringify(t)})">×</button></span>`).join('');
+  el.innerHTML='';
+  G.teams.forEach(t=>{
+    const span=document.createElement('span');
+    span.className='chip';
+    span.textContent=t;
+    const btn=document.createElement('button');
+    btn.className='chip-del';
+    btn.textContent='×';
+    btn.addEventListener('click',()=>removeTeam(t));
+    span.appendChild(btn);
+    el.appendChild(span);
+  });
 }
 
 // ── DIAMOND MANAGEMENT ────────────────────────────────────────────────────────
@@ -986,185 +1001,220 @@ function genSched(){
 
   const selectedDays=getSelectedDays();
   if(!selectedDays.length){alert('Please select at least one game day.');return;}
-  const gameNights=getGameNights(document.getElementById('ss').value,document.getElementById('se').value,selectedDays);
+  const gameNights=getGameNights(
+    document.getElementById('ss').value,
+    document.getElementById('se').value,
+    selectedDays
+  );
   if(!gameNights.length){alert('No game nights found in that date range.');return;}
 
-  const TIME1=document.getElementById('time1')?.value||'6:30 PM';
-  const TIME2=document.getElementById('time2')?.value||'8:15 PM';
-  const TFACED=parseInt(document.getElementById('tfaced')?.value)||2;
+  const TIME1 = document.getElementById('time1')?.value || '6:30 PM';
+  const TIME2 = document.getElementById('time2')?.value || '8:15 PM';
+  const TFACED = parseInt(document.getElementById('tfaced')?.value) || 2;
 
-  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
-  const n=leagueTeams.length;
-  const nights=gameNights.length;
+  const leagueTeams = G.teams.filter(t => t !== CROSSOVER);
+  const n = leagueTeams.length;
+  const nights = gameNights.length;
 
-  // ── VALIDATE ──────────────────────────────────────────────────────────────
-  const d9id=9;
-  const dhIds=G.diamonds.filter(d=>d.lights&&d.id!==d9id).map(d=>d.id);
-  const singleIds=G.diamonds.filter(d=>!d.lights).map(d=>d.id);
-  const lgSlotsPerNight=dhIds.length+singleIds.length; // pair slots for league games
+  // ── Diamond classification ────────────────────────────────────────────────
+  // D9  = CrossOver only (always, not in G.diamonds logic here)
+  // DH  = lights ON, not D9  → 6:30 + 8:15 swap.  Teams here play 2 games.
+  // litSingle = lights ON, but no DH partner available → user may never create these;
+  //             in current config D5 (lights=true) is listed separately.
+  //             App treats every lit non-D9 diamond as DH-capable.
+  //             So litSingleCount = 0 in standard config.
+  // noLit = lights OFF (D13, D14) → 6:30 ONLY, exactly 1 game, LOCKED OUT of 8:15.
+  const d9id = 9;
+  const dhIds     = G.diamonds.filter(d =>  d.lights && d.id !== d9id).map(d => d.id); // D12, D5 if lit
+  const noLitIds  = G.diamonds.filter(d => !d.lights).map(d => d.id);                  // D13, D14
 
-  if(dhIds.length===0){alert('Need at least one lit non-D9 diamond for league doubleheaders.');return;}
+  // litSingle: lit non-D9 diamonds beyond dhIds — in current app there are none,
+  // because every lit non-D9 diamond becomes a DH diamond.
+  // coB eligible pool: coA (same team hits CO twice) — since litSingleCount=0.
+  // If dhIds.length === 0 that's an error.
+  if(dhIds.length === 0){
+    alert('Need at least one lit non-D9 diamond for doubleheaders.'); return;
+  }
 
-  const uniquePairs=n*(n-1)/2;  // 36
-  const requiredNights=lgSlotsPerNight>0?Math.round(uniquePairs*TFACED/lgSlotsPerNight):0;
+  const lgSlotsPerNight = dhIds.length + noLitIds.length;  // 1+2=3 or 2+2=4 etc.
+  const uniquePairs = n*(n-1)/2;
+  const requiredNights = lgSlotsPerNight > 0
+    ? Math.round(uniquePairs * TFACED / lgSlotsPerNight) : 0;
 
-  if(nights!==requiredNights){
-    alert(`With ${TFACED}× times faced and ${lgSlotsPerNight} league diamonds per night,\nyou need exactly ${requiredNights} game nights.\nYou currently have ${nights}.\n\nAdjust your season dates to get ${requiredNights} nights, or change Times Faced.`);
+  if(nights !== requiredNights){
+    alert(
+      `With ${TFACED}× times faced and ${lgSlotsPerNight} league diamond slots per night,\n`+
+      `you need exactly ${requiredNights} game nights.\n`+
+      `You currently have ${nights}.\n\n`+
+      `Adjust your season dates to get ${requiredNights} nights, or change Times Faced.`
+    );
     return;
   }
 
-  const singleTeamsPerNight=n-1-dhIds.length*2;
-  if(singleTeamsPerNight<0||singleTeamsPerNight%2!==0||singleTeamsPerNight/2!==singleIds.length){
-    alert(`Diamond mismatch: ${n} teams need ${n-1} league spots per night,\nbut ${dhIds.length} DH diamonds (${dhIds.length*2} spots) + ${singleIds.length} single diamonds (${singleIds.length*2} spots) = ${dhIds.length*2+singleIds.length*2} spots.\n\nAdjust your diamond configuration.`);
+  // Verify diamond slot count matches team count
+  // Per night: 1 coA on D9 + dhIds.length*2 on DH + noLitIds.length*2 on noLit = n
+  const spotsPerNight = 1 + dhIds.length*2 + noLitIds.length*2;
+  if(spotsPerNight !== n){
+    alert(
+      `Diamond configuration mismatch.\n`+
+      `${n} league teams need ${n} spots per night at 6:30,\n`+
+      `but config gives ${spotsPerNight} spots:\n`+
+      `  1 coOppA (D9) + ${dhIds.length} DH diamonds × 2 + ${noLitIds.length} no-lights × 2\n\n`+
+      `Add or remove diamonds to fix.`
+    );
     return;
   }
 
-  // ── ALGORITHM (verified 100% success in simulation) ───────────────────────
-  // Each night: coA plays D9 vs CO (excluded from league pairs)
-  // DH diamonds each get 1 league pair (plays 6:30 + 8:15 swap)
-  // Single diamonds each get 1 league pair (6:30 only)
-  // coB plays D9 8:15 vs CO (must be in a DH pair or coA to avoid D13/D14 lockout)
-  // 
-  // Pre-assign coA: TFACED per team (one per night)
-  // Pre-assign coB: TFACED per team (one per night)
-  // Pre-assign DH pairs: include coB when possible, track remaining quota
-  // Fill single diamonds: remaining teams split into pairs
-  // Count games per team — guaranteed equal by math (no per-pair tracking needed)
+  // ── Per-night game rules ──────────────────────────────────────────────────
+  // coA   → D9 6:30 (CO game). 1 game. Can also be coB same night → 2 games max.
+  // DH pair → D12/D5 6:30 + 8:15 swap. 2 games each. NEVER coB (would give 3 games).
+  // noLit pair → D13/D14 6:30 ONLY. Exactly 1 game. NEVER coB. NEVER touch 8:15.
+  // coB   → D9 8:15 (CO game). Must be coA (only eligible since litSingle=0).
+  //
+  // With litSingle=0: coB == coA every night (same team plays CO 6:30 AND CO 8:15).
+  // This means CrossOver faces the same league team twice that night (once home, once away).
+  // That is explicitly allowed by the league rules.
 
-  const allPairs=[];
-  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) allPairs.push([i,j]);
+  const coEach = nights / n;   // exact integer = TFACED
 
   function makePool(perTeam){
-    const pool=[];
+    const pool = [];
     for(let t=0;t<n;t++) for(let k=0;k<perTeam;k++) pool.push(t);
     return shuffle(pool);
   }
 
-  const coEach=nights/n; // exact integer = TFACED
+  for(let attempt=0; attempt<2000; attempt++){
+    // coA: each team exactly coEach nights on D9 6:30
+    const coANights = makePool(coEach);
 
-  for(let attempt=0;attempt<2000;attempt++){
-    const coANights=makePool(coEach);
-    const coBNights=makePool(coEach);
+    // coB: since there are no lit-single diamonds, coB MUST be the same team as coA.
+    // This avoids any DH or noLit team getting a third game.
+    // CrossOver faces the coA team home at 6:30 and away at 8:15 on that night.
+    const coBNights = coANights.slice(); // coB === coA every night
 
-    // Pre-assign DH pairs: one per DH diamond per night
-    // Track how many times each team has appeared on each DH diamond (for balance)
-    // But DON'T enforce strict quota — just prefer teams with fewer appearances
-    const dhDegree=dhIds.map(()=>new Array(n).fill(0));
-    const dhPairsByNight={};
-    let dhOk=true;
+    // Pre-assign DH pairs per night.
+    // Exclude BOTH coA AND coB from DH candidates — they can't be in a DH pair
+    // (coA is on D9, coB would get 3 games if in DH).
+    // Since coB===coA here, just excluding coA covers both.
+    const dhDeg = dhIds.map(() => new Array(n).fill(0));
+    const dhByNight = {};
+    let dhOk = true;
 
-    for(let ni=0;ni<nights;ni++){
-      dhPairsByNight[ni]=[];
-      const coA=coANights[ni];
-      const coB=coBNights[ni];
-      const usedThisNight=new Set([coA]);
+    for(let ni=0; ni<nights; ni++){
+      dhByNight[ni] = [];
+      const coA = coANights[ni];
+      const coB = coBNights[ni];
+      const blocked = new Set([coA, coB]); // same team, but keep general
 
-      for(let di=0;di<dhIds.length;di++){
-        // Candidates: not coA, not already placed, any pair
-        const cands=[];
+      for(let di=0; di<dhIds.length; di++){
+        const usedNow = new Set([...blocked, ...dhByNight[ni].flat()]);
+        const cands = [];
         for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
-          if(!usedThisNight.has(i)&&!usedThisNight.has(j))
-            cands.push([i,j]);
+          if(!usedNow.has(i) && !usedNow.has(j)) cands.push([i,j]);
         }
-        if(!cands.length){dhOk=false;break;}
+        if(!cands.length){ dhOk=false; break; }
 
-        // Prefer pair including coB (so coB isn't on D13/D14 = single-locked)
-        // Among those, prefer pair where both teams have fewest DH appearances (for balance)
-        const pref=cands.filter(([i,j])=>i===coB||j===coB);
-        const pool=pref.length?pref:cands;
-        const minScore=Math.min(...pool.map(([i,j])=>dhDegree[di][i]+dhDegree[di][j]));
-        const best=pool.filter(([i,j])=>dhDegree[di][i]+dhDegree[di][j]===minScore);
-        const pair=best[Math.floor(Math.random()*best.length)];
-
-        dhPairsByNight[ni].push(pair);
-        dhDegree[di][pair[0]]++;
-        dhDegree[di][pair[1]]++;
-        usedThisNight.add(pair[0]);
-        usedThisNight.add(pair[1]);
+        // Prefer the pair with the least combined DH appearances (balance)
+        const minS = Math.min(...cands.map(([i,j]) => dhDeg[di][i]+dhDeg[di][j]));
+        const best = cands.filter(([i,j]) => dhDeg[di][i]+dhDeg[di][j] === minS);
+        const pair = best[Math.floor(Math.random()*best.length)];
+        dhByNight[ni].push(pair);
+        dhDeg[di][pair[0]]++;
+        dhDeg[di][pair[1]]++;
       }
-      if(!dhOk)break;
+      if(!dhOk) break;
     }
-    if(!dhOk)continue;
+    if(!dhOk) continue;
 
-    // Assign single pairs and count games per team
-    const gameCounts={};
-    G.teams.forEach(t=>gameCounts[t]=0);
-    const sched=[];
-    hc={};G.teams.forEach(t=>hc[t]=0);
-    let assignOk=true;
+    // Build schedule night by night
+    const sched = [];
+    hc = {}; G.teams.forEach(t => hc[t] = 0);
+    const gameCounts = {};
+    leagueTeams.forEach(t => gameCounts[t] = 0);
 
-    for(let ni=0;ni<nights;ni++){
-      const dateStr=gameNights[ni];
-      const coA=coANights[ni];
-      const coB=coBNights[ni];
-      const dhPairs=dhPairsByNight[ni];
-      const dhTeams=new Set(dhPairs.flat());
-      const usedSet=new Set([coA,...dhTeams]);
-      const rest=[];
-      for(let t=0;t<n;t++) if(!usedSet.has(t)) rest.push(t);
+    let assignOk = true;
 
-      // coB must be coA or in a DH pair (not in rest → not on D13/D14)
-      if(!dhTeams.has(coB)&&coB!==coA&&rest.includes(coB)){
-        assignOk=false;break;
-      }
+    for(let ni=0; ni<nights; ni++){
+      const dateStr   = gameNights[ni];
+      const coA       = coANights[ni];
+      const coB       = coBNights[ni];  // === coA
+      const coATeam   = leagueTeams[coA];
+      const coBTeam   = leagueTeams[coB];
+      const dhPairs   = dhByNight[ni];
+      const dhTeams   = new Set(dhPairs.flat());
 
-      // Pair up the rest for single diamonds (random shuffle)
+      // rest = everyone except coA and DH teams → goes to noLit diamonds
+      const rest = [];
+      for(let t=0;t<n;t++) if(t!==coA && !dhTeams.has(t)) rest.push(t);
+
+      if(rest.length !== noLitIds.length*2){ assignOk=false; break; }
+
+      // Shuffle rest → random pairing for noLit diamonds
       shuffle(rest);
-      const singlePairs=[];
-      for(let si=0;si<singleIds.length;si++) singlePairs.push([rest[si*2],rest[si*2+1]]);
+      const noLitPairs = noLitIds.map((_, si) => [rest[si*2], rest[si*2+1]]);
 
-      // D9 6:30: CO HOME vs coOppA AWAY
-      const coATeam=leagueTeams[coA];
-      const coBTeam=leagueTeams[coB];
+      // ── D9 6:30: CrossOver HOME vs coOppA AWAY ──────────────────────────
       hc[CROSSOVER]++;
-      sched.push({id:`g${sched.length}`,date:dateStr,time:TIME1,
-        diamond:d9id,lights:true,home:CROSSOVER,away:coATeam,bye:'',crossover:true});
-      gameCounts[CROSSOVER]=gameCounts[CROSSOVER]||0;
-
-      // DH diamonds: 6:30 + 8:15 swap
-      dhPairs.forEach((pair,di)=>{
-        const dmId=dhIds[di];
-        const t1=leagueTeams[pair[0]];const t2=leagueTeams[pair[1]];
-        const[home,away]=pickHA(t1,t2);hc[home]++;
-        sched.push({id:`g${sched.length}`,date:dateStr,time:TIME1,
-          diamond:dmId,lights:true,home,away,bye:'',crossover:false});
-        hc[away]++;
-        sched.push({id:`g${sched.length}`,date:dateStr,time:TIME2,
-          diamond:dmId,lights:true,home:away,away:home,bye:'',crossover:false});
-        gameCounts[t1]=(gameCounts[t1]||0)+2;
-        gameCounts[t2]=(gameCounts[t2]||0)+2;
+      gameCounts[coATeam]++;
+      sched.push({
+        id:`g${sched.length}`, date:dateStr, time:TIME1,
+        diamond:d9id, lights:true, home:CROSSOVER, away:coATeam, bye:'', crossover:true
       });
 
-      // Single diamonds: 6:30 only
-      singlePairs.forEach((pair,si)=>{
-        const dmId=singleIds[si];
-        const dm=G.diamonds.find(d=>d.id===dmId);
-        const t1=leagueTeams[pair[0]];const t2=leagueTeams[pair[1]];
-        const[home,away]=pickHA(t1,t2);hc[home]++;
-        sched.push({id:`g${sched.length}`,date:dateStr,time:TIME1,
-          diamond:dmId,lights:dm?.lights||false,home,away,bye:'',crossover:false});
-        gameCounts[t1]=(gameCounts[t1]||0)+1;
-        gameCounts[t2]=(gameCounts[t2]||0)+1;
+      // ── DH diamonds: 6:30 + 8:15 swap ───────────────────────────────────
+      dhPairs.forEach((pair, di) => {
+        const dmId = dhIds[di];
+        const t1 = leagueTeams[pair[0]];
+        const t2 = leagueTeams[pair[1]];
+        const [home, away] = pickHA(t1, t2);
+        hc[home]++; gameCounts[t1]++; gameCounts[t2]++;
+        sched.push({
+          id:`g${sched.length}`, date:dateStr, time:TIME1,
+          diamond:dmId, lights:true, home, away, bye:'', crossover:false
+        });
+        // 8:15 DH swap (H/A reversed)
+        hc[away]++; gameCounts[t1]++; gameCounts[t2]++;
+        sched.push({
+          id:`g${sched.length}`, date:dateStr, time:TIME2,
+          diamond:dmId, lights:true, home:away, away:home, bye:'', crossover:false
+        });
       });
 
-      // D9 8:15: coB HOME vs CO AWAY
-      hc[coBTeam]++;
-      sched.push({id:`g${sched.length}`,date:dateStr,time:TIME2,
-        diamond:d9id,lights:true,home:coBTeam,away:CROSSOVER,bye:'',crossover:true});
-      gameCounts[coATeam]=(gameCounts[coATeam]||0)+1;
-      gameCounts[coBTeam]=(gameCounts[coBTeam]||0)+1;
+      // ── noLit diamonds: 6:30 ONLY ────────────────────────────────────────
+      noLitPairs.forEach((pair, si) => {
+        const dmId = noLitIds[si];
+        const t1 = leagueTeams[pair[0]];
+        const t2 = leagueTeams[pair[1]];
+        const [home, away] = pickHA(t1, t2);
+        hc[home]++; gameCounts[t1]++; gameCounts[t2]++;
+        sched.push({
+          id:`g${sched.length}`, date:dateStr, time:TIME1,
+          diamond:dmId, lights:false, home, away, bye:'', crossover:false
+        });
+        // ── NO 8:15 game for noLit diamonds ─────────────────────────────
+      });
+
+      // ── D9 8:15: coOppB HOME vs CrossOver AWAY ──────────────────────────
+      // coB === coA, so this team now has 1 CO game at 6:30 + 1 CO game at 8:15 = 2 total
+      hc[coBTeam]++; gameCounts[coBTeam]++;
+      sched.push({
+        id:`g${sched.length}`, date:dateStr, time:TIME2,
+        diamond:d9id, lights:true, home:coBTeam, away:CROSSOVER, bye:'', crossover:true
+      });
     }
 
-    if(!assignOk)continue;
+    if(!assignOk) continue;
 
-    // Verify all league teams have equal games
-    const lgCounts=leagueTeams.map(t=>gameCounts[t]||0);
-    const allEqual=lgCounts.every(c=>c===lgCounts[0]);
-    if(!allEqual)continue;
+    // ── Verify equal games ───────────────────────────────────────────────────
+    const counts = leagueTeams.map(t => gameCounts[t]);
+    if(!counts.every(c => c === counts[0])) continue;
 
-    G.sched=sched;G.scores={};
-    document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',i===1));
-    document.querySelectorAll('.section').forEach((s,i)=>s.classList.toggle('active',i===1));
+    // ── Accept ───────────────────────────────────────────────────────────────
+    G.sched   = sched;
+    schedFilterTeam = null;
+    G.scores  = {};
+    document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', i===1));
+    document.querySelectorAll('.section').forEach((s,i) => s.classList.toggle('active', i===1));
     renderSched();
     return;
   }
@@ -1268,16 +1318,67 @@ function buildSchedInner(dates,isScore){
 }
 
 // ── RENDER SCHEDULE ───────────────────────────────────────────────────────────
+let schedFilterTeam=null; // null = show all
+
+function renderSchedFilterChips(){
+  const bar=document.getElementById('team-filter-bar');
+  const chips=document.getElementById('team-filter-chips');
+  if(!bar||!chips)return;
+  if(!G.sched.length){bar.style.display='none';return;}
+  bar.style.display='block';
+
+  const teams=[...G.teams].sort((a,b)=>a===CROSSOVER?1:b===CROSSOVER?-1:a.localeCompare(b));
+  const active=schedFilterTeam;
+
+  // Build buttons using DOM — avoids any string escaping issues with team names
+  chips.innerHTML='';
+
+  function makeChip(label, team, isActive, color){
+    const btn=document.createElement('button');
+    btn.textContent=label+(team===CROSSOVER?' 🏳':'');
+    btn.style.cssText=`padding:5px 13px;border-radius:20px;border:1.5px solid;cursor:pointer;`+
+      `font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;`+
+      `background:${isActive?color:'var(--white)'};`+
+      `color:${isActive?'#fff':'var(--text)'};`+
+      `border-color:${isActive?color:'var(--border)'};`+
+      `transition:all 0.15s;`;
+    btn.addEventListener('click',()=>setSchedFilter(team));
+    chips.appendChild(btn);
+  }
+
+  makeChip('All Teams', null, active===null, 'var(--navy)');
+  teams.forEach(t=>makeChip(t, t, active===t, 'var(--red)'));
+}
+
+function setSchedFilter(team){
+  schedFilterTeam=team;
+  renderSchedFilterChips();
+  renderSched();
+}
+
 function renderSched(){
   const el=document.getElementById('so');
   const bar=document.getElementById('export-bar');
   if(!G.sched.length){
     el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';
     if(bar)bar.style.display='none';
+    document.getElementById('team-filter-bar').style.display='none';
     return;
   }
   if(bar)bar.style.display='flex';
-  const grouped=groupSched(G.sched);
+  renderSchedFilterChips();
+
+  // Apply team filter
+  const filtered=schedFilterTeam===null
+    ? G.sched
+    : G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
+
+  if(!filtered.length){
+    el.innerHTML=`<div class="empty">No games found for <strong>${esc(schedFilterTeam)}</strong>.</div>`;
+    return;
+  }
+
+  const grouped=groupSched(filtered);
   el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
 }
 
@@ -1303,12 +1404,10 @@ function exportCSV(){
     ]);
   }
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='Hamilton_Classic_Schedule.csv';
-  document.body.appendChild(a);a.click();
-  document.body.removeChild(a);URL.revokeObjectURL(url);
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='Hamilton_Classic_Schedule.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
 function exportPrint(){
@@ -1379,11 +1478,23 @@ function exportPrint(){
   }
   html+=`</body></html>`;
 
-  const w=window.open('','_blank');
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  setTimeout(()=>w.print(),400);
+  // Use a hidden iframe for printing — works from file:// without popup blocker issues
+  let iframe=document.getElementById('_print_frame');
+  if(!iframe){
+    iframe=document.createElement('iframe');
+    iframe.id='_print_frame';
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none';
+    document.body.appendChild(iframe);
+  }
+  iframe.srcdoc=html;
+  iframe.onload=()=>{
+    try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){
+      // Fallback: open data URI in new tab
+      const a=document.createElement('a');
+      a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html);
+      a.target='_blank';a.click();
+    }
+  };
 }
 
 function exportICal(){
@@ -1431,12 +1542,10 @@ function exportICal(){
   }
   cal+=`END:VCALENDAR\r\n`;
 
-  const blob=new Blob([cal],{type:'text/calendar;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='Hamilton_Classic_2026.ics';
-  document.body.appendChild(a);a.click();
-  document.body.removeChild(a);URL.revokeObjectURL(url);
+  a.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(cal);
+  a.download='Hamilton_Classic_2026.ics';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
 // ── RENDER SCORES ─────────────────────────────────────────────────────────────
