@@ -1345,7 +1345,92 @@ function renderStandings(){
       else{stats[g.away].tie++;stats[g.away].pts++;}
     }
   }
-  const sorted=leagueTeams.slice().sort((a,b)=>stats[b].pts-stats[a].pts||stats[b].w-stats[a].w||(stats[b].rf-stats[b].ra)-(stats[a].rf-stats[a].ra));
+
+  // ── Rule 10: Tiebreaker logic ─────────────────────────────────────────────
+  // a) Head-to-head points among tied teams
+  // b) Winner of last regular-season matchup between tied teams (walk back if tie)
+  // c) Coin toss (random, stable within this render)
+
+  // Build h2h stats and chronological game log between league teams
+  const h2hStats={};  // h2hStats[a][b] = {pts, games:[{date,result}]}
+  for(const t of leagueTeams){
+    h2hStats[t]={};
+    for(const u of leagueTeams) h2hStats[t][u]={pts:0,games:[]};
+  }
+  const scoredGames=[...G.sched].filter(g=>G.scores[g.id]&&stats[g.home]!==undefined&&stats[g.away]!==undefined&&g.home!==CROSSOVER&&g.away!==CROSSOVER);
+  scoredGames.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  for(const g of scoredGames){
+    const sc=G.scores[g.id];
+    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
+    h2hStats[g.home][g.away].games.push({date:g.date,homePts:hw?2:tie?1:0});
+    h2hStats[g.away][g.home].games.push({date:g.date,homePts:aw?2:tie?1:0});
+    if(hw){h2hStats[g.home][g.away].pts+=2;}
+    else if(aw){h2hStats[g.away][g.home].pts+=2;}
+    else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
+  }
+
+  // Stable coin toss seed (hash of team names so it's consistent per render)
+  function stableRand(a,b){let h=0;for(const c of (a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
+
+  function tiebreak(group){
+    // a) H2H points among group
+    const h2hPts={};
+    for(const t of group){
+      h2hPts[t]=0;
+      for(const u of group) if(u!==t) h2hPts[t]+=h2hStats[t][u]?.pts||0;
+    }
+    const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
+    const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
+    if(afterH2H.length===1) return afterH2H[0];
+
+    // b) Walk back through most recent matchups among still-tied teams
+    // Collect all games between the remaining tied teams, newest first
+    const allGames=[];
+    for(let i=0;i<afterH2H.length;i++){
+      for(let j=i+1;j<afterH2H.length;j++){
+        const a=afterH2H[i],b=afterH2H[j];
+        for(const g of (h2hStats[a][b]?.games||[])){
+          allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
+        }
+      }
+    }
+    allGames.sort((a,b)=>b.date.localeCompare(a.date));
+    for(const g of allGames){
+      if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
+    }
+
+    // c) Coin toss (stable random)
+    return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
+  }
+
+  // Sort: pts desc, then tiebreak groups
+  const sorted=leagueTeams.slice().sort((a,b)=>{
+    const pdiff=stats[b].pts-stats[a].pts;
+    if(pdiff!==0) return pdiff;
+    return 0; // same pts: will be resolved by tiebreak below
+  });
+
+  // Assign final rank resolving ties
+  const ranked=[];
+  let i=0;
+  while(i<sorted.length){
+    let j=i+1;
+    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
+    const group=sorted.slice(i,j);
+    if(group.length===1){
+      ranked.push({team:group[0],tied:false});
+    } else {
+      // Recursively rank the tied group
+      const rankGroup=(g)=>{
+        if(g.length===0) return [];
+        const winner=tiebreak(g);
+        return [{team:winner,tied:g.length>1},...rankGroup(g.filter(t=>t!==winner))];
+      };
+      ranked.push(...rankGroup(group).map((r,idx)=>({...r,tied:idx>0||group.length>1})));
+    }
+    i=j;
+  }
+
   const gp=Object.values(G.scores).length;
   el.innerHTML=`
   <div class="metric-grid">
@@ -1354,14 +1439,15 @@ function renderStandings(){
     <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.length-gp}</div></div>
     <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
   </div>
-  <div class="notice">RF/RA capped at +7 per game · Points: W=2 T=1 L=0 · CrossOver excluded</div>
+  <div class="notice">W=2 · T=1 · L=0 · Tiebreakers: a) H2H points · b) Last matchup result · c) Coin toss · RF/RA capped at +7</div>
   <div class="st-wrap"><table class="st">
-    <colgroup><col style="width:28px"><col><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:42px"><col style="width:36px"><col style="width:36px"><col style="width:44px"></colgroup>
-    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th></tr></thead>
-    <tbody>${sorted.map((t,i)=>{
+    <colgroup><col style="width:28px"><col><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:42px"><col style="width:36px"><col style="width:36px"><col style="width:44px"><col style="width:24px"></colgroup>
+    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th><th></th></tr></thead>
+    <tbody>${ranked.map(({team:t,tied},idx)=>{
       const s=stats[t];const diff=s.rf-s.ra;
       const ds=s.gp===0?'—':(diff>0?'+'+diff:''+diff);
-      return`<tr><td class="rank">${i+1}</td><td style="font-weight:600">${esc(t)}</td><td class="mono">${s.gp}</td><td class="mono">${s.w}</td><td class="mono">${s.l}</td><td class="mono">${s.tie}</td><td class="pts">${s.pts}</td><td class="mono">${s.rf}</td><td class="mono">${s.ra}</td><td class="mono">${ds}</td></tr>`;
+      const tieIcon=tied?`<td title="Tiebreaker applied" style="color:var(--orange);font-size:11px;text-align:center">TB</td>`:`<td></td>`;
+      return`<tr><td class="rank">${idx+1}</td><td style="font-weight:600">${esc(t)}</td><td class="mono">${s.gp}</td><td class="mono">${s.w}</td><td class="mono">${s.l}</td><td class="mono">${s.tie}</td><td class="pts">${s.pts}</td><td class="mono">${s.rf}</td><td class="mono">${s.ra}</td><td class="mono">${ds}</td>${tieIcon}</tr>`;
     }).join('')}</tbody>
   </table></div>`;
 }
