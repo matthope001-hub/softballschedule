@@ -225,8 +225,33 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
 .games-table tr:hover td { background: var(--gray1); }
 .games-table td.gold { color: var(--navy); font-weight: 700; }
 
+/* ── RULES ── */
+.rules-grid { display: flex; flex-direction: column; gap: 0; }
+.rule-item { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.rule-item:last-child { border-bottom: none; padding-bottom: 0; }
+.rule-item:first-child { padding-top: 0; }
+.rule-num { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--red); white-space: nowrap; min-width: 42px; padding-top: 1px; flex-shrink: 0; }
+.rule-text { font-size: 13px; color: var(--text); line-height: 1.55; }
+.rule-text strong { color: var(--navy); font-weight: 700; }
+.rule-highlight { background: rgba(0,122,255,0.04); margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
+/* ── WEATHER CANCEL ── */
+.gt td.g-wx { width: 32px; text-align: center; padding: 2px; }
+.wx-btn { background: none; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 14px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.wx-btn:hover { background: #fef3c7; border-color: #f59e0b; }
+.gt tr.wx-row td { background: #fffbeb !important; }
+
+/* ── STANDINGS EXTENDED ── */
+.st td.rec { font-family: var(--mono); font-weight: 700; color: var(--navy); font-size: 13px; }
+.st td.pct { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.st td.gb  { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; }
+.st td.hrec { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; }
+.st td.l10 { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; }
+.st td.strk { font-family: var(--mono); font-size: 12px; font-weight: 700; text-align: center; }
+.st td.strk.w { color: var(--green); }
+.st td.strk.l { color: var(--red); }
+.st td.strk.t { color: var(--muted); }
+
 /* ── EMPTY ── */
-.empty { text-align: center; padding: 48px 16px; color: var(--gray3); font-size: 14px; font-weight: 600; }
 
 /* ── EDIT TAB ── */
 .edit-row { display: flex; gap: 6px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--white); flex-wrap: nowrap; }
@@ -286,6 +311,7 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
   <button class="tab" onclick="showTab('standings',this)">Standings</button>
   <button class="tab" onclick="showTab('stats',this)">Stats</button>
   <button class="tab" onclick="showTab('edit',this)">Edit Games</button>
+  <button class="tab" onclick="showTab('rules',this)">Rules</button>
   <button class="tab" onclick="showTab('teams',this)">Settings</button>
 </div>
 
@@ -429,7 +455,143 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
     <div id="edi"><div class="empty">Generate a schedule to edit games</div></div>
   </div>
 
-</div>
+  <div id="tab-rules" class="section">
+
+    <div class="card">
+      <div class="card-title">Membership &amp; Eligibility</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">1.0</span><span class="rule-text">Membership is open to Adult Baseball teams whose players are <strong>21+</strong> (exception: 18+ with majority captain vote if a parent/guardian is on the team). All new members serve a 1-year probation. Teams must confirm entry by <strong>April 1</strong> each year.</span></div>
+        <div class="rule-item"><span class="rule-num">1.1</span><span class="rule-text">SPN Rules allow pregnant players to continue. If disclosed, both player and coach must sign a <strong>Pregnancy Waiver</strong> removing league liability.</span></div>
+        <div class="rule-item"><span class="rule-num">3.0</span><span class="rule-text">Maximum <strong>20 players</strong> on a roster, all aged 21+ as of December 31 of the calendar year (18+ exception applies).</span></div>
+        <div class="rule-item"><span class="rule-num">4.0</span><span class="rule-text">No team may dress more than <strong>20 players</strong>. Using an ineligible player = game forfeiture + manager suspended for next <strong>3</strong> league or playoff games.</span></div>
+        <div class="rule-item"><span class="rule-num">5.0</span><span class="rule-text">Playing rosters must be submitted to the Tier Convener by the start of the season. Players may be <strong>added but not removed</strong>. Maximum 20.</span></div>
+        <div class="rule-item"><span class="rule-num">5.1</span><span class="rule-text">Rosters <strong>freeze after August 27, 2025</strong>. Frozen roster = playoff roster. Max 20 players.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Game Eligibility &amp; Fielding</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">6.0</span><span class="rule-text">Minimum <strong>9 players</strong> required to play. No automatic out if fielding 4F+5M or 4M+5F.</span></div>
+        <div class="rule-item"><span class="rule-num">6.1</span><span class="rule-text">League-sanctioned games permitted with a minimum of <strong>3 females</strong> (regular season only).</span></div>
+        <div class="rule-item"><span class="rule-num">6.2</span><span class="rule-text">Team with only 3 females receives an <strong>automatic out</strong> in the 4th female batting spot. Females cannot be rotated within the batting lineup.</span></div>
+        <div class="rule-item"><span class="rule-num">6.3</span><span class="rule-text">Fielding team with 3 females plays max <strong>6 males</strong> in the field — cannot field 7 males + 3 females.</span></div>
+        <div class="rule-item"><span class="rule-num">6.4</span><span class="rule-text">If a team drops below <strong>8 players</strong> mid-game due to injury/ejection, the game is a forfeit at that point.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reporting, Rescheduling &amp; Forfeits</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">7.0</span><span class="rule-text">Game results (scores, ejections, cancellations) must be reported to the Tier Convener within <strong>48 hours</strong> by the winning team.</span></div>
+        <div class="rule-item"><span class="rule-num">7.1</span><span class="rule-text">All ejections must be reported by <strong>both coaches</strong> to the Tier Convener and Disciplinary Committee within 48 hours.</span></div>
+        <div class="rule-item"><span class="rule-num">8.0</span><span class="rule-text">Games cancelled due to weather are recorded as a <strong>7–7 tie</strong>. No rain-out weeks or makeup games. Diamond rental/umpire savings are held as a rebate for returning teams.</span></div>
+        <div class="rule-item"><span class="rule-num">8.1</span><span class="rule-text">Forfeiture with <strong>less than 24 hours</strong> notice = <strong>$35 league fine</strong> (covers umpire fees). 24+ hours notice = no fine.</span></div>
+        <div class="rule-item"><span class="rule-num">23.0</span><span class="rule-text">A team that forfeits <strong>5 or more</strong> regular-season games is ineligible for playoffs.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Standings &amp; Tiebreakers <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 10.0)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">PTS</span><span class="rule-text"><strong>Win = 2 pts · Tie = 1 pt · Loss = 0 pts</strong></span></div>
+        <div class="rule-item rule-highlight"><span class="rule-num">a)</span><span class="rule-text"><strong>Head-to-head record</strong> among all tied teams.</span></div>
+        <div class="rule-item rule-highlight"><span class="rule-num">b)</span><span class="rule-text"><strong>Winner of last regular-season matchup</strong> between the tied teams. If that game was a tie, walk back to the next most recent result between them.</span></div>
+        <div class="rule-item rule-highlight"><span class="rule-num">c)</span><span class="rule-text"><strong>Coin toss.</strong></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Game Rules <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 11 — HCCSL Specific)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">a)</span><span class="rule-text">Pitchers may pitch from <strong>6 feet to unlimited</strong> distance.</span></div>
+        <div class="rule-item"><span class="rule-num">b)</span><span class="rule-text">Pitcher's mound zone: <strong>2 feet left/right</strong>, max <strong>5 feet behind</strong> the pitcher's box.</span></div>
+        <div class="rule-item"><span class="rule-num">c)</span><span class="rule-text"><strong>5-run max per inning</strong> except the final inning, which is unlimited.</span></div>
+        <div class="rule-item"><span class="rule-num">d)</span><span class="rule-text"><strong>No leading off</strong> — runners cannot leave the base until bat contacts ball.</span></div>
+        <div class="rule-item"><span class="rule-num">e)</span><span class="rule-text"><strong>No direct throws</strong> from outfield to 1st base. Relay throws (outfield → infield → 1st) are allowed.</span></div>
+        <div class="rule-item"><span class="rule-num">f)</span><span class="rule-text"><strong>Mercy rule:</strong> 12 runs after 5 complete innings.</span></div>
+        <div class="rule-item"><span class="rule-num">g)</span><span class="rule-text">Tagging a runner from home to 1st base is <strong>permitted</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">h)</span><span class="rule-text">Tagging is <strong>not permitted</strong> between the commitment line and home plate — runner is ruled safe.</span></div>
+        <div class="rule-item"><span class="rule-num">i)</span><span class="rule-text"><strong>150-foot rule:</strong> Outfielders must stay behind the 150-ft pylon line until the ball is struck. Violation = batter awarded 1 base.</span></div>
+        <div class="rule-item"><span class="rule-num">j)</span><span class="rule-text"><strong>2-base walk:</strong> If a male batter is walked and a female follows in the order, the male advances to 2nd. (Exception: declared 1st-base-only male goes to 1st only.)</span></div>
+        <div class="rule-item"><span class="rule-num">k)</span><span class="rule-text">A male batter <strong>cannot be intentionally walked</strong> to force an Auto-Out (female) to end the inning — he must hit or strike/foul out.</span></div>
+        <div class="rule-item"><span class="rule-num">l)</span><span class="rule-text">Male or female declared 1st-only hitting a <strong>home run over the fence</strong> is awarded 1st base only; all other runners score.</span></div>
+        <div class="rule-item"><span class="rule-num">m)</span><span class="rule-text">Official ball is the <strong>"Hot Dot"</strong> — no other grade permitted in regular season or playoffs.</span></div>
+        <div class="rule-item"><span class="rule-num">n)</span><span class="rule-text">A <strong>5-person infield</strong> is prohibited.</span></div>
+        <div class="rule-item"><span class="rule-num">o)</span><span class="rule-text">Rotating a fielder to another position must be done for <strong>all pitches</strong> to that batter.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Game Format</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">12.0</span><span class="rule-text"><strong>7 innings.</strong> No new inning after <strong>1h 30m</strong> from first pitch. 15-min grace period if both teams and umpire agree (counts toward 1h 45m total). Game reverts to last complete inning if time expires (regular season).</span></div>
+        <div class="rule-item"><span class="rule-num">12.1</span><span class="rule-text">Official game = <strong>3½ innings</strong> (home team leading) or <strong>4 complete innings</strong>.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Playoffs <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 13.0–13.4)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">13.0</span><span class="rule-text">Two PODs for round robin — <strong>POD A &amp; POD B</strong>, 5 teams each.</span></div>
+        <div class="rule-item"><span class="rule-num">13.2</span><span class="rule-text">All playoff games are <strong>single game, 7 innings</strong>, subject to 12-run mercy rule after 5 innings.</span></div>
+        <div class="rule-item"><span class="rule-num">13.3</span><span class="rule-text">Playoff tie after 7 innings → <strong>international tiebreaker</strong> extra innings. Weather-interrupted games suspended/rescheduled at Tier Convener's discretion.</span></div>
+        <div class="rule-item"><span class="rule-num">13.4</span><span class="rule-text">Playoff eligibility requires <strong>40% attendance</strong> (8 of 20 games). Playoff roster must be submitted by <strong>August 27, 2025</strong>.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Batting Order &amp; Substitutions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 15–16)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">15.0</span><span class="rule-text">Each team must provide a complete lineup to the opposing team before each game. Attendance sheets submitted to league website within <strong>48 hours</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">16.0</span><span class="rule-text">Late-arriving players (10 or fewer in order) must be added to the <strong>bottom of the batting order</strong> or sit out.</span></div>
+        <div class="rule-item"><span class="rule-num">16.2</span><span class="rule-text">Substitute players must be declared at game start. Late arrivals can only be added if the order has not been completed once.</span></div>
+        <div class="rule-item"><span class="rule-num">16.4</span><span class="rule-text">Mid-game substitutions must be <strong>gender-for-gender</strong> (male for male, female for female) unless the batting order allows otherwise.</span></div>
+        <div class="rule-item"><span class="rule-num">16.5</span><span class="rule-text"><strong>Pinch runners:</strong> max <strong>3 per game</strong>. Male for male, female for female.</span></div>
+        <div class="rule-item"><span class="rule-num">16.6</span><span class="rule-text"><strong>Declared injured players</strong> must be declared before game start. Allowed unlimited runners but only at <strong>1st base</strong> — cannot advance further (except on overthrow or male walk with female behind them).</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Ejections &amp; Suspensions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 20–21)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">Class I</span><span class="rule-text"><strong>Verbal:</strong> 1st ejection = that game + 1 auto suspension. 2nd = min 3-game suspension. 3rd = indefinite + disciplinary hearing + $50 team fine + team captain suspended.</span></div>
+        <div class="rule-item"><span class="rule-num">Class II</span><span class="rule-text"><strong>Physical/contact:</strong> 1st occurrence = ejection + immediate indefinite suspension pending disciplinary hearing. Must sit out until hearing regardless.</span></div>
+        <div class="rule-item"><span class="rule-num">29.0</span><span class="rule-text">Any ejection = automatic <strong>1-game suspension</strong> for next league or playoff game.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Equipment</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">26.0</span><span class="rule-text"><strong>No metal cleats.</strong></span></div>
+        <div class="rule-item"><span class="rule-num">26.1</span><span class="rule-text">Altered or tampered bats = batter out + ejection + possible additional penalties.</span></div>
+        <div class="rule-item"><span class="rule-num">26.3</span><span class="rule-text">Jewelry: stud earrings/nose piercings permitted. <strong>No hoop earrings/piercings. No necklaces.</strong> Violation during at-bat = out.</span></div>
+        <div class="rule-item"><span class="rule-num">26.4</span><span class="rule-text">Each team is responsible for carrying a fully stocked <strong>first aid kit</strong> to every game.</span></div>
+        <div class="rule-item"><span class="rule-num">31.0</span><span class="rule-text">Only bats on the current <strong>SPN Approved Bat List</strong> are permitted.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Conduct &amp; General</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">17.0</span><span class="rule-text"><strong>Blood/cut rule:</strong> Any player bleeding must leave the field until properly treated and wound covered. All blood-contaminated equipment must be removed.</span></div>
+        <div class="rule-item"><span class="rule-num">27.0</span><span class="rule-text"><strong>Zero tolerance</strong> for smoking, alcohol, violence, and abusive behavior at all facilities.</span></div>
+        <div class="rule-item"><span class="rule-num">28.0</span><span class="rule-text">Coaches are responsible for their spectators' behavior. Failure to control spectators can result in coach ejection or game forfeiture.</span></div>
+        <div class="rule-item"><span class="rule-num">19.0</span><span class="rule-text">Games must be officiated by at least <strong>1 umpire</strong>. No umpire = game cancelled. Semis/Finals may use 2 umpires.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Prize Breakdown</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">POD A</span><span class="rule-text">1st — <strong>$500</strong> &nbsp;·&nbsp; 2nd — <strong>$300</strong> &nbsp;·&nbsp; 3rd — <strong>$200</strong></span></div>
+        <div class="rule-item"><span class="rule-num">POD B</span><span class="rule-text">1st — <strong>$400</strong> &nbsp;·&nbsp; 2nd — <strong>$250</strong></span></div>
+        <div class="rule-item"><span class="rule-num">Total</span><span class="rule-text"><strong>$1,650</strong> year-end tournament prize pool</span></div>
+      </div>
+    </div>
+
+  </div>
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1036,10 +1198,14 @@ function buildSchedInner(dates,isScore){
         const gnum=`<span class="gnum">#${g.id}</span>`;
         if(isScore){
           const sc=G.scores[g.id]||{h:'',a:''};
-          inner+=`<tr class="${isCO?'co-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home"><span>${esc(g.home)}</span><span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td></tr>`;
+          const isWx=G.scores[g.id]?.weather;
+          const wxStyle=isWx?'background:#fef3c7;border-color:#f59e0b':'';
+          const trClass=`${isCO?'co-row':''} ${isWx?'wx-row':''}`.trim();
+          inner+=`<tr class="${trClass}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home"><span>${esc(g.home)}</span><span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-wx"><button id="wb_${g.id}" class="wx-btn" title="${isWx?'Weather cancellation (7–7)':'Mark as weather cancellation (7–7)'}" onclick="weatherCancel('${g.id}')" style="${wxStyle}">🌧</button></td></tr>`;
         } else {
           const sc=G.scores[g.id];const res=sc?sc.h+'–'+sc.a:'—';
-          inner+=`<tr><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${res}</td></tr>`;
+          const isWx=sc?.weather;
+          inner+=`<tr ${isWx?'class="wx-row"':''}><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
         }
       }
       inner+='</table>';
@@ -1056,10 +1222,14 @@ function buildSchedInner(dates,isScore){
         const gnum=`<span class="gnum">#${g.id}</span>`;
         if(isScore){
           const sc=G.scores[g.id]||{h:'',a:''};
-          inner+=`<tr class="g-late${isCO?' co-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td></tr>`;
+          const isWx=G.scores[g.id]?.weather;
+          const wxStyle=isWx?'background:#fef3c7;border-color:#f59e0b':'';
+          const trClass=`g-late${isCO?' co-row':''} ${isWx?'wx-row':''}`.trim();
+          inner+=`<tr class="${trClass}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-wx"><button id="wb_${g.id}" class="wx-btn" title="${isWx?'Weather cancellation (7–7)':'Mark as weather cancellation (7–7)'}" onclick="weatherCancel('${g.id}')" style="${wxStyle}">🌧</button></td></tr>`;
         } else {
           const sc=G.scores[g.id];const res=sc?sc.h+'–'+sc.a:'—';
-          inner+=`<tr class="g-late"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${res}</td></tr>`;
+          const isWx=sc?.weather;
+          inner+=`<tr class="g-late${isWx?' wx-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
         }
       }
       inner+='</table>';
@@ -1304,16 +1474,31 @@ function renderScores(){
   const el=document.getElementById('sco');
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to enter scores</div>';return;}
   const grouped=groupSched(G.sched);
-  el.innerHTML=`<div class="notice">Enter final scores · Run differential auto-capped at +7 for standings</div>`
+  el.innerHTML=`<div class="notice">Enter final scores · 🌧 sets 7–7 weather tie · Run differential capped at +7</div>`
     +grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,true),i,'sk')).join('');
 }
 
 function saveScore(gid){
-  const h=document.getElementById('sh_'+gid).value;
-  const a=document.getElementById('sa_'+gid).value;
-  if(h!==''&&a!=='')G.scores[gid]={h:parseInt(h),a:parseInt(a)};
+  const h=document.getElementById('sh_'+gid)?.value;
+  const a=document.getElementById('sa_'+gid)?.value;
+  if(h!==''&&a!=='')G.scores[gid]={h:parseInt(h),a:parseInt(a),weather:false};
   else delete G.scores[gid];
   renderSched();
+  renderStandings();
+}
+
+function weatherCancel(gid){
+  // Rule 8.0: cancelled game = 7-7 tie
+  G.scores[gid]={h:7,a:7,weather:true};
+  const sh=document.getElementById('sh_'+gid);
+  const sa=document.getElementById('sa_'+gid);
+  if(sh)sh.value=7;
+  if(sa)sa.value=7;
+  // Mark the row visually
+  const btn=document.getElementById('wb_'+gid);
+  if(btn){btn.style.background='#fef3c7';btn.style.borderColor='#f59e0b';btn.title='Weather cancellation (7–7) — click to clear';}
+  renderSched();
+  renderStandings();
 }
 
 // ── STANDINGS ─────────────────────────────────────────────────────────────────
@@ -1432,22 +1617,108 @@ function renderStandings(){
   }
 
   const gp=Object.values(G.scores).length;
+
+  // ── Extra stats: Home/Away records, Last 10, Streak ──────────────────────
+  const homeStats={},awayStats={};
+  for(const t of leagueTeams){ homeStats[t]={w:0,l:0,tie:0}; awayStats[t]={w:0,l:0,tie:0}; }
+
+  // Chronological list of results per team for Last10 and Streak
+  const teamResults={}; // teamResults[t] = [{res:'W'|'L'|'T'}, ...] chronological
+  for(const t of leagueTeams) teamResults[t]=[];
+
+  const chronoGames=[...G.sched].filter(g=>G.scores[g.id]).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  for(const g of chronoGames){
+    const sc=G.scores[g.id];
+    // Home record
+    if(homeStats[g.home]!==undefined){
+      if(sc.h>sc.a){homeStats[g.home].w++;teamResults[g.home].push('W');}
+      else if(sc.a>sc.h){homeStats[g.home].l++;teamResults[g.home].push('L');}
+      else{homeStats[g.home].tie++;teamResults[g.home].push('T');}
+    }
+    // Away record
+    if(awayStats[g.away]!==undefined){
+      if(sc.a>sc.h){awayStats[g.away].w++;teamResults[g.away].push('W');}
+      else if(sc.h>sc.a){awayStats[g.away].l++;teamResults[g.away].push('L');}
+      else{awayStats[g.away].tie++;teamResults[g.away].push('T');}
+    }
+  }
+
+  // Compute Last 10 and Streak for each team
+  function last10(t){ const r=teamResults[t].slice(-10); const w=r.filter(x=>x==='W').length,l=r.filter(x=>x==='L').length; return r.length?`${w}-${l}`:'—'; }
+  function streak(t){
+    const r=teamResults[t];if(!r.length)return{s:'—',cls:''};
+    const last=r[r.length-1];let cnt=0;
+    for(let i=r.length-1;i>=0&&r[i]===last;i--)cnt++;
+    return{s:`${last}${cnt}`,cls:last==='W'?'w':last==='L'?'l':'t'};
+  }
+
+  // GB: games behind leader (based on pts; formula = (leaderW - teamW + teamL - leaderL)/2)
+  const leader=ranked[0]?.team;
+  function gb(t){
+    if(t===leader)return'—';
+    const ls=stats[leader],ts2=stats[t];
+    const gbVal=((ls.w-ts2.w)+(ts2.l-ls.l))/2;
+    return gbVal<=0?'—':gbVal%1===0?String(gbVal):`${gbVal}`;
+  }
+
+  // Win %
+  function winPct(t){
+    const s=stats[t];if(s.gp===0)return'—';
+    return((s.pts/(s.gp*2))).toFixed(3).replace(/^0/,'');
+  }
+
   el.innerHTML=`
   <div class="metric-grid">
     <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${leagueTeams.length}</div></div>
     <div class="metric"><div class="metric-label">Played</div><div class="metric-value">${gp}</div></div>
-    <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.length-gp}</div></div>
+    <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.filter(g=>!G.scores[g.id]).length}</div></div>
     <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
   </div>
-  <div class="notice">W=2 · T=1 · L=0 · Tiebreakers: a) H2H points · b) Last matchup result · c) Coin toss · RF/RA capped at +7</div>
+  <div class="notice">W=2 · T=1 · L=0 · Tiebreakers: a) H2H points · b) Last matchup · c) Coin toss · RF/RA capped at +7</div>
   <div class="st-wrap"><table class="st">
-    <colgroup><col style="width:28px"><col><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:42px"><col style="width:36px"><col style="width:36px"><col style="width:44px"><col style="width:24px"></colgroup>
-    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th><th></th></tr></thead>
+    <colgroup>
+      <col style="width:28px"><!-- # -->
+      <col><!-- Team -->
+      <col style="width:58px"><!-- Record -->
+      <col style="width:46px"><!-- Win% -->
+      <col style="width:36px"><!-- GB -->
+      <col style="width:50px"><!-- Home -->
+      <col style="width:50px"><!-- Away -->
+      <col style="width:34px"><!-- RF -->
+      <col style="width:34px"><!-- RA -->
+      <col style="width:42px"><!-- DIFF -->
+      <col style="width:42px"><!-- Last 10 -->
+      <col style="width:40px"><!-- Streak -->
+      <col style="width:24px"><!-- TB -->
+    </colgroup>
+    <thead><tr>
+      <th>#</th><th>Team</th><th>Record</th><th>Win%</th><th>GB</th>
+      <th>Home</th><th>Away</th><th>RF</th><th>RA</th><th>Diff</th>
+      <th>Last 10</th><th>Streak</th><th></th>
+    </tr></thead>
     <tbody>${ranked.map(({team:t,tied},idx)=>{
       const s=stats[t];const diff=s.rf-s.ra;
       const ds=s.gp===0?'—':(diff>0?'+'+diff:''+diff);
+      const hs=homeStats[t],as2=awayStats[t];
+      const hrec=`${hs.w}-${hs.l}${hs.tie?'-'+hs.tie:''}`;
+      const arec=`${as2.w}-${as2.l}${as2.tie?'-'+as2.tie:''}`;
+      const str=streak(t);
       const tieIcon=tied?`<td title="Tiebreaker applied" style="color:var(--orange);font-size:11px;text-align:center">TB</td>`:`<td></td>`;
-      return`<tr><td class="rank">${idx+1}</td><td style="font-weight:600">${esc(t)}</td><td class="mono">${s.gp}</td><td class="mono">${s.w}</td><td class="mono">${s.l}</td><td class="mono">${s.tie}</td><td class="pts">${s.pts}</td><td class="mono">${s.rf}</td><td class="mono">${s.ra}</td><td class="mono">${ds}</td>${tieIcon}</tr>`;
+      return`<tr>
+        <td class="rank">${idx+1}</td>
+        <td style="font-weight:600">${esc(t)}</td>
+        <td class="rec">${s.w}-${s.l}${s.tie?'-'+s.tie:''}</td>
+        <td class="pct">${winPct(t)}</td>
+        <td class="gb">${gb(t)}</td>
+        <td class="hrec">${hrec}</td>
+        <td class="hrec">${arec}</td>
+        <td class="mono">${s.rf}</td>
+        <td class="mono">${s.ra}</td>
+        <td class="mono">${ds}</td>
+        <td class="l10">${last10(t)}</td>
+        <td class="strk ${str.cls}">${str.s}</td>
+        ${tieIcon}
+      </tr>`;
     }).join('')}</tbody>
   </table></div>`;
 }
