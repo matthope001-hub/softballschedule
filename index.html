@@ -812,6 +812,11 @@ function genSched(){
 
   const coEach = nights / n;   // exact integer = TFACED
 
+  // Build pair budget: each unique pair (i,j) must play exactly TFACED times
+  // Pair appearances come from: DH slots (1 pair/DH diamond/night) + noLit slots (singleCount pairs/night)
+  // Total pair slots per night = dhIds.length + noLitIds.length = lgSlotsPerNight
+  // Total pair slots = lgSlotsPerNight * nights = uniquePairs * TFACED ✓ (validated above)
+
   function makePool(perTeam){
     const pool = [];
     for(let t=0;t<n;t++) for(let k=0;k<perTeam;k++) pool.push(t);
@@ -819,18 +824,18 @@ function genSched(){
   }
 
   for(let attempt=0; attempt<2000; attempt++){
+    // Reset pair budget each attempt
+    const pairPlayed = {};
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) pairPlayed[i+'_'+j] = 0;
+    function pairKey(a,b){ return a<b ? a+'_'+b : b+'_'+a; }
+    function pairOk(a,b){ return pairPlayed[pairKey(a,b)] < TFACED; }
+    function usePair(a,b){ pairPlayed[pairKey(a,b)]++; }
+
     // coA: each team exactly coEach nights on D9 6:30
     const coANights = makePool(coEach);
-
-    // coB: since there are no lit-single diamonds, coB MUST be the same team as coA.
-    // This avoids any DH or noLit team getting a third game.
-    // CrossOver faces the coA team home at 6:30 and away at 8:15 on that night.
     const coBNights = coANights.slice(); // coB === coA every night
 
-    // Pre-assign DH pairs per night.
-    // Exclude BOTH coA AND coB from DH candidates — they can't be in a DH pair
-    // (coA is on D9, coB would get 3 games if in DH).
-    // Since coB===coA here, just excluding coA covers both.
+    // Pre-assign DH pairs per night with pair-budget awareness
     const dhDeg = dhIds.map(() => new Array(n).fill(0));
     const dhByNight = {};
     let dhOk = true;
@@ -838,24 +843,24 @@ function genSched(){
     for(let ni=0; ni<nights; ni++){
       dhByNight[ni] = [];
       const coA = coANights[ni];
-      const coB = coBNights[ni];
-      const blocked = new Set([coA, coB]); // same team, but keep general
+      const blocked = new Set([coA]);
 
       for(let di=0; di<dhIds.length; di++){
         const usedNow = new Set([...blocked, ...dhByNight[ni].flat()]);
         const cands = [];
         for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
-          if(!usedNow.has(i) && !usedNow.has(j)) cands.push([i,j]);
+          if(!usedNow.has(i) && !usedNow.has(j) && pairOk(i,j)) cands.push([i,j]);
         }
         if(!cands.length){ dhOk=false; break; }
 
-        // Prefer the pair with the least combined DH appearances (balance)
+        // Prefer pairs with fewest DH appearances (balance DH exposure)
         const minS = Math.min(...cands.map(([i,j]) => dhDeg[di][i]+dhDeg[di][j]));
         const best = cands.filter(([i,j]) => dhDeg[di][i]+dhDeg[di][j] === minS);
         const pair = best[Math.floor(Math.random()*best.length)];
         dhByNight[ni].push(pair);
         dhDeg[di][pair[0]]++;
         dhDeg[di][pair[1]]++;
+        usePair(pair[0], pair[1]);
       }
       if(!dhOk) break;
     }
@@ -873,7 +878,7 @@ function genSched(){
     for(let ni=0; ni<nights; ni++){
       const dateStr   = gameNights[ni];
       const coA       = coANights[ni];
-      const coB       = coBNights[ni];  // === coA
+      const coB       = coBNights[ni];
       const coATeam   = leagueTeams[coA];
       const coBTeam   = leagueTeams[coB];
       const dhPairs   = dhByNight[ni];
@@ -885,9 +890,24 @@ function genSched(){
 
       if(rest.length !== noLitIds.length*2){ assignOk=false; break; }
 
-      // Shuffle rest → random pairing for noLit diamonds
-      shuffle(rest);
-      const noLitPairs = noLitIds.map((_, si) => [rest[si*2], rest[si*2+1]]);
+      // Assign noLit pairs respecting pair budget
+      // Try up to 50 random shuffles to find a valid pairing
+      let noLitPairs = null;
+      for(let sp=0; sp<50; sp++){
+        const shuffled = shuffle([...rest]);
+        const pairs = [];
+        let valid = true;
+        for(let si=0; si<noLitIds.length; si++){
+          const a = shuffled[si*2], b = shuffled[si*2+1];
+          if(!pairOk(a,b)){ valid=false; break; }
+          pairs.push([a,b]);
+        }
+        if(valid){ noLitPairs=pairs; break; }
+      }
+      if(!noLitPairs){ assignOk=false; break; }
+
+      // Consume pair budget for noLit pairs
+      noLitPairs.forEach(([a,b]) => usePair(a,b));
 
       // ── D9 6:30: CrossOver HOME vs coOppA AWAY ──────────────────────────
       hc[CROSSOVER]++;
@@ -941,9 +961,12 @@ function genSched(){
 
     if(!assignOk) continue;
 
-    // ── Verify equal games ───────────────────────────────────────────────────
+    // ── Verify equal games AND every pair played exactly TFACED times ─────────
     const counts = leagueTeams.map(t => gameCounts[t]);
     if(!counts.every(c => c === counts[0])) continue;
+
+    const allPairsPlayed = Object.values(pairPlayed).every(v => v === TFACED);
+    if(!allPairsPlayed) continue;
 
     // ── Accept ───────────────────────────────────────────────────────────────
     G.sched   = sched;
