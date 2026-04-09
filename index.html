@@ -1353,6 +1353,22 @@ function renderSched(){
 
   const grouped=groupSched(filtered);
   el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
+
+  // Auto-open the current month, or the first month if none match
+  const now=new Date();
+  const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
+  let opened=false;
+  grouped.forEach(({month},i)=>{
+    if(month===currentMonth||(!opened&&i===0)){
+      const body=document.getElementById('sc_m'+i);
+      const arr=document.getElementById('arr_sc_m'+i);
+      if(body&&!body.classList.contains('open')){
+        body.classList.add('open');
+        if(arr) arr.textContent='▲';
+        opened=true;
+      }
+    }
+  });
 }
 
 // ── EXPORTS ───────────────────────────────────────────────────────────────────
@@ -1531,6 +1547,22 @@ function renderScores(){
   const grouped=groupSched(G.sched);
   el.innerHTML=`<div class="notice">Enter final scores · 🌧 sets 7–7 weather tie · Run differential capped at +7</div>`
     +grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,true),i,'sk')).join('');
+
+  // Auto-open current month or first month
+  const now=new Date();
+  const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
+  let opened=false;
+  grouped.forEach(({month},i)=>{
+    if(month===currentMonth||(!opened&&i===0)){
+      const body=document.getElementById('sk_m'+i);
+      const arr=document.getElementById('arr_sk_m'+i);
+      if(body&&!body.classList.contains('open')){
+        body.classList.add('open');
+        if(arr) arr.textContent='▲';
+        opened=true;
+      }
+    }
+  });
 }
 
 function saveScore(gid){
