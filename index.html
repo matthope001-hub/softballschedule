@@ -1921,7 +1921,22 @@ function saveData(){
       ss:      document.getElementById('ss')?.value||'',
       se:      document.getElementById('se')?.value||''
     }));
-  }catch(e){ console.warn('Save failed:', e); }
+    showToast('✓ Saved');
+  }catch(e){ console.warn('Save failed:', e); showToast('⚠ Save failed'); }
+}
+
+function showToast(msg){
+  let t=document.getElementById('_toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='_toast';
+    t.style.cssText='position:fixed;bottom:20px;right:20px;background:#1a2744;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.2s;pointer-events:none;font-family:var(--font)';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.opacity='1';
+  clearTimeout(t._hide);
+  t._hide=setTimeout(()=>t.style.opacity='0', 2000);
 }
 
 function loadData(){
@@ -1948,12 +1963,19 @@ function clearData(){
 
 // Init on page load
 document.addEventListener('DOMContentLoaded', function(){
-  try{ loadData(); }catch(e){ console.error('loadData failed:',e); }
+  let restored=false;
+  try{ restored=loadData(); }catch(e){ console.error('loadData failed:',e); }
   try{ renderTeams(); }catch(e){ console.error('renderTeams failed:',e); }
   try{ renderDiamonds(); }catch(e){ console.error('renderDiamonds failed:',e); }
   try{ initDayChecks(); }catch(e){ console.error('initDayChecks failed:',e); }
   try{ updateGptNotice(); }catch(e){ console.error('updateGptNotice failed:',e); }
-  try{ if(G.sched.length){ renderSched(); renderStandings(); } }catch(e){ console.error('renderSched failed:',e); }
+  try{
+    if(G.sched.length){
+      renderSched();
+      renderStandings();
+      if(restored) setTimeout(()=>showToast(`✓ Loaded — ${G.sched.length} games, ${Object.keys(G.scores).length} scores`), 400);
+    }
+  }catch(e){ console.error('renderSched failed:',e); }
 });
 </script>
 </body>
