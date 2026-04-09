@@ -237,7 +237,9 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
 .rule-text { font-size: 13px; color: var(--text); line-height: 1.55; }
 .rule-text strong { color: var(--navy); font-weight: 700; }
 .rule-highlight { background: rgba(0,122,255,0.04); margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
-/* ── WEATHER CANCEL ── */
+/* ── EMPTY SLOTS ── */
+.gt tr.empty-slot td { background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.015) 4px, rgba(0,0,0,0.015) 8px); color: var(--gray3); border-bottom: 1px dashed var(--border); }
+.gt tr.empty-slot:hover td { background: var(--gray1); }
 .gt td.g-wx { width: 34px; text-align: center; padding: 2px; }
 .wx-btn { background: none; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 14px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .wx-btn:hover { background: #fef3c7; border-color: #f59e0b; }
@@ -1225,10 +1227,20 @@ function buildSchedInner(dates,isScore){
     const openAt1=getDiamondIds().filter(d=>!usedAt1.has(d));
     const openAt2=G.diamonds.filter(d=>d.lights).map(d=>d.id).filter(d=>!usedAt2.has(d));
 
-    if(early.length){
-      let sh=`<div class="slot-head">${T1}`;
-      if(openAt1.length) sh+=` &nbsp;· <span style="color:var(--green)">OPEN: ${openAt1.map(d=>getDiamondName(d)).join(', ')}</span>`;
-      inner+=sh+'</div>';
+    // Helper: empty slot row
+    function emptySlotRow(dmId, time, isLate){
+      const dm=G.diamonds.find(d=>d.id===dmId);
+      const badge=dm?.lights?`<span class="dbadge">${getDiamondName(dmId)} ☀</span>`:`<span class="dbadge nl">${getDiamondName(dmId)}</span>`;
+      const timeLbl=`<span class="time-lbl${isLate?' late':''}">${time}</span>`;
+      if(isScore){
+        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" style="color:var(--gray3);font-style:italic">TBD</td><td class="g-si"></td><td class="g-sep"></td><td class="g-si"></td><td class="g-away" style="color:var(--gray3);font-style:italic">TBD</td><td class="g-dm">${badge}</td><td class="g-wx"></td></tr>`;
+      } else {
+        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" style="color:var(--gray3);font-style:italic" colspan="3">— open slot —</td><td class="g-dm">${badge}</td><td class="g-sc"></td></tr>`;
+      }
+    }
+
+    if(early.length||openAt1.length){
+      inner+=`<div class="slot-head">${T1}</div>`;
       inner+='<table class="gt">';
       for(const g of early){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
@@ -1247,12 +1259,14 @@ function buildSchedInner(dates,isScore){
           inner+=`<tr ${isWx?'class="wx-row"':''}><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
         }
       }
+      // Empty slots at T1
+      for(const d of openAt1) inner+=emptySlotRow(d,T1,false);
       inner+='</table>';
     }
-    if(late.length){
-      let sh=`<div class="slot-head">${T2}`;
-      if(openAt2.length) sh+=` &nbsp;· <span style="color:var(--green)">OPEN: ${openAt2.map(d=>getDiamondName(d)).join(', ')}</span>`;
-      inner+=sh+'</div>';
+
+    const litIds=G.diamonds.filter(d=>d.lights).map(d=>d.id);
+    if(late.length||openAt2.length){
+      inner+=`<div class="slot-head">${T2}</div>`;
       inner+='<table class="gt">';
       for(const g of late){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
@@ -1271,6 +1285,8 @@ function buildSchedInner(dates,isScore){
           inner+=`<tr class="g-late${isWx?' wx-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
         }
       }
+      // Empty slots at T2 (lit diamonds only)
+      for(const d of openAt2) inner+=emptySlotRow(d,T2,true);
       inner+='</table>';
     }
   }
