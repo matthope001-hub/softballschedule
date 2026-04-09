@@ -1312,6 +1312,7 @@ function buildSchedInner(dates,isScore){
       for(const g of early){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const cobadge=isCO?`<span class="cobadge">CO</span>`:'';
+        const plybadge=g.playoff?`<span class="cobadge" style="background:#7c3aed;border-color:#7c3aed">🏆</span>`:'';
         const badge=g.lights?`<span class="dbadge">${getDiamondName(g.diamond)} ☀</span>`:`<span class="dbadge nl">${getDiamondName(g.diamond)}</span>`;
         const gnum=`<span class="gnum">#${g.id}</span>`;
         if(isScore){
@@ -1319,11 +1320,11 @@ function buildSchedInner(dates,isScore){
           const isWx=G.scores[g.id]?.weather;
           const wxStyle=isWx?'background:#fef3c7;border-color:#f59e0b':'';
           const trClass=`${isCO?'co-row':''} ${isWx?'wx-row':''}`.trim();
-          inner+=`<tr class="${trClass}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home"><span>${esc(g.home)}</span><span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-wx"><button id="wb_${g.id}" class="wx-btn" title="${isWx?'Weather cancellation (7–7)':'Mark as weather cancellation (7–7)'}" onclick="weatherCancel('${g.id}')" style="${wxStyle}">🌧</button></td></tr>`;
+          inner+=`<tr class="${trClass}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home"><span>${esc(g.home)}</span><span class="htag">H</span>${cobadge}${plybadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-wx"><button id="wb_${g.id}" class="wx-btn" title="${isWx?'Weather cancellation (7–7)':'Mark as weather cancellation (7–7)'}" onclick="weatherCancel('${g.id}')" style="${wxStyle}">🌧</button></td></tr>`;
         } else {
           const sc=G.scores[g.id];const res=sc?sc.h+'–'+sc.a:'—';
           const isWx=sc?.weather;
-          inner+=`<tr ${isWx?'class="wx-row"':''}><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
+          inner+=`<tr ${isWx?'class="wx-row"':''}><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}${plybadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
         }
       }
       inner+='</table>';
@@ -1335,6 +1336,7 @@ function buildSchedInner(dates,isScore){
       for(const g of late){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const cobadge=isCO?`<span class="cobadge">CO</span>`:'';
+        const plybadge=g.playoff?`<span class="cobadge" style="background:#7c3aed;border-color:#7c3aed">🏆</span>`:'';
         const badge=`<span class="dbadge">${getDiamondName(g.diamond)} ☀</span>`;
         const gnum=`<span class="gnum">#${g.id}</span>`;
         if(isScore){
@@ -1663,6 +1665,7 @@ function renderStandings(){
   const stats={};
   for(const t of leagueTeams)stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
   for(const g of G.sched){
+    if(g.playoff) continue; // playoff games excluded from standings
     const sc=G.scores[g.id];if(!sc)continue;
     const{ch,ca}=capRuns(sc.h,sc.a);
     if(stats[g.home]!==undefined){
@@ -2339,6 +2342,58 @@ function saveFinalScore(pod){
   saveData();renderPlayoffs();
 }
 
+function schedulePlayoffGame(plyId, home, away){
+  if(!checkAdmin()) return;
+  // Show inline scheduling form via a modal-style prompt
+  const date=prompt(`Schedule playoff game: ${home} vs ${away}\n\nEnter date (YYYY-MM-DD), e.g. 2026-10-06:`,'2026-10-06');
+  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){if(date!==null)alert('Invalid date format. Use YYYY-MM-DD.');return;}
+  const time=prompt('Enter start time:','6:30 PM');
+  if(!time){return;}
+  const dmNames=G.diamonds.map((d,i)=>`${i+1}. ${d.name}`).join('\n');
+  const dmChoice=prompt(`Choose diamond:\n${dmNames}\n\nEnter number:`,'1');
+  if(!dmChoice) return;
+  const dmIndex=parseInt(dmChoice)-1;
+  if(isNaN(dmIndex)||dmIndex<0||dmIndex>=G.diamonds.length){alert('Invalid diamond choice.');return;}
+  const dm=G.diamonds[dmIndex];
+
+  // Remove any existing sched entry for this playoff game
+  G.sched=G.sched.filter(g=>g.plyId!==plyId);
+
+  // Generate ID
+  const yr=new Date(date+'T12:00:00').getFullYear().toString().slice(-2);
+  const newId=`${yr}P${String(Date.now()).slice(-4)}`;
+
+  G.sched.push({
+    id:newId, date, time,
+    diamond:dm.id, lights:dm.lights,
+    home, away, bye:'',
+    crossover:false,
+    playoff:true,
+    plyId  // link back to the playoff game entry
+  });
+  G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  saveData();
+  renderPlayoffs();
+  renderSched();
+  renderScores();
+  showToast(`✓ Playoff game scheduled — ${date} · ${time} · ${dm.name}`);
+}
+
+function removePlayoffSchedule(plyId){
+  if(!checkAdmin()) return;
+  if(!confirm('Remove the scheduled date/time/diamond for this playoff game?\n\nThe game result will be kept.')) return;
+  G.sched=G.sched.filter(g=>g.plyId!==plyId);
+  saveData();
+  renderPlayoffs();
+  renderSched();
+  renderScores();
+  showToast('📅 Playoff game unscheduled');
+}
+
+function getPlayoffSchedEntry(plyId){
+  return G.sched.find(g=>g.plyId===plyId)||null;
+}
+
 function podRRStandings(teams,pfx){
   const stats={};
   for(const t of teams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
@@ -2358,6 +2413,18 @@ function podRRStandings(teams,pfx){
 
 function scoreInput(idH,idA,valH,valA,onChange){
   return `<td class="g-si"><input type="number" min="0" class="si" id="${idH}" value="${valH}" placeholder="–" onchange="${onChange}"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="${idA}" value="${valA}" placeholder="–" onchange="${onChange}"/></td>`;
+}
+
+function schedBtn(plyId, home, away){
+  const entry=getPlayoffSchedEntry(plyId);
+  if(entry){
+    return `<td style="white-space:nowrap;padding:0 6px">
+      <span style="font-size:11px;color:var(--navy);font-weight:600">📅 ${entry.date} · ${entry.time}</span>
+      <span style="font-size:11px;color:var(--muted)"> · ${getDiamondName(entry.diamond)}</span>
+      <button onclick="removePlayoffSchedule('${plyId}')" title="Remove schedule" style="margin-left:4px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;padding:0">✕</button>
+    </td>`;
+  }
+  return `<td><button onclick="schedulePlayoffGame('${plyId}','${esc(home)}','${esc(away)}')" style="font-size:11px;padding:3px 8px;background:var(--gray1);border:1.5px solid var(--border);border-radius:5px;cursor:pointer;color:var(--navy);font-weight:600;white-space:nowrap">📅 Schedule</button></td>`;
 }
 
 function winnerOf(sc,home,away){
@@ -2430,6 +2497,7 @@ function renderPod(podLabel,pfx,podKey,seeds){
       <td class="g-away" style="font-weight:600${winner===g.away?';color:var(--navy)':''}">${esc(g.away)}</td>
       ${scoreInput('ph_'+g.id,'pa_'+g.id,sc?sc.h:'',sc?sc.a:'',`savePlayoffScore('${g.id}')`)}
       <td class="g-sc ${sc?'scored':''}">${winner?'✓ '+esc(winner):sc?'Tie':'—'}</td>
+      ${schedBtn(g.id,g.home,g.away)}
     </tr>`;
   }
   h+=`</table>`;
@@ -2445,6 +2513,7 @@ function renderPod(podLabel,pfx,podKey,seeds){
     h+=`<table class="gt" style="margin-bottom:10px">`;
     [{key:'s1',g:sm1,label:`1 vs 4`},{key:'s2',g:sm2,label:`2 vs 3`}].forEach(({key,g,label})=>{
       const winner=winnerOf(g.score,g.home,g.away);
+      const plyId=`${podKey}_${key}`;
       h+=`<tr class="${g.score?'':'empty-slot'}">
         <td class="g-num"><span class="gnum">${label}</span></td>
         <td class="g-home" style="font-weight:600${winner===g.home?';color:var(--navy)':''}">${esc(g.home||'TBD')}</td>
@@ -2452,6 +2521,7 @@ function renderPod(podLabel,pfx,podKey,seeds){
         <td class="g-away" style="font-weight:600${winner===g.away?';color:var(--navy)':''}">${esc(g.away||'TBD')}</td>
         ${scoreInput(`psh_${podKey}_${key}`,`psa_${podKey}_${key}`,g.score?g.score.h:'',g.score?g.score.a:'',`saveSemiScore('${podKey}','${key}')`)}
         <td class="g-sc ${g.score?'scored':''}">${winner?'✓ '+esc(winner):g.score?'Tie':'—'}</td>
+        ${g.home?schedBtn(plyId,g.home||'',g.away||''):'<td></td>'}
       </tr>`;
     });
     h+=`</table>`;
@@ -2467,6 +2537,7 @@ function renderPod(podLabel,pfx,podKey,seeds){
         <td class="g-away" style="font-weight:700;color:var(--navy)">${esc(fin.away||'TBD')}</td>
         ${scoreInput('pfh_'+podKey,'pfa_'+podKey,fin.score?fin.score.h:'',fin.score?fin.score.a:'',`saveFinalScore('${podKey}')`)}
         <td class="g-sc ${fin.score?'scored':''}">${champion?'🏆 '+esc(champion):fin.score?'Tie':'—'}</td>
+        ${fin.home?schedBtn(`${podKey}_final`,fin.home||'',fin.away||''):'<td></td>'}
       </tr></table>`;
       if(champion){
         h+=`<div style="padding:14px 16px;background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);color:#fff;text-align:center;margin-bottom:10px">
