@@ -597,6 +597,7 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
 <script>
 // ── DATA ──────────────────────────────────────────────────────────────────────
 const CAP=7;
+const STORAGE_KEY='hccsl_2026';
 const MONTH_NAMES=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
 // DIAMONDS is now dynamic — always use getDiamondIds() or G.diamonds
 function DIAMONDS(){ return getDiamondIds(); }
@@ -730,6 +731,11 @@ function renderDiamonds(){
         style="padding:6px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:16px;cursor:pointer;line-height:1;font-family:var(--font)"
         title="Remove diamond">×</button>
     </div>`).join('');
+  // Also update the rules panel summary
+  const rd=document.getElementById('rules-diamonds');
+  if(rd) rd.innerHTML=G.diamonds.map(d=>
+    `<div style="font-size:13px;color:var(--text)">${d.name} — ${d.lights?'💡 Lights (DH capable)':'🌙 No Lights (6:30 only)'}</div>`
+  ).join('');
   updateGptNotice();
 }
 // renderDiamonds called in DOMContentLoaded after all functions are defined
@@ -740,8 +746,14 @@ const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function initDayChecks(){
   const el=document.getElementById('day-checks');
   if(!el)return;
+  // Restore saved days, default to Tuesday (2)
+  let savedDays=[2];
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){const d=JSON.parse(raw);if(d.days&&d.days.length)savedDays=d.days;}
+  }catch(e){}
   el.innerHTML=DAY_NAMES.map((name,i)=>{
-    const checked=i===2?'checked':''; // Tuesday default
+    const checked=savedDays.includes(i)?'checked':'';
     const activeStyle='border-color:var(--navy);background:var(--navy);color:#fff';
     const inactiveStyle='border-color:var(--border);background:var(--white);color:var(--text)';
     return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${checked?activeStyle:inactiveStyle}">
@@ -759,6 +771,13 @@ function onDayChange(i,cb){
       lbl.style.borderColor='var(--border)';lbl.style.background='var(--white)';lbl.style.color='var(--text)';
     }
   }
+  // Persist selected days
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    const d=raw?JSON.parse(raw):{};
+    d.days=getSelectedDays();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(d));
+  }catch(e){}
   updateGptNotice();
 }
 
@@ -1873,7 +1892,6 @@ function editGame(id,field,value){
 }
 
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
-const STORAGE_KEY='hccsl_2026';
 
 function saveData(){
   try{
@@ -1881,7 +1899,10 @@ function saveData(){
       teams:   G.teams,
       diamonds:G.diamonds,
       sched:   G.sched,
-      scores:  G.scores
+      scores:  G.scores,
+      days:    getSelectedDays(),
+      ss:      document.getElementById('ss')?.value||'',
+      se:      document.getElementById('se')?.value||''
     }));
   }catch(e){ console.warn('Save failed:', e); }
 }
@@ -1895,6 +1916,9 @@ function loadData(){
     if(d.diamonds)G.diamonds= d.diamonds;
     if(d.sched)   G.sched   = d.sched;
     if(d.scores)  G.scores  = d.scores;
+    // Restore season date inputs
+    if(d.ss){const el=document.getElementById('ss');if(el)el.value=d.ss;}
+    if(d.se){const el=document.getElementById('se');if(el)el.value=d.se;}
     return true;
   }catch(e){ console.warn('Load failed:', e); return false; }
 }
@@ -1910,7 +1934,6 @@ document.addEventListener('DOMContentLoaded', function(){
   loadData();
   renderTeams();
   renderDiamonds();
-  renderRulesDiamonds();
   initDayChecks();
   updateGptNotice();
   if(G.sched.length){
