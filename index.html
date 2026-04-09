@@ -1914,12 +1914,99 @@ function renderStats(){
 
   const totalNights=new Set(G.sched.map(g=>g.date)).size;
   const sorted=[...allTeams].sort((a,b)=>ts[b].total-ts[a].total);
+  const scoredGames=G.sched.filter(g=>G.scores[g.id]);
+  const remainingGames=G.sched.length-scoredGames.length;
+  const leagueScoredGames=scoredGames.filter(g=>g.home!==CROSSOVER&&g.away!==CROSSOVER);
+
+  // Fun stats computation
+  const teamRF={},teamRA={},teamW={},teamL={},teamTie={};
+  for(const t of leagueTeams){teamRF[t]=0;teamRA[t]=0;teamW[t]=0;teamL[t]=0;teamTie[t]=0;}
+  let biggestWinMargin=0,biggestWinGame=null,highestScore=0,highestScoreGame=null;
+  let totalRunsScored=0,shutouts=0;
+  const blowouts=[];
+  for(const g of leagueScoredGames){
+    const sc=G.scores[g.id];
+    const margin=Math.abs(sc.h-sc.a);
+    totalRunsScored+=sc.h+sc.a;
+    if(sc.h===0||sc.a===0) shutouts++;
+    if(margin>biggestWinMargin){biggestWinMargin=margin;biggestWinGame=g;}
+    const combined=sc.h+sc.a;
+    if(combined>highestScore){highestScore=combined;highestScoreGame=g;}
+    if(teamRF[g.home]!==undefined){teamRF[g.home]+=sc.h;teamRA[g.home]+=sc.a;}
+    if(teamRF[g.away]!==undefined){teamRF[g.away]+=sc.a;teamRA[g.away]+=sc.h;}
+    if(sc.h>sc.a){if(teamW[g.home]!==undefined)teamW[g.home]++; if(teamL[g.away]!==undefined)teamL[g.away]++;}
+    else if(sc.a>sc.h){if(teamW[g.away]!==undefined)teamW[g.away]++; if(teamL[g.home]!==undefined)teamL[g.home]++;}
+    else{if(teamTie[g.home]!==undefined)teamTie[g.home]++; if(teamTie[g.away]!==undefined)teamTie[g.away]++;}
+  }
+  const avgRunsPerGame=leagueScoredGames.length?+(totalRunsScored/leagueScoredGames.length).toFixed(1):0;
+  const topScorer=leagueTeams.slice().sort((a,b)=>teamRF[b]-teamRF[a])[0];
+  const bestDefense=leagueTeams.slice().sort((a,b)=>teamRA[a]-teamRA[b])[0];
+  const mostWins=leagueTeams.slice().sort((a,b)=>teamW[b]-teamW[a])[0];
+  const mostLosses=leagueTeams.slice().sort((a,b)=>teamL[b]-teamL[a])[0];
 
   el.innerHTML=`
-  <div class="metric-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.25rem">
-    <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
+  <div class="metric-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:1.25rem">
+    <div class="metric"><div class="metric-label">Games Played</div><div class="metric-value">${scoredGames.length}</div></div>
+    <div class="metric"><div class="metric-label">Games Left</div><div class="metric-value">${remainingGames}</div></div>
     <div class="metric"><div class="metric-label">Tuesday Nights</div><div class="metric-value">${totalNights}</div></div>
-    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${allTeams.length}</div></div>
+    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${leagueTeams.length}</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚡ Season Highlights</div>
+    ${leagueScoredGames.length===0?'<div class="empty" style="padding:1rem">Enter some scores to see highlights</div>':`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">🔥 Most Runs Scored</div>
+        <div style="font-size:18px;font-weight:800;color:var(--navy)">${esc(topScorer)}</div>
+        <div style="font-size:12px;color:var(--muted)">${teamRF[topScorer]} runs scored</div>
+      </div>
+      <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">🛡 Best Defense</div>
+        <div style="font-size:18px;font-weight:800;color:var(--navy)">${esc(bestDefense)}</div>
+        <div style="font-size:12px;color:var(--muted)">${teamRA[bestDefense]} runs allowed</div>
+      </div>
+      <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">🏆 Most Wins</div>
+        <div style="font-size:18px;font-weight:800;color:var(--navy)">${esc(mostWins)}</div>
+        <div style="font-size:12px;color:var(--muted)">${teamW[mostWins]} wins</div>
+      </div>
+      <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">💀 Most Losses</div>
+        <div style="font-size:18px;font-weight:800;color:var(--navy)">${esc(mostLosses)}</div>
+        <div style="font-size:12px;color:var(--muted)">${teamL[mostLosses]} losses</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <div style="padding:12px;background:var(--navy);border-radius:var(--r-sm);text-align:center">
+        <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Avg Runs/Game</div>
+        <div style="font-size:26px;font-weight:800;color:#fff;line-height:1">${avgRunsPerGame}</div>
+      </div>
+      <div style="padding:12px;background:var(--navy);border-radius:var(--r-sm);text-align:center">
+        <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Shutouts</div>
+        <div style="font-size:26px;font-weight:800;color:#fff;line-height:1">${shutouts}</div>
+      </div>
+      <div style="padding:12px;background:var(--navy);border-radius:var(--r-sm);text-align:center">
+        <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Total Runs</div>
+        <div style="font-size:26px;font-weight:800;color:#fff;line-height:1">${totalRunsScored}</div>
+      </div>
+    </div>
+    ${biggestWinGame?`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="padding:12px;background:#fff8ee;border:1px solid #fcd34d;border-radius:var(--r-sm)">
+        <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">💥 Biggest Win</div>
+        <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(G.scores[biggestWinGame.id].h>G.scores[biggestWinGame.id].a?biggestWinGame.home:biggestWinGame.away)}</div>
+        <div style="font-size:12px;color:var(--muted)">${G.scores[biggestWinGame.id].h}–${G.scores[biggestWinGame.id].a} · ${fmtDate(biggestWinGame.date)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esc(biggestWinGame.home)} vs ${esc(biggestWinGame.away)}</div>
+      </div>
+      ${highestScoreGame?`<div style="padding:12px;background:#f0fff4;border:1px solid #86efac;border-radius:var(--r-sm)">
+        <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">🎯 Highest Scoring Game</div>
+        <div style="font-size:14px;font-weight:700;color:var(--navy)">${G.scores[highestScoreGame.id].h}–${G.scores[highestScoreGame.id].a}</div>
+        <div style="font-size:12px;color:var(--muted)">${fmtDate(highestScoreGame.date)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esc(highestScoreGame.home)} vs ${esc(highestScoreGame.away)}</div>
+      </div>`:''}
+    </div>`:''}
+    `}
   </div>
   <div class="card">
     <div class="card-title">Games Per Team</div>
