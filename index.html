@@ -1342,17 +1342,41 @@ function renderSched(){
   if(bar)bar.classList.add('vis');
   renderSchedFilterChips();
 
-  // Apply team filter
+  // Build full set of season nights (includes empty weeks)
+  const ssEl=document.getElementById('ss');
+  const seEl=document.getElementById('se');
+  const allNights = (ssEl&&seEl)
+    ? getGameNights(ssEl.value, seEl.value, getSelectedDays())
+    : [...new Set(G.sched.map(g=>g.date))].sort();
+
+  // Apply team filter to scheduled games only
   const filtered=schedFilterTeam===null
     ? G.sched
     : G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
 
-  if(!filtered.length){
+  // Build dates map: every night gets an entry (even if empty)
+  // When filtering by team, only show nights that team appears on
+  const nightsToShow = schedFilterTeam===null
+    ? allNights
+    : [...new Set(filtered.map(g=>g.date))].sort();
+
+  if(schedFilterTeam!==null && !filtered.length){
     el.innerHTML=`<div class="empty">No games found for <strong>${esc(schedFilterTeam)}</strong>.</div>`;
     return;
   }
 
-  const grouped=groupSched(filtered);
+  // Group by month, including empty nights
+  const monthMap={};
+  const monthOrder=[];
+  for(const dateStr of nightsToShow){
+    const ml=monthLabel(dateStr);
+    if(!monthMap[ml]){monthMap[ml]={};monthOrder.push(ml);}
+    // Get scheduled games for this night (from filtered set)
+    const nightGames=filtered.filter(g=>g.date===dateStr);
+    monthMap[ml][dateStr]=nightGames; // may be empty array
+  }
+  const grouped=monthOrder.map(ml=>({month:ml,dates:monthMap[ml]}));
+
   el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
 
   // Auto-open the current month, or the first month if none match
