@@ -1620,6 +1620,7 @@ function saveScore(gid){
   saveData();
   renderSched();
   renderStandings();
+  renderStats();
 }
 
 function weatherCancel(gid){
@@ -1635,6 +1636,7 @@ function weatherCancel(gid){
   if(btn){btn.style.background='#fef3c7';btn.style.borderColor='#f59e0b';btn.title='Weather cancellation (7–7) — click to clear';}
   renderSched();
   renderStandings();
+  renderStats();
 }
 
 // ── STANDINGS ─────────────────────────────────────────────────────────────────
@@ -1862,6 +1864,11 @@ function renderStandings(){
 // ── STATS ─────────────────────────────────────────────────────────────────────
 function renderStats(){
   const el=document.getElementById('sta');
+  if(!el) return;
+  // Only fully render if the Stats tab is active; otherwise mark as stale
+  const tabActive=document.getElementById('tab-stats')?.classList.contains('active');
+  if(!tabActive){ el.dataset.stale='1'; return; }
+  el.dataset.stale='0';
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to view stats</div>';return;}
 
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER); // for standings/h2h
@@ -2087,6 +2094,7 @@ function editGame(id,field,value){
   renderSched();
   renderScores();
   renderStandings();
+  renderStats();
 }
 
 function removeGame(id){
@@ -2107,6 +2115,7 @@ function removeGame(id){
   renderSched();
   renderScores();
   renderStandings();
+  renderStats();
   showToast(`🗑 Game #${id} removed — slot is open`);
 }
 
@@ -2135,6 +2144,7 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   renderSched();
   renderScores();
   renderStandings();
+  renderStats();
   showToast(`✓ Game #${newId} added — ${home} vs ${away}`);
 }
 
@@ -2299,6 +2309,7 @@ document.addEventListener('DOMContentLoaded', async function(){
     if(G.sched.length){
       renderSched();
       renderStandings();
+      renderStats();
       if(restored) setTimeout(()=>showToast(`✓ Loaded — ${G.sched.length} games, ${Object.keys(G.scores).length} scores`), 300);
     }
   }catch(e){ console.error('renderSched failed:',e); }
