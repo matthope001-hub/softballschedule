@@ -1899,17 +1899,24 @@ function renderEdit(){
   const el=document.getElementById('edi');
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
 
-  // Use the full season window (May 19 – Sep 29 = exactly 20 Tuesdays)
   const ssEl=document.getElementById('ss');
   const seEl=document.getElementById('se');
   let days=getSelectedDays();
-  if(!days.length) days=[2]; // default Tuesday if Settings not yet visited
+  if(!days.length) days=[2]; // default Tuesday
 
   const ssVal=ssEl?.value||'2026-05-19';
   const seVal=seEl?.value||'2026-09-29';
 
-  // All game nights in the season window — no extension needed, window already covers 20 weeks
-  const allNights=getGameNights(ssVal, seVal, days);
+  // All nights in the season window
+  const windowNights=getGameNights(ssVal, seVal, days);
+
+  // Also include any scheduled game dates that fall outside the window
+  // (e.g. if se was saved as Sep 15 but games exist on Sep 22/29)
+  const schedDates=new Set(G.sched.map(g=>g.date));
+  const extraDates=[...schedDates].filter(d=>!windowNights.includes(d)).sort();
+
+  // Merge and deduplicate, sorted
+  const allNights=[...new Set([...windowNights,...extraDates])].sort();
 
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
@@ -2180,7 +2187,13 @@ function applyData(d){
   if(d.sched)    G.sched    = d.sched;
   if(d.scores)   G.scores   = d.scores;
   if(d.ss){ const el=document.getElementById('ss'); if(el) el.value=d.ss; }
-  if(d.se){ const el=document.getElementById('se'); if(el) el.value=d.se; }
+  if(d.se){
+    const el=document.getElementById('se');
+    if(el){
+      // Auto-upgrade Sep 15 → Sep 29 to include weeks 19 & 20
+      el.value = (d.se==='2026-09-15') ? '2026-09-29' : d.se;
+    }
+  }
 }
 
 function showToast(msg, duration=2500){
