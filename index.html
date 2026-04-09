@@ -370,7 +370,7 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
         </div>
         <div class="field">
           <label>Season End</label>
-          <input type="date" id="se" value="2026-09-15" oninput="updateGptNotice()" />
+          <input type="date" id="se" value="2026-09-29" oninput="updateGptNotice()" />
         </div>
       </div>
       <div class="field" style="margin-bottom:0.9rem">
@@ -1348,11 +1348,32 @@ function renderSched(){
   renderSchedFilterChips();
 
   // Build full set of season nights (includes empty weeks)
+  // Always extend 2 extra game nights beyond the last scheduled game
   const ssEl=document.getElementById('ss');
   const seEl=document.getElementById('se');
-  const allNights = (ssEl&&seEl)
-    ? getGameNights(ssEl.value, seEl.value, getSelectedDays())
-    : [...new Set(G.sched.map(g=>g.date))].sort();
+  const days=getSelectedDays();
+
+  let allNights=[];
+  if(ssEl&&seEl&&days.length){
+    allNights=getGameNights(ssEl.value, seEl.value, days);
+    // If allNights doesn't cover 2 extra weeks beyond last game, extend it
+    const lastGameDate=G.sched.length?G.sched.reduce((a,b)=>a.date>b.date?a:b).date:'';
+    if(lastGameDate){
+      // Find next game nights after the season end
+      const lastInWindow=allNights.length?allNights[allNights.length-1]:'';
+      if(lastInWindow<=lastGameDate){
+        // Extend: find 2 more nights after lastGameDate
+        const ext=getGameNights(lastGameDate, '2027-12-31', days).filter(d=>d>lastGameDate).slice(0,2);
+        allNights=[...allNights,...ext];
+      } else {
+        // Already past last game — add 2 more nights beyond last in window
+        const ext=getGameNights(lastInWindow, '2027-12-31', days).filter(d=>d>lastInWindow).slice(0,2);
+        allNights=[...allNights,...ext];
+      }
+    }
+  } else {
+    allNights=[...new Set(G.sched.map(g=>g.date))].sort();
+  }
 
   // Apply team filter to scheduled games only
   const filtered=schedFilterTeam===null
