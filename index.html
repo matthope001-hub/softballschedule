@@ -261,6 +261,8 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
 .edit-row { display: flex; gap: 6px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--white); flex-wrap: nowrap; }
 .edit-row:hover { background: var(--gray1); }
 .edit-row.late { background: #f5f7ff; }
+.edit-row.open-slot { background: repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(0,0,0,0.012) 5px,rgba(0,0,0,0.012) 10px); }
+.edit-row.open-slot:hover { background: var(--gray1); }
 .edit-row select, .edit-row .edit-time { font-family: var(--font); font-size: 12px; font-weight: 500; background: var(--gray1); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 4px 6px; outline: none; }
 .edit-row select:focus { border-color: var(--navy); }
 
@@ -1228,24 +1230,7 @@ function buildSchedInner(dates,isScore){
     const openAt1=getDiamondIds().filter(d=>!usedAt1.has(d));
     const openAt2=G.diamonds.filter(d=>d.lights).map(d=>d.id).filter(d=>!usedAt2.has(d));
 
-    // Helper: empty slot row with team selectors
-    function emptySlotRow(dmId, time, isLate){
-      const dm=G.diamonds.find(d=>d.id===dmId);
-      const badge=dm?.lights?`<span class="dbadge">${getDiamondName(dmId)} ☀</span>`:`<span class="dbadge nl">${getDiamondName(dmId)}</span>`;
-      const timeLbl=`<span class="time-lbl${isLate?' late':''}">${time}</span>`;
-      const slotId=`slot_${dateStr}_${dmId}_${time.replace(/[^0-9]/g,'')}`;
-      const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
-      const sel=`<select class="sel slot-sel" id="${slotId}_h" style="font-size:11px;padding:3px 6px;height:28px;flex:1"><option value="">— Home —</option>${teamOpts}</select>`;
-      const sel2=`<select class="sel slot-sel" id="${slotId}_a" style="font-size:11px;padding:3px 6px;height:28px;flex:1"><option value="">— Away —</option>${teamOpts}</select>`;
-      const btn=`<button onclick="addSlotGame('${slotId}','${dateStr}','${time}',${dmId},${dm?.lights?'true':'false'})" style="font-size:11px;padding:3px 8px;height:28px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Add</button>`;
-      if(isScore){
-        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" colspan="5"><div style="display:flex;gap:6px;align-items:center">${sel}${sel2}${btn}</div></td><td class="g-dm">${badge}</td><td class="g-wx"></td></tr>`;
-      } else {
-        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" colspan="3"><div style="display:flex;gap:6px;align-items:center">${sel}${sel2}${btn}</div></td><td class="g-dm">${badge}</td><td class="g-sc"></td></tr>`;
-      }
-    }
-
-    if(early.length||openAt1.length){
+    if(early.length){
       inner+=`<div class="slot-head">${T1}</div>`;
       inner+='<table class="gt">';
       for(const g of early){
@@ -1265,13 +1250,10 @@ function buildSchedInner(dates,isScore){
           inner+=`<tr ${isWx?'class="wx-row"':''}><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
         }
       }
-      // Empty slots at T1
-      for(const d of openAt1) inner+=emptySlotRow(d,T1,false);
       inner+='</table>';
     }
 
-    const litIds=G.diamonds.filter(d=>d.lights).map(d=>d.id);
-    if(late.length||openAt2.length){
+    if(late.length){
       inner+=`<div class="slot-head">${T2}</div>`;
       inner+='<table class="gt">';
       for(const g of late){
@@ -1291,8 +1273,6 @@ function buildSchedInner(dates,isScore){
           inner+=`<tr class="g-late${isWx?' wx-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
         }
       }
-      // Empty slots at T2 (lit diamonds only)
-      for(const d of openAt2) inner+=emptySlotRow(d,T2,true);
       inner+='</table>';
     }
   }
@@ -1347,65 +1327,19 @@ function renderSched(){
   if(bar)bar.classList.add('vis');
   renderSchedFilterChips();
 
-  // Build full set of season nights (includes empty weeks)
-  // Always extend 2 extra game nights beyond the last scheduled game
-  const ssEl=document.getElementById('ss');
-  const seEl=document.getElementById('se');
-  const days=getSelectedDays();
-
-  let allNights=[];
-  if(ssEl&&seEl&&days.length){
-    allNights=getGameNights(ssEl.value, seEl.value, days);
-    // If allNights doesn't cover 2 extra weeks beyond last game, extend it
-    const lastGameDate=G.sched.length?G.sched.reduce((a,b)=>a.date>b.date?a:b).date:'';
-    if(lastGameDate){
-      // Find next game nights after the season end
-      const lastInWindow=allNights.length?allNights[allNights.length-1]:'';
-      if(lastInWindow<=lastGameDate){
-        // Extend: find 2 more nights after lastGameDate
-        const ext=getGameNights(lastGameDate, '2027-12-31', days).filter(d=>d>lastGameDate).slice(0,2);
-        allNights=[...allNights,...ext];
-      } else {
-        // Already past last game — add 2 more nights beyond last in window
-        const ext=getGameNights(lastInWindow, '2027-12-31', days).filter(d=>d>lastInWindow).slice(0,2);
-        allNights=[...allNights,...ext];
-      }
-    }
-  } else {
-    allNights=[...new Set(G.sched.map(g=>g.date))].sort();
-  }
-
-  // Apply team filter to scheduled games only
   const filtered=schedFilterTeam===null
     ? G.sched
     : G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
 
-  // Build dates map: every night gets an entry (even if empty)
-  // When filtering by team, only show nights that team appears on
-  const nightsToShow = schedFilterTeam===null
-    ? allNights
-    : [...new Set(filtered.map(g=>g.date))].sort();
-
-  if(schedFilterTeam!==null && !filtered.length){
+  if(!filtered.length){
     el.innerHTML=`<div class="empty">No games found for <strong>${esc(schedFilterTeam)}</strong>.</div>`;
     return;
   }
 
-  // Group by month, including empty nights
-  const monthMap={};
-  const monthOrder=[];
-  for(const dateStr of nightsToShow){
-    const ml=monthLabel(dateStr);
-    if(!monthMap[ml]){monthMap[ml]={};monthOrder.push(ml);}
-    // Get scheduled games for this night (from filtered set)
-    const nightGames=filtered.filter(g=>g.date===dateStr);
-    monthMap[ml][dateStr]=nightGames; // may be empty array
-  }
-  const grouped=monthOrder.map(ml=>({month:ml,dates:monthMap[ml]}));
-
+  const grouped=groupSched(filtered);
   el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
 
-  // Auto-open the current month, or the first month if none match
+  // Auto-open current month or first
   const now=new Date();
   const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
   let opened=false;
@@ -1413,11 +1347,7 @@ function renderSched(){
     if(month===currentMonth||(!opened&&i===0)){
       const body=document.getElementById('sc_m'+i);
       const arr=document.getElementById('arr_sc_m'+i);
-      if(body&&!body.classList.contains('open')){
-        body.classList.add('open');
-        if(arr) arr.textContent='▲';
-        opened=true;
-      }
+      if(body&&!body.classList.contains('open')){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
     }
   });
 }
@@ -1958,22 +1888,57 @@ function renderStats(){
 function renderEdit(){
   const el=document.getElementById('edi');
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
-  const grp=groupSched(G.sched);
-  let html=`<div class="notice">Change home team, away team, diamond or time · Updates apply instantly</div>`;
-  grp.forEach(({month,dates},mi)=>{
+
+  // Build full list of season nights including 2 extra beyond last game
+  const ssEl=document.getElementById('ss');
+  const seEl=document.getElementById('se');
+  const days=getSelectedDays();
+  let allNights=[];
+  if(ssEl&&seEl&&days.length){
+    allNights=getGameNights(ssEl.value,seEl.value,days);
+    const lastDate=G.sched.reduce((a,b)=>a.date>b.date?a:b).date;
+    const lastInWindow=allNights.length?allNights[allNights.length-1]:'';
+    const extFrom=lastInWindow>lastDate?lastInWindow:lastDate;
+    const ext=getGameNights(extFrom,'2027-12-31',days).filter(d=>d>extFrom).slice(0,2);
+    allNights=[...allNights,...ext];
+  } else {
+    allNights=[...new Set(G.sched.map(g=>g.date))].sort();
+  }
+
+  const T1=document.getElementById('time1')?.value||'6:30 PM';
+  const T2=document.getElementById('time2')?.value||'8:15 PM';
+
+  // Group all nights by month
+  const monthMap={};const monthOrder=[];
+  for(const dateStr of allNights){
+    const ml=monthLabel(dateStr);
+    if(!monthMap[ml]){monthMap[ml]=[];monthOrder.push(ml);}
+    monthMap[ml].push(dateStr);
+  }
+
+  let html=`<div class="notice">Edit or remove scheduled games · Add teams to open slots · Changes require admin PIN</div>`;
+
+  monthOrder.forEach((month,mi)=>{
     let inner='';
-    for(const[dateStr,games] of Object.entries(dates)){
+    for(const dateStr of monthMap[month]){
       inner+=`<div class="day-head">${fmtDate(dateStr)}</div>`;
-      const byeTeam=games[0]?games[0].bye:'';
-      if(byeTeam==='CO BYE') inner+=`<div style="font-family:var(--mono);font-size:11px;font-weight:500;color:#27ae60;letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.3);border-radius:4px;display:inline-block;background:#edf7f0">// CROSSOVER BYE WEEK //</div>`;
-      else if(byeTeam) inner+=`<div style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted);letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);border-radius:4px;display:inline-block;background:var(--gray1)">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
-      for(const g of games){
+      const nightGames=G.sched.filter(g=>g.date===dateStr).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+      const usedAt1=new Set(nightGames.filter(g=>g.time!==T2).map(g=>g.diamond));
+      const usedAt2=new Set(nightGames.filter(g=>g.time===T2).map(g=>g.diamond));
+      const openAt1=getDiamondIds().filter(d=>!usedAt1.has(d));
+      const openAt2=G.diamonds.filter(d=>d.lights).map(d=>d.id).filter(d=>!usedAt2.has(d));
+
+      // Scheduled games
+      for(const g of nightGames){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
-        inner+=`<div class="edit-row${g.time!=='6:30 PM'?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
-          <span class="time-lbl${g.time==='8:15 PM'?' late':''}" style="width:54px;flex-shrink:0">${g.time}</span>
+        const isLate=g.time===T2;
+        inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
+          <span class="time-lbl${isLate?' late':''}" style="width:54px;flex-shrink:0">${g.time}</span>
+          <span class="gnum" style="flex-shrink:0;margin-right:4px">#${g.id}</span>
           <select onchange="editGame('${g.id}','home',this.value)" class="sel">
             ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.home?' selected':''}>${esc(t)}</option>`).join('')}
           </select>
+          <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
           <select onchange="editGame('${g.id}','away',this.value)" class="sel">
             ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
           </select>
@@ -1981,30 +1946,86 @@ function renderEdit(){
             ${getDiamondIds().map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>${getDiamondName(d)}</option>`).join('')}
           </select>
           <select onchange="editGame('${g.id}','time',this.value)" class="sel">
-            <option value="6:30 PM"${g.time==='6:30 PM'?' selected':''}>6:30 PM</option>
-            <option value="8:15 PM"${g.time==='8:15 PM'?' selected':''}>8:15 PM</option>
+            <option value="${T1}"${g.time===T1?' selected':''}>${T1}</option>
+            <option value="${T2}"${g.time===T2?' selected':''}>${T2}</option>
           </select>
+          <button onclick="removeGame('${g.id}')" title="Remove game #${g.id}" style="flex-shrink:0;padding:4px 8px;background:none;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;color:var(--red);font-size:14px;line-height:1">🗑</button>
+        </div>`;
+      }
+
+      // Open slots at T1
+      for(const dmId of openAt1){
+        const dm=G.diamonds.find(d=>d.id===dmId);
+        const badge=dm?.lights?`💡 ${getDiamondName(dmId)}`:`🌙 ${getDiamondName(dmId)}`;
+        const slotId=`slot_${dateStr}_${dmId}_1`;
+        const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+        inner+=`<div class="edit-row open-slot">
+          <span class="time-lbl" style="width:54px;flex-shrink:0">${T1}</span>
+          <span style="font-size:11px;color:var(--gray3);flex-shrink:0;min-width:50px">${badge}</span>
+          <select class="sel" id="${slotId}_h" style="font-size:12px"><option value="">— Home —</option>${teamOpts}</select>
+          <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
+          <select class="sel" id="${slotId}_a" style="font-size:12px"><option value="">— Away —</option>${teamOpts}</select>
+          <button onclick="addSlotGame('${slotId}','${dateStr}','${T1}',${dmId},${dm?.lights?'true':'false'})" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
+        </div>`;
+      }
+
+      // Open slots at T2 (lit diamonds only)
+      for(const dmId of openAt2){
+        const dm=G.diamonds.find(d=>d.id===dmId);
+        const badge=`💡 ${getDiamondName(dmId)}`;
+        const slotId=`slot_${dateStr}_${dmId}_2`;
+        const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+        inner+=`<div class="edit-row open-slot late">
+          <span class="time-lbl late" style="width:54px;flex-shrink:0">${T2}</span>
+          <span style="font-size:11px;color:var(--gray3);flex-shrink:0;min-width:50px">${badge}</span>
+          <select class="sel" id="${slotId}_h" style="font-size:12px"><option value="">— Home —</option>${teamOpts}</select>
+          <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
+          <select class="sel" id="${slotId}_a" style="font-size:12px"><option value="">— Away —</option>${teamOpts}</select>
+          <button onclick="addSlotGame('${slotId}','${dateStr}','${T2}',${dmId},${dm?.lights?'true':'false'})" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
         </div>`;
       }
     }
-    html+=monthAccordion(month, inner, mi, 'em');
+    html+=monthAccordion(month,inner,mi,'em');
   });
   el.innerHTML=html;
+
+  // Auto-open current month
+  const now=new Date();
+  const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
+  let opened=false;
+  monthOrder.forEach((month,i)=>{
+    if(month===currentMonth||(!opened&&i===0)){
+      const body=document.getElementById('em_m'+i);
+      const arr=document.getElementById('arr_em_m'+i);
+      if(body&&!body.classList.contains('open')){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
+    }
+  });
 }
 
 function editGame(id,field,value){
   const g=G.sched.find(x=>x.id===id);
   if(!g)return;
-  if(field==='diamond'){
-    g.diamond=parseInt(value);
-    g.lights=isDiamondLit(g.diamond);
-  }
+  if(field==='diamond'){g.diamond=parseInt(value);g.lights=isDiamondLit(g.diamond);}
   else if(field==='home') g.home=value;
   else if(field==='away') g.away=value;
   else if(field==='time') g.time=value;
   g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
   saveData();
   renderSched();
+}
+
+function removeGame(id){
+  if(!checkAdmin()) return;
+  const g=G.sched.find(x=>x.id===id);
+  if(!g) return;
+  if(!confirm(`Remove game #${id}?\n${g.home} vs ${g.away} on ${g.date} at ${g.time}\n\nThis cannot be undone.`)) return;
+  G.sched=G.sched.filter(x=>x.id!==id);
+  delete G.scores[id];
+  saveData();
+  renderEdit();
+  renderSched();
+  renderStandings();
+  showToast(`🗑 Game #${id} removed`);
 }
 
 function addSlotGame(slotId, dateStr, time, dmId, lights){
