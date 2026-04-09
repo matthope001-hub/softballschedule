@@ -1888,13 +1888,7 @@ function renderEdit(){
         </div>`;
       }
     }
-    html+=`<div style="margin-bottom:6px">
-      <button onclick="toggleMonth('em${mi}')" style="width:100%;background:var(--navy);border:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;text-align:left;border-radius:7px 7px 0 0">
-        <span style="font-family:var(--font);font-size:15px;font-weight:800;letter-spacing:0.5px;color:#fff;text-transform:uppercase;flex:1">${month}</span>
-        <span id="arr_em${mi}" style="font-size:14px;color:rgba(255,255,255,0.7)">▼</span>
-      </button>
-      <div id="em${mi}" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;padding:0 8px 8px;background:var(--gray1)">${inner}</div>
-    </div>`;
+    html+=monthAccordion(month, inner, mi, 'em');
   });
   el.innerHTML=html;
 }
