@@ -630,11 +630,11 @@ let G={
   teams:['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers',
          'One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'],
   diamonds:[
-    {id:5, name:'Diamond 5',  lights:false},
-    {id:9, name:'Diamond 9',  lights:true},
-    {id:12,name:'Diamond 12', lights:true},
-    {id:13,name:'Diamond 13', lights:false},
-    {id:14,name:'Diamond 14', lights:false}
+    {id:5,  name:'Diamond 5',  lights:false, lightsCapable:true},
+    {id:9,  name:'Diamond 9',  lights:true,  lightsCapable:true},
+    {id:12, name:'Diamond 12', lights:true,  lightsCapable:true},
+    {id:13, name:'Diamond 13', lights:false, lightsCapable:false},
+    {id:14, name:'Diamond 14', lights:false, lightsCapable:false}
   ],
   sched:[],scores:{}
 };
@@ -738,29 +738,47 @@ function updateDiamondName(id,name){
 }
 function toggleDiamondLights(id){
   const d=G.diamonds.find(d=>d.id===id);
-  if(d){d.lights=!d.lights;renderDiamonds();}
+  if(d){
+    if(d.lightsCapable===false){
+      alert(`${d.name} has no lights infrastructure and cannot be enabled.`);
+      return;
+    }
+    d.lights=!d.lights;
+    saveData();
+    renderDiamonds();
+    renderRulesDiamonds();
+    updateGptNotice();
+  }
 }
 function renderDiamonds(){
   const el=document.getElementById('diamond-list');
   if(!el)return;
-  el.innerHTML=G.diamonds.map(d=>`
+  el.innerHTML=G.diamonds.map(d=>{
+    const capable=d.lightsCapable!==false; // default true if not set (backward compat)
+    const lightsBtn=capable
+      ? `<button onclick="toggleDiamondLights(${d.id})"
+          style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
+          ${d.lights?'💡 Lights':'🌙 No Lights'}
+        </button>`
+      : `<span style="padding:6px 12px;border-radius:5px;border:1.5px solid var(--border);background:var(--gray2);color:var(--gray3);font-size:12px;font-weight:700;white-space:nowrap;font-family:var(--font);display:inline-block" title="No lights infrastructure at this diamond">🚫 No Lights</span>`;
+    return `
     <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 10px;background:var(--gray1);border:1.5px solid var(--border);border-radius:6px">
       <input type="text" value="${esc(d.name)}" placeholder="Diamond name"
         onchange="updateDiamondName(${d.id},this.value)"
         style="font-size:13px;font-weight:700;background:var(--white);border:1.5px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-family:var(--font);outline:none" />
-      <button onclick="toggleDiamondLights(${d.id})"
-        style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
-        ${d.lights?'💡 Lights':'🌙 No Lights'}
-      </button>
+      ${lightsBtn}
       <button onclick="removeDiamond(${d.id})"
         style="padding:6px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:16px;cursor:pointer;line-height:1;font-family:var(--font)"
         title="Remove diamond">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   // Also update the rules panel summary
   const rd=document.getElementById('rules-diamonds');
-  if(rd) rd.innerHTML=G.diamonds.map(d=>
-    `<div style="font-size:13px;color:var(--text)">${d.name} — ${d.lights?'💡 Lights (DH capable)':'🌙 No Lights (6:30 only)'}</div>`
-  ).join('');
+  if(rd) rd.innerHTML=G.diamonds.map(d=>{
+    const capable=d.lightsCapable!==false;
+    if(!capable) return `<div style="font-size:13px;color:var(--text)">${d.name} — 🚫 No lights infrastructure (6:30 only)</div>`;
+    return `<div style="font-size:13px;color:var(--text)">${d.name} — ${d.lights?'💡 Lights (DH capable)':'🌙 No Lights (6:30 only)'}</div>`;
+  }).join('');
   updateGptNotice();
 }
 // renderDiamonds called in DOMContentLoaded after all functions are defined
@@ -933,6 +951,44 @@ function updateGptNotice(){
   </div>`;
 }
 
+
+// ── SUNSET SAFETY (Hamilton ON — no-lights diamonds D5/D13/D14) ───────────────
+// Level: safe = 10+ min margin, caution = 0-10 min, warning = dark before 8 PM
+const SUNSET_SAFETY = {
+  '2026-05-19': {level:'safe',sunset:'8:34 PM'},
+  '2026-05-26': {level:'safe',sunset:'8:41 PM'},
+  '2026-06-02': {level:'safe',sunset:'8:47 PM'},
+  '2026-06-09': {level:'safe',sunset:'8:52 PM'},
+  '2026-06-16': {level:'safe',sunset:'8:56 PM'},
+  '2026-06-23': {level:'safe',sunset:'8:58 PM'},
+  '2026-06-30': {level:'safe',sunset:'8:58 PM'},
+  '2026-07-07': {level:'safe',sunset:'8:56 PM'},
+  '2026-07-14': {level:'safe',sunset:'8:53 PM'},
+  '2026-07-21': {level:'safe',sunset:'8:48 PM'},
+  '2026-07-28': {level:'safe',sunset:'8:41 PM'},
+  '2026-08-04': {level:'safe',sunset:'8:33 PM'},
+  '2026-08-11': {level:'safe',sunset:'8:23 PM'},
+  '2026-08-18': {level:'safe',sunset:'8:13 PM'},
+  '2026-08-25': {level:'safe',sunset:'8:01 PM'},
+  '2026-09-01': {level:'safe',sunset:'7:49 PM'},
+  '2026-09-08': {level:'caution',sunset:'7:36 PM'},
+  '2026-09-15': {level:'warning',sunset:'7:23 PM'},
+  '2026-09-22': {level:'warning',sunset:'7:10 PM'},
+  '2026-09-29': {level:'warning',sunset:'6:56 PM'},
+};
+
+function sunsetBadge(dateStr){
+  const s=SUNSET_SAFETY[dateStr];
+  if(!s||s.level==='safe') return '';
+  // Only warn when no-lights diamonds are in play
+  const hasNoLit=G.diamonds.some(d=>!d.lights);
+  if(!hasNoLit) return '';
+  if(s.level==='caution')
+    return `<span style="margin-left:8px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d">⚠ Sunset ${s.sunset} — Low light</span>`;
+  if(s.level==='warning')
+    return `<span style="margin-left:8px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:4px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">🌙 Sunset ${s.sunset} — D13/D14 unsafe</span>`;
+  return '';
+}
 
 // ── SCHEDULE GENERATION ───────────────────────────────────────────────────────
 function getTues(startStr,endStr){
@@ -1232,7 +1288,7 @@ function buildSchedInner(dates,isScore){
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
   for(const[dateStr,games]of Object.entries(dates)){
-    inner+=`<div class="day-head">${fmtDate(dateStr)}</div>`;
+    inner+=`<div class="day-head">${fmtDate(dateStr)}${sunsetBadge(dateStr)}</div>`;
     const early=games.filter(g=>g.time!==T2);
     const late=games.filter(g=>g.time===T2);
     const usedAt1=new Set(early.map(g=>g.diamond));
@@ -1934,7 +1990,7 @@ function renderEdit(){
   monthOrder.forEach((month,mi)=>{
     let inner='';
     for(const dateStr of monthMap[month]){
-      inner+=`<div class="day-head">${fmtDate(dateStr)}</div>`;
+      inner+=`<div class="day-head">${fmtDate(dateStr)}${sunsetBadge(dateStr)}</div>`;
       const nightGames=G.sched.filter(g=>g.date===dateStr).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
       const usedAt1=new Set(nightGames.filter(g=>g.time!==T2).map(g=>g.diamond));
       const usedAt2=new Set(nightGames.filter(g=>g.time===T2).map(g=>g.diamond));
@@ -2182,17 +2238,21 @@ async function loadData(){
 
 function applyData(d){
   if(!d) return;
-  if(d.teams)    G.teams    = d.teams;
-  if(d.diamonds) G.diamonds = d.diamonds;
-  if(d.sched)    G.sched    = d.sched;
-  if(d.scores)   G.scores   = d.scores;
+  if(d.teams) G.teams = d.teams;
+  if(d.diamonds){
+    const defaults={5:{lightsCapable:true},9:{lightsCapable:true},12:{lightsCapable:true},13:{lightsCapable:false},14:{lightsCapable:false}};
+    G.diamonds = d.diamonds.map(dm=>({
+      ...dm,
+      lightsCapable: dm.lightsCapable!==undefined ? dm.lightsCapable : (defaults[dm.id]?.lightsCapable ?? true),
+      lights: (defaults[dm.id]?.lightsCapable===false) ? false : dm.lights
+    }));
+  }
+  if(d.sched)  G.sched  = d.sched;
+  if(d.scores) G.scores = d.scores;
   if(d.ss){ const el=document.getElementById('ss'); if(el) el.value=d.ss; }
   if(d.se){
     const el=document.getElementById('se');
-    if(el){
-      // Auto-upgrade Sep 15 → Sep 29 to include weeks 19 & 20
-      el.value = (d.se==='2026-09-15') ? '2026-09-29' : d.se;
-    }
+    if(el){ el.value=(d.se==='2026-09-15')?'2026-09-29':d.se; }
   }
 }
 
