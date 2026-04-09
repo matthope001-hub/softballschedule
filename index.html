@@ -1228,15 +1228,20 @@ function buildSchedInner(dates,isScore){
     const openAt1=getDiamondIds().filter(d=>!usedAt1.has(d));
     const openAt2=G.diamonds.filter(d=>d.lights).map(d=>d.id).filter(d=>!usedAt2.has(d));
 
-    // Helper: empty slot row
+    // Helper: empty slot row with team selectors
     function emptySlotRow(dmId, time, isLate){
       const dm=G.diamonds.find(d=>d.id===dmId);
       const badge=dm?.lights?`<span class="dbadge">${getDiamondName(dmId)} ☀</span>`:`<span class="dbadge nl">${getDiamondName(dmId)}</span>`;
       const timeLbl=`<span class="time-lbl${isLate?' late':''}">${time}</span>`;
+      const slotId=`slot_${dateStr}_${dmId}_${time.replace(/[^0-9]/g,'')}`;
+      const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+      const sel=`<select class="sel slot-sel" id="${slotId}_h" style="font-size:11px;padding:3px 6px;height:28px;flex:1"><option value="">— Home —</option>${teamOpts}</select>`;
+      const sel2=`<select class="sel slot-sel" id="${slotId}_a" style="font-size:11px;padding:3px 6px;height:28px;flex:1"><option value="">— Away —</option>${teamOpts}</select>`;
+      const btn=`<button onclick="addSlotGame('${slotId}','${dateStr}','${time}',${dmId},${dm?.lights?'true':'false'})" style="font-size:11px;padding:3px 8px;height:28px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Add</button>`;
       if(isScore){
-        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" style="color:var(--gray3);font-style:italic">TBD</td><td class="g-si"></td><td class="g-sep"></td><td class="g-si"></td><td class="g-away" style="color:var(--gray3);font-style:italic">TBD</td><td class="g-dm">${badge}</td><td class="g-wx"></td></tr>`;
+        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" colspan="5"><div style="display:flex;gap:6px;align-items:center">${sel}${sel2}${btn}</div></td><td class="g-dm">${badge}</td><td class="g-wx"></td></tr>`;
       } else {
-        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" style="color:var(--gray3);font-style:italic" colspan="3">— open slot —</td><td class="g-dm">${badge}</td><td class="g-sc"></td></tr>`;
+        return `<tr class="empty-slot${isLate?' g-late':''}"><td class="g-num"></td><td class="g-time">${timeLbl}</td><td class="g-home" colspan="3"><div style="display:flex;gap:6px;align-items:center">${sel}${sel2}${btn}</div></td><td class="g-dm">${badge}</td><td class="g-sc"></td></tr>`;
       }
     }
 
@@ -1979,6 +1984,36 @@ function editGame(id,field,value){
   g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
   saveData();
   renderSched();
+}
+
+function addSlotGame(slotId, dateStr, time, dmId, lights){
+  if(!checkAdmin()) return;
+  const home=document.getElementById(slotId+'_h')?.value;
+  const away=document.getElementById(slotId+'_a')?.value;
+  if(!home){alert('Please select a Home team.');return;}
+  if(!away){alert('Please select an Away team.');return;}
+  if(home===away){alert('Home and Away teams must be different.');return;}
+  // Generate game ID using same format as genSched
+  const YEAR=new Date(dateStr+'T12:00:00').getFullYear().toString().slice(-2);
+  const newId=`${YEAR}${String(G.sched.length+1).padStart(3,'0')}`;
+  const newGame={
+    id: newId,
+    date: dateStr,
+    time: time,
+    diamond: dmId,
+    lights: lights,
+    home: home,
+    away: away,
+    bye: '',
+    crossover: home===CROSSOVER||away===CROSSOVER
+  };
+  // Insert in date/time order
+  G.sched.push(newGame);
+  G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  saveData();
+  renderSched();
+  renderStandings();
+  showToast(`✓ Game #${newId} added`);
 }
 
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
