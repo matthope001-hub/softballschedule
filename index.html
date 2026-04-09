@@ -1209,6 +1209,16 @@ function toggleMonth(id){
   const isOpen=body.classList.contains('open');
   body.classList.toggle('open',!isOpen);
   arr.textContent=isOpen?'▼':'▲';
+  // If this is an edit tab accordion, remember which month is open
+  if(id.startsWith('em_')){
+    const edi=document.getElementById('edi');
+    if(edi&&!isOpen){
+      // Find the month name for this accordion
+      const mi=parseInt(id.replace('em_m',''));
+      const title=document.querySelector(`#arr_${id}`)?.closest('.acc-head')?.querySelector('.acc-title')?.textContent;
+      if(title) edi.dataset.openMonth=title;
+    }
+  }
 }
 
 function monthAccordion(month,inner,mi,prefix){
@@ -1889,21 +1899,25 @@ function renderEdit(){
   const el=document.getElementById('edi');
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
 
-  // Build full list of season nights including 2 extra beyond last game
+  // Build full list of season nights including 2 extra beyond the last scheduled game
+  // Use saved season dates; fall back to deriving from schedule if not available
   const ssEl=document.getElementById('ss');
   const seEl=document.getElementById('se');
-  const days=getSelectedDays();
-  let allNights=[];
-  if(ssEl&&seEl&&days.length){
-    allNights=getGameNights(ssEl.value,seEl.value,days);
-    const lastDate=G.sched.reduce((a,b)=>a.date>b.date?a:b).date;
-    const lastInWindow=allNights.length?allNights[allNights.length-1]:'';
-    const extFrom=lastInWindow>lastDate?lastInWindow:lastDate;
-    const ext=getGameNights(extFrom,'2027-12-31',days).filter(d=>d>extFrom).slice(0,2);
-    allNights=[...allNights,...ext];
-  } else {
-    allNights=[...new Set(G.sched.map(g=>g.date))].sort();
-  }
+  let days=getSelectedDays();
+  if(!days.length) days=[2]; // default Tuesday if Settings not yet visited
+
+  const ssVal=ssEl?.value||G.sched[0]?.date||'2026-05-19';
+  const seVal=seEl?.value||'2026-09-29';
+
+  let allNights=getGameNights(ssVal, seVal, days);
+
+  // Always extend 2 more nights beyond last scheduled game date
+  const allSchedDates=G.sched.map(g=>g.date).sort();
+  const lastSchedDate=allSchedDates[allSchedDates.length-1]||ssVal;
+  const lastInWindow=allNights[allNights.length-1]||ssVal;
+  const extFrom=lastInWindow>lastSchedDate?lastInWindow:lastSchedDate;
+  const ext=getGameNights(extFrom,'2027-12-31',days).filter(d=>d>extFrom).slice(0,2);
+  allNights=[...new Set([...allNights,...ext])].sort();
 
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
@@ -1989,17 +2003,21 @@ function renderEdit(){
   });
   el.innerHTML=html;
 
-  // Auto-open current month
+  // Auto-open: preserve currently open month if any, else open current month
   const now=new Date();
   const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
+  // Check if any month was open before re-render (stored in data attr)
+  const lastOpenMonth=el.dataset.openMonth||currentMonth;
   let opened=false;
   monthOrder.forEach((month,i)=>{
-    if(month===currentMonth||(!opened&&i===0)){
+    if(month===lastOpenMonth||(!opened&&i===0)){
       const body=document.getElementById('em_m'+i);
       const arr=document.getElementById('arr_em_m'+i);
       if(body&&!body.classList.contains('open')){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
     }
   });
+  // Store the open month for next re-render
+  el.dataset.openMonth=lastOpenMonth;
 }
 
 function editGame(id,field,value){
@@ -2012,20 +2030,29 @@ function editGame(id,field,value){
   g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
   saveData();
   renderSched();
+  renderScores();
+  renderStandings();
 }
 
 function removeGame(id){
   if(!checkAdmin()) return;
   const g=G.sched.find(x=>x.id===id);
   if(!g) return;
-  if(!confirm(`Remove game #${id}?\n${g.home} vs ${g.away} on ${g.date} at ${g.time}\n\nThis cannot be undone.`)) return;
+  if(!confirm(`Remove game #${id}?\n${g.home} vs ${g.away}\n${fmtDate(g.date)} at ${g.time}\n\nThe slot will remain available to fill.\nThis cannot be undone.`)) return;
+  // Store the month so Edit Games re-opens to the right place
+  const d=new Date(g.date+'T12:00:00');
+  const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
   G.sched=G.sched.filter(x=>x.id!==id);
   delete G.scores[id];
   saveData();
+  // Set which month to re-open before re-rendering
+  const edi=document.getElementById('edi');
+  if(edi) edi.dataset.openMonth=openMonth;
   renderEdit();
   renderSched();
+  renderScores();
   renderStandings();
-  showToast(`🗑 Game #${id} removed`);
+  showToast(`🗑 Game #${id} removed — slot is open`);
 }
 
 function addSlotGame(slotId, dateStr, time, dmId, lights){
@@ -2035,27 +2062,25 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   if(!home){alert('Please select a Home team.');return;}
   if(!away){alert('Please select an Away team.');return;}
   if(home===away){alert('Home and Away teams must be different.');return;}
-  // Generate game ID using same format as genSched
   const YEAR=new Date(dateStr+'T12:00:00').getFullYear().toString().slice(-2);
   const newId=`${YEAR}${String(G.sched.length+1).padStart(3,'0')}`;
   const newGame={
-    id: newId,
-    date: dateStr,
-    time: time,
-    diamond: dmId,
-    lights: lights,
-    home: home,
-    away: away,
-    bye: '',
-    crossover: home===CROSSOVER||away===CROSSOVER
+    id: newId, date: dateStr, time: time, diamond: dmId, lights: lights,
+    home: home, away: away, bye: '', crossover: home===CROSSOVER||away===CROSSOVER
   };
-  // Insert in date/time order
   G.sched.push(newGame);
   G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  // Store which month to re-open
+  const d=new Date(dateStr+'T12:00:00');
+  const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
+  const edi=document.getElementById('edi');
+  if(edi) edi.dataset.openMonth=openMonth;
   saveData();
+  renderEdit();
   renderSched();
+  renderScores();
   renderStandings();
-  showToast(`✓ Game #${newId} added`);
+  showToast(`✓ Game #${newId} added — ${home} vs ${away}`);
 }
 
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
