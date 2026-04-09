@@ -335,6 +335,7 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
   <button class="tab" onclick="showTab('standings',this)">Standings</button>
   <button class="tab" onclick="showTab('stats',this)">Stats</button>
   <button class="tab" onclick="showTab('edit',this)">Edit Games</button>
+  <button class="tab" onclick="showTab('playoffs',this)">🏆 Playoffs</button>
   <button class="tab" onclick="showTab('rules',this)">Rules</button>
   <button class="tab" onclick="showTab('teams',this)">Settings</button>
 </div>
@@ -478,6 +479,10 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
 
   <div id="tab-edit" class="section">
     <div id="edi"><div class="empty">Generate a schedule to edit games</div></div>
+  </div>
+
+  <div id="tab-playoffs" class="section">
+    <div id="ply"><div class="empty">Loading playoffs...</div></div>
   </div>
 
   <div id="tab-rules" class="section">
@@ -636,7 +641,8 @@ let G={
     {id:13, name:'Diamond 13', lights:false, lightsCapable:false},
     {id:14, name:'Diamond 14', lights:false, lightsCapable:false}
   ],
-  sched:[],scores:{}
+  sched:[],scores:{},
+  playoffs:{seeded:false,podA:[],podB:[],games:{},finals:{}}
 };
 const CROSSOVER='CrossOver';
 let hc={};
@@ -691,6 +697,7 @@ function showTab(t,btn){
   if(t==='standings')renderStandings();
   if(t==='stats')renderStats();
   if(t==='edit')renderEdit();
+  if(t==='playoffs')renderPlayoffs();
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -2148,6 +2155,262 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   showToast(`✓ Game #${newId} added — ${home} vs ${away}`);
 }
 
+// ── PLAYOFFS ──────────────────────────────────────────────────────────────────
+
+function seedPlayoffs(){
+  if(!checkAdmin()) return;
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+  if(leagueTeams.length<4){alert('Need at least 4 league teams to seed playoffs.');return;}
+
+  // Get regular season standings order (reuse standings logic)
+  const stats={};
+  for(const t of leagueTeams) stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
+  for(const g of G.sched){
+    const sc=G.scores[g.id];if(!sc)continue;
+    const{ch,ca}=capRuns(sc.h,sc.a);
+    if(stats[g.home]!==undefined){
+      stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
+      if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
+      else if(sc.a>sc.h)stats[g.home].l++;
+      else{stats[g.home].tie++;stats[g.home].pts++;}
+    }
+    if(stats[g.away]!==undefined){
+      stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
+      if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
+      else if(sc.h>sc.a)stats[g.away].l++;
+      else{stats[g.away].tie++;stats[g.away].pts++;}
+    }
+  }
+  const ranked=leagueTeams.slice().sort((a,b)=>
+    stats[b].pts-stats[a].pts||
+    (stats[b].rf-stats[b].ra)-(stats[a].rf-stats[a].ra)||
+    a.localeCompare(b)
+  );
+
+  const podA=ranked.slice(0,5);
+  const podB=ranked.slice(5);
+
+  const msg=`Seed playoffs from current standings?\n\nPOD A (Top 5):\n${podA.map((t,i)=>`  ${i+1}. ${t}`).join('\n')}\n\nPOD B (Bottom ${podB.length}):\n${podB.map((t,i)=>`  ${i+6}. ${t}`).join('\n')}\n\nThis will reset any existing playoff data.`;
+  if(!confirm(msg)) return;
+
+  // Generate round robin games for each pod
+  function rrGames(teams, prefix){
+    const games={};
+    let n=1;
+    for(let i=0;i<teams.length;i++){
+      for(let j=i+1;j<teams.length;j++){
+        const id=`${prefix}${String(n).padStart(2,'0')}`;
+        games[id]={id,home:teams[i],away:teams[j],score:null};
+        n++;
+      }
+    }
+    return games;
+  }
+
+  G.playoffs={
+    seeded:true,
+    podA,
+    podB,
+    games:{
+      ...rrGames(podA,'PA'),
+      ...rrGames(podB,'PB')
+    },
+    finals:{
+      podA:{home:null,away:null,score:null},
+      podB:{home:null,away:null,score:null}
+    }
+  };
+
+  saveData();
+  renderPlayoffs();
+  showToast('🏆 Playoffs seeded!');
+}
+
+function resetPlayoffs(){
+  if(!checkAdmin()) return;
+  if(!confirm('Reset all playoff data? This cannot be undone.')) return;
+  G.playoffs={seeded:false,podA:[],podB:[],games:{},finals:{}};
+  saveData();
+  renderPlayoffs();
+  showToast('Playoffs reset');
+}
+
+function savePlayoffScore(gameId){
+  if(!checkAdmin()) return;
+  const h=document.getElementById('ph_'+gameId)?.value;
+  const a=document.getElementById('pa_'+gameId)?.value;
+  if(h===''||a===''){delete G.playoffs.games[gameId].score;}
+  else G.playoffs.games[gameId].score={h:parseInt(h),a:parseInt(a)};
+  saveData();
+  renderPlayoffs();
+}
+
+function savePlayoffFinal(pod){
+  if(!checkAdmin()) return;
+  const h=document.getElementById('pfh_'+pod)?.value;
+  const a=document.getElementById('pfa_'+pod)?.value;
+  if(h===''||a==='') G.playoffs.finals[pod].score=null;
+  else G.playoffs.finals[pod].score={h:parseInt(h),a:parseInt(a)};
+  saveData();
+  renderPlayoffs();
+}
+
+function podStandings(teams, gamePrefix){
+  const stats={};
+  for(const t of teams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
+  const games=Object.values(G.playoffs.games).filter(g=>g.id.startsWith(gamePrefix));
+  for(const g of games){
+    if(!g.score) continue;
+    const{h,a}=g.score;
+    const{ch,ca}=capRuns(h,a);
+    stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
+    stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
+    if(h>a){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
+    else if(a>h){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
+    else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
+  }
+  return teams.slice().sort((a,b)=>
+    stats[b].pts-stats[a].pts||
+    (stats[b].rf-stats[b].ra)-(stats[a].rf-stats[a].ra)||
+    a.localeCompare(b)
+  ).map((t,i)=>({team:t,rank:i+1,...stats[t]}));
+}
+
+function renderPodSection(podLabel, teams, gamePrefix, podKey, prizeList){
+  const standing=podStandings(teams, gamePrefix);
+  const games=Object.values(G.playoffs.games).filter(g=>g.id.startsWith(gamePrefix));
+  const totalGames=games.length;
+  const played=games.filter(g=>g.score).length;
+  const rrComplete=played===totalGames;
+
+  // Determine finalists
+  const fin=G.playoffs.finals[podKey];
+  if(rrComplete&&!fin.home){
+    fin.home=standing[0].team;
+    fin.away=standing[1].team;
+    saveData();
+  }
+
+  let html=`<div class="card">`;
+  html+=`<div class="card-title">${podLabel} <span style="font-size:11px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0">${played}/${totalGames} games played</span></div>`;
+
+  // Standings table
+  html+=`<div class="st-wrap" style="margin-bottom:14px"><table class="st">
+    <colgroup><col style="width:24px"><col><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:40px"><col style="width:34px"><col style="width:34px"><col style="width:40px"></colgroup>
+    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th></tr></thead>
+    <tbody>${standing.map(({team:t,rank,gp,w,l,tie,pts,rf,ra},i)=>{
+      const diff=rf-ra; const ds=gp===0?'—':(diff>0?'+'+diff:''+diff);
+      const isFin=i<2&&rrComplete;
+      return`<tr ${isFin?'style="background:#f0f9ff"':''}><td class="rank">${rank}</td><td style="font-weight:600${isFin?';color:var(--navy)':''}">${esc(t)}${i===0&&rrComplete?' 🏆':i===1&&rrComplete?' 🥈':''}</td><td class="mono">${gp}</td><td class="mono">${w}</td><td class="mono">${l}</td><td class="mono">${tie}</td><td class="pts">${pts}</td><td class="mono">${rf}</td><td class="mono">${ra}</td><td class="mono">${ds}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+
+  // Round robin games
+  html+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Round Robin</div>`;
+  html+=`<table class="gt" style="margin-bottom:14px">`;
+  for(const g of games.sort((a,b)=>a.id.localeCompare(b.id))){
+    const sc=g.score;
+    const scored=sc!=null;
+    html+=`<tr class="${scored?'':'empty-slot'}">
+      <td class="g-num"><span class="gnum">${g.id}</span></td>
+      <td class="g-home" style="font-weight:600">${esc(g.home)}</td>
+      <td class="g-vs">VS</td>
+      <td class="g-away" style="font-weight:600">${esc(g.away)}</td>
+      <td class="g-si"><input type="number" min="0" class="si" id="ph_${g.id}" value="${sc?sc.h:''}" placeholder="–" onchange="savePlayoffScore('${g.id}')"/></td>
+      <td class="g-sep">–</td>
+      <td class="g-si"><input type="number" min="0" class="si" id="pa_${g.id}" value="${sc?sc.a:''}" placeholder="–" onchange="savePlayoffScore('${g.id}')"/></td>
+      <td class="g-sc ${scored?'scored':''}">${scored?(sc.h>sc.a?'<strong>'+esc(g.home)+'</strong>':sc.a>sc.h?'<strong>'+esc(g.away)+'</strong>':'Tie'):'—'}</td>
+    </tr>`;
+  }
+  html+=`</table>`;
+
+  // Final
+  html+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">🏆 ${podLabel} Final</div>`;
+  if(!rrComplete){
+    html+=`<div class="notice">Complete all round robin games to determine finalists.</div>`;
+  } else {
+    const champion=fin.score?(fin.score.h>fin.score.a?fin.home:fin.score.a>fin.score.h?fin.away:null):null;
+    html+=`<table class="gt">`;
+    html+=`<tr>
+      <td class="g-num"><span class="gnum">FINAL</span></td>
+      <td class="g-home" style="font-weight:700;color:var(--navy)">${esc(fin.home||'TBD')} <span style="font-size:10px;font-weight:500;color:var(--muted)">(1st)</span></td>
+      <td class="g-vs">VS</td>
+      <td class="g-away" style="font-weight:700;color:var(--navy)">${esc(fin.away||'TBD')} <span style="font-size:10px;font-weight:500;color:var(--muted)">(2nd)</span></td>
+      <td class="g-si"><input type="number" min="0" class="si" id="pfh_${podKey}" value="${fin.score?fin.score.h:''}" placeholder="–" onchange="savePlayoffFinal('${podKey}')"/></td>
+      <td class="g-sep">–</td>
+      <td class="g-si"><input type="number" min="0" class="si" id="pfa_${podKey}" value="${fin.score?fin.score.a:''}" placeholder="–" onchange="savePlayoffFinal('${podKey}')"/></td>
+      <td class="g-sc ${fin.score?'scored':''}">${champion?`🏆 <strong>${esc(champion)}</strong>`:fin.score?'Tie':'—'}</td>
+    </tr>`;
+    html+=`</table>`;
+    if(champion){
+      html+=`<div style="margin-top:12px;padding:12px 16px;background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);color:#fff;text-align:center">
+        <div style="font-size:11px;font-weight:600;opacity:0.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">${podLabel} Champion</div>
+        <div style="font-size:22px;font-weight:800;letter-spacing:-0.3px">🏆 ${esc(champion)}</div>
+        <div style="font-size:12px;opacity:0.7;margin-top:4px">${prizeList[0]}</div>
+      </div>`;
+    }
+  }
+
+  // Prize breakdown
+  html+=`<div style="margin-top:14px;padding:10px 14px;background:var(--gray1);border-radius:var(--r-sm);font-size:12px">
+    <div style="font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Prize Money</div>
+    ${prizeList.map((p,i)=>`<div style="display:flex;justify-content:space-between;padding:3px 0;${i<prizeList.length-1?'border-bottom:1px solid var(--border)':''}"><span>${['🥇 1st','🥈 2nd','🥉 3rd'][i]||''}</span><strong>${p}</strong></div>`).join('')}
+  </div>`;
+
+  html+=`</div>`;
+  return html;
+}
+
+function renderPlayoffs(){
+  const el=document.getElementById('ply');
+  if(!el) return;
+  const p=G.playoffs;
+
+  if(!p||!p.seeded){
+    const hasScores=G.sched.some(g=>G.scores[g.id]);
+    el.innerHTML=`
+      <div class="card">
+        <div class="card-title">Playoffs</div>
+        <div class="notice">Playoffs are seeded from the final regular season standings. Make sure all regular season scores are entered before seeding.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px">
+          <button class="btn btn-primary" onclick="seedPlayoffs()">🏆 Seed Playoffs from Standings</button>
+          ${!hasScores?'<span style="font-size:12px;color:var(--muted)">⚠ No scores entered yet — standings may not reflect final order</span>':''}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Format</div>
+        <div style="display:grid;gap:10px">
+          <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+            <div style="font-weight:700;color:var(--navy);margin-bottom:4px">POD A — Top 5 Teams</div>
+            <div style="font-size:13px;color:var(--muted)">Round Robin (10 games) → Top 2 meet in POD A Final</div>
+            <div style="font-size:12px;color:var(--green);margin-top:4px">🥇 $500 &nbsp;·&nbsp; 🥈 $300 &nbsp;·&nbsp; 🥉 $200</div>
+          </div>
+          <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+            <div style="font-weight:700;color:var(--navy);margin-bottom:4px">POD B — Bottom 4 Teams</div>
+            <div style="font-size:13px;color:var(--muted)">Round Robin (6 games) → Top 2 meet in POD B Final</div>
+            <div style="font-size:12px;color:var(--green);margin-top:4px">🥇 $400 &nbsp;·&nbsp; 🥈 $250</div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:13px;color:var(--muted)">Seeded from regular season standings</div>
+    <button class="btn btn-sm" onclick="resetPlayoffs()" style="color:var(--red);border-color:var(--red)">↺ Reset Playoffs</button>
+  </div>`;
+
+  html+=renderPodSection(
+    'POD A — Top 5', p.podA, 'PA', 'podA',
+    ['$500','$300','$200']
+  );
+  html+=renderPodSection(
+    'POD B — Bottom 4', p.podB, 'PB', 'podB',
+    ['$400','$250']
+  );
+
+  el.innerHTML=html;
+}
+
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
 
 // ── JSONBIN CONFIG (fill these in after creating your JSONBin account) ────────
@@ -2176,13 +2439,14 @@ function adminGuard(fn){
 // ── JSONBIN SAVE/LOAD ─────────────────────────────────────────────────────────
 async function saveData(){
   const payload = {
-    teams:   G.teams,
-    diamonds:G.diamonds,
-    sched:   G.sched,
-    scores:  G.scores,
-    days:    getSelectedDays(),
-    ss:      document.getElementById('ss')?.value||'',
-    se:      document.getElementById('se')?.value||''
+    teams:    G.teams,
+    diamonds: G.diamonds,
+    sched:    G.sched,
+    scores:   G.scores,
+    playoffs: G.playoffs,
+    days:     getSelectedDays(),
+    ss:       document.getElementById('ss')?.value||'',
+    se:       document.getElementById('se')?.value||''
   };
 
   // Always save to localStorage as fast local cache
@@ -2257,8 +2521,9 @@ function applyData(d){
       lights: (defaults[dm.id]?.lightsCapable===false) ? false : dm.lights
     }));
   }
-  if(d.sched)  G.sched  = d.sched;
-  if(d.scores) G.scores = d.scores;
+  if(d.sched)    G.sched    = d.sched;
+  if(d.scores)   G.scores   = d.scores;
+  if(d.playoffs) G.playoffs = d.playoffs;
   if(d.ss){ const el=document.getElementById('ss'); if(el) el.value=d.ss; }
   if(d.se){
     const el=document.getElementById('se');
