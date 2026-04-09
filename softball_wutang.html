@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hamilton Classic Co-Ed Softball League</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   HAMILTON CLASSIC CO-ED SOFTBALL — DESIGN SYSTEM
+   One font stack. One spacing scale. One source of truth.
+═══════════════════════════════════════════════════════ */
+:root {
+  --navy:    #1a2744;
+  --navy2:   #243058;
+  --red:     #c0392b;
+  --white:   #ffffff;
+  --gray1:   #f2f2f7;
+  --gray2:   #e5e5ea;
+  --gray3:   #c7c7cc;
+  --text:    #1c1c1e;
+  --muted:   #8e8e93;
+  --border:  #d1d1d6;
+  --green:   #34c759;
+  --orange:  #ff9500;
+  --blue:    #007aff;
+  --shadow:  0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06);
+  --r:       12px;
+  --r-sm:    8px;
+  --font:    ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, "Segoe UI Variable", "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono:    ui-monospace, "SF Mono", "Menlo", "Monaco", "Cascadia Mono", "Consolas", monospace;
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); font-size: 15px; line-height: 1.47; color: var(--text); background: var(--gray1); min-height: 100vh; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+/* ── HEADER ── */
+.header { background: var(--navy); padding: 14px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 0 rgba(255,255,255,0.08), 0 4px 20px rgba(0,0,0,0.3); }
+.logo { width: 40px; height: 40px; background: var(--red); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.header-text { flex: 1; min-width: 0; }
+.header-title { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px; }
+.header-sub { font-size: 12px; color: rgba(255,255,255,0.4); font-weight: 400; margin-top: 1px; }
+
+/* ── TABS ── */
+.tabs { background: var(--white); border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; position: sticky; top: 68px; z-index: 99; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { padding: 12px 16px; font-family: var(--font); font-size: 14px; font-weight: 500; color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; transition: color 0.15s, border-color 0.15s; flex-shrink: 0; letter-spacing: -0.1px; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--navy); border-bottom-color: var(--red); font-weight: 600; }
+
+/* ── LAYOUT ── */
+.main { max-width: 860px; margin: 0 auto; padding: 16px; }
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── CARDS ── */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card-title::before { content:''; width: 3px; height: 14px; background: var(--red); border-radius: 2px; flex-shrink: 0; }
+
+/* ── FORM ELEMENTS ── */
+.row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 140px; }
+.field label { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select.sel {
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--gray1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+select.sel:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0,122,255,0.15);
+  background: var(--white);
+}
+
+/* ── SCORE INPUT (explicit override) ── */
+input.si {
+  font-family: var(--mono) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--text) !important;
+  background: var(--white) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-sm) !important;
+  width: 48px !important;
+  height: 36px !important;
+  padding: 0 4px !important;
+  text-align: center !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgba(0,122,255,0.15) !important; }
+
+/* ── BUTTONS ── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--white); color: var(--text); font-family: var(--font); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn:hover { background: var(--gray1); border-color: var(--gray3); }
+.btn-primary { background: var(--navy); color: var(--white); border-color: var(--navy); font-weight: 600; }
+.btn-primary:hover { background: var(--navy2); border-color: var(--navy2); }
+.btn-sm { padding: 6px 13px; font-size: 13px; }
+
+/* ── CHIPS ── */
+.team-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; background: var(--gray1); border: 1px solid var(--border); border-radius: 20px; font-size: 14px; font-weight: 500; color: var(--text); }
+.chip-del { background: none; border: none; cursor: pointer; color: var(--gray3); font-size: 16px; line-height: 1; padding: 0; transition: color 0.12s; }
+.chip-del:hover { color: var(--red); }
+
+/* ── NOTICE / CALLOUT ── */
+.notice { background: rgba(0,122,255,0.06); border-left: 3px solid var(--blue); border-radius: 0 var(--r-sm) var(--r-sm) 0; padding: 10px 13px; font-size: 13px; color: var(--navy); line-height: 1.5; margin-bottom: 12px; }
+
+/* ── BADGES ── */
+.dbadge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 6px; background: #f0f4ff; color: var(--navy); border: 1px solid #d0dcf7; white-space: nowrap; font-weight: 500; display: inline-block; }
+.dbadge.nl { background: #fff8ee; color: #b45309; border-color: #fcd34d; }
+.htag { font-family: var(--font); font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: #fff1f0; color: var(--red); border: 1px solid #ffd0cc; margin-left: 5px; vertical-align: middle; }
+.cobadge { font-family: var(--font); font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #f0fff4; color: #15803d; border: 1px solid #bbf7d0; margin-left: 5px; vertical-align: middle; }
+
+/* ── SCHEDULE / SCORES TABLE ── */
+.acc-wrap { border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 12px; box-shadow: var(--shadow); }
+.acc-head { background: var(--navy); padding: 11px 16px; display: flex; align-items: center; cursor: pointer; user-select: none; }
+.acc-head:hover { background: var(--navy2); }
+.acc-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.2px; flex: 1; }
+.acc-meta { font-size: 12px; color: rgba(255,255,255,0.4); font-weight: 400; margin-right: 10px; }
+.acc-arr { color: rgba(255,255,255,0.5); font-size: 12px; }
+.acc-body { display: none; }
+.acc-body.open { display: block; }
+
+.day-head { background: var(--gray1); padding: 7px 16px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.3px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.day-head::after { content:''; flex:1; height:1px; background: var(--border); }
+.slot-head { background: var(--gray2); padding: 4px 16px; font-size: 11px; font-weight: 500; color: var(--muted); font-family: var(--mono); letter-spacing: 0.5px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.slot-head::after { content:''; flex:1; height:1px; background: var(--border); }
+
+/* Game rows as table */
+.gt { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.gt td { padding: 7px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.3; }
+.gt tr:last-child td { border-bottom: none; }
+.gt tr:hover td { background: var(--gray1); }
+.gt tr.g-late td { background: #f5f7ff; }
+.gt tr.g-late:hover td { background: #eceffc; }
+.gt tr.wx-row td { background: #fffbeb !important; }
+
+/* Column widths — fixed layout so they're predictable */
+.gt td.g-num  { width: 52px; padding-left: 14px; padding-right: 2px; }
+.gt td.g-time { width: 58px; padding-left: 2px; padding-right: 4px; border-left: 3px solid transparent; }
+.gt td.g-home { width: 28%; font-weight: 600; }
+.gt td.g-vs   { width: 24px; text-align: center; color: var(--gray3); font-size: 10px; font-weight: 700; padding: 0; }
+.gt td.g-away { width: 28%; font-weight: 600; }
+.gt td.g-dm   { width: 94px; }
+.gt td.g-sc   { width: 46px; text-align: right; padding-right: 14px; font-family: var(--mono); font-size: 12px; color: var(--muted); font-weight: 500; }
+.gt td.g-sc.scored { color: var(--navy); font-weight: 700; }
+.gt td.g-si   { width: 48px; text-align: center; padding: 4px 2px; }
+.gt td.g-sep  { width: 12px; text-align: center; color: var(--gray3); font-weight: 600; font-size: 13px; padding: 0; }
+.gt td.g-wx   { width: 34px; text-align: center; padding: 2px; }
+
+.gt tr:hover td.g-time { border-left-color: var(--navy2); }
+.gt tr.g-late td.g-time { border-left-color: #818cf8; }
+
+.gnum { font-family: var(--mono); font-size: 10px; color: var(--gray3); font-weight: 500; }
+.time-lbl { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--red); }
+.time-lbl.late { color: #6366f1; }
+
+/* ── FILTER BAR ── */
+.filter-bar { display: none; margin-bottom: 12px; }
+.filter-bar.vis { display: block; }
+.filter-label { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.fc { padding: 5px 12px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--white); font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; transition: all 0.12s; }
+.fc:hover { border-color: var(--navy); color: var(--navy); }
+.fc.fc-all.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.fc.fc-team.active { background: var(--red); color: #fff; border-color: var(--red); }
+
+/* ── EXPORT BAR ── */
+.export-bar { display: none; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center; }
+.export-bar.vis { display: flex; }
+.export-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; }
+
+/* ── STANDINGS ── */
+.st-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.st { width: 100%; border-collapse: collapse; font-size: 13px; }
+.st th { font-size: 11px; font-weight: 700; color: var(--muted); text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); background: var(--gray1); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+.st td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+.st tr:last-child td { border-bottom: none; }
+.st tr:hover td { background: var(--gray1); }
+.st td.pts { font-size: 16px; font-weight: 800; color: var(--navy); }
+.st td.rank { font-size: 15px; font-weight: 800; color: var(--gray3); }
+.st td.mono { font-family: var(--mono); color: var(--muted); font-size: 12px; }
+.st td.warn { color: var(--orange); font-family: var(--mono); font-size: 12px; }
+
+/* ── METRICS ── */
+.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.metric { background: var(--navy); border-radius: var(--r); padding: 12px 14px; }
+.metric-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
+.metric-value { font-size: 26px; font-weight: 800; color: #fff; line-height: 1; }
+
+/* ── MATRIX / STATS TABLES ── */
+.matrix-wrap { overflow-x: visible; }
+.matrix { border-collapse: collapse; font-size: 12px; width: 100%; }
+.matrix th { background: var(--gray1); color: var(--muted); font-size: 10px; font-weight: 700; padding: 4px 6px; border: 1px solid var(--border); text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
+.matrix th.col-head { vertical-align: bottom; text-align: center; padding: 4px 2px 6px; width: 36px; max-width: 36px; }
+.matrix th.col-head span { display: block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: 0; line-height: 1; padding: 0 2px; }
+.matrix th.row-label { text-align: left; color: var(--text); font-size: 12px; font-weight: 600; padding: 6px 10px; white-space: nowrap; min-width: 0; }
+.matrix td { padding: 5px 4px; border: 1px solid var(--border); text-align: center; color: var(--gray3); background: var(--white); font-family: var(--mono); font-size: 12px; width: 36px; }
+.matrix td.self { background: var(--gray2); color: var(--border); }
+.matrix td.played { color: var(--navy); font-weight: 700; }
+
+.games-table { width: 100%; border-collapse: collapse; }
+.games-table th { font-size: 11px; font-weight: 700; color: var(--muted); text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); background: var(--gray1); text-transform: uppercase; letter-spacing: 0.5px; }
+.games-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-family: var(--mono); color: var(--muted); font-size: 12px; }
+.games-table td:first-child { font-family: var(--font); color: var(--text); font-weight: 700; font-size: 13px; }
+.games-table tr:last-child td { border-bottom: none; }
+.games-table tr:hover td { background: var(--gray1); }
+.games-table td.gold { color: var(--navy); font-weight: 700; }
+
+/* ── RULES ── */
+.rules-grid { display: flex; flex-direction: column; gap: 0; }
+.rule-item { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.rule-item:last-child { border-bottom: none; padding-bottom: 0; }
+.rule-item:first-child { padding-top: 0; }
+.rule-num { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--red); white-space: nowrap; min-width: 42px; padding-top: 1px; flex-shrink: 0; }
+.rule-text { font-size: 13px; color: var(--text); line-height: 1.55; }
+.rule-text strong { color: var(--navy); font-weight: 700; }
+.rule-highlight { background: rgba(0,122,255,0.04); margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
+/* ── WEATHER CANCEL ── */
+.gt td.g-wx { width: 34px; text-align: center; padding: 2px; }
+.wx-btn { background: none; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 14px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.wx-btn:hover { background: #fef3c7; border-color: #f59e0b; }
+
+/* ── STANDINGS EXTENDED ── */
+.st td.rec { font-family: var(--mono); font-weight: 700; color: var(--navy); font-size: 13px; }
+.st td.pct { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.st td.gb  { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; }
+.st td.hrec { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; }
+.st td.l10 { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; }
+.st td.strk { font-family: var(--mono); font-size: 12px; font-weight: 700; text-align: center; }
+.st td.strk.w { color: var(--green); }
+.st td.strk.l { color: var(--red); }
+.st td.strk.t { color: var(--muted); }
+
+/* ── EMPTY ── */
+
+/* ── EDIT TAB ── */
+.edit-row { display: flex; gap: 6px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--white); flex-wrap: nowrap; }
+.edit-row:hover { background: var(--gray1); }
+.edit-row.late { background: #f5f7ff; }
+.edit-row select, .edit-row .edit-time { font-family: var(--font); font-size: 12px; font-weight: 500; background: var(--gray1); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 4px 6px; outline: none; }
+.edit-row select:focus { border-color: var(--navy); }
+
+/* ── CALC BOX ── */
+.calc-box { border: 1.5px solid var(--border); border-radius: var(--r); overflow: hidden; margin-top: 4px; }
+.calc-hd { background: var(--navy); color: #fff; padding: 7px 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; }
+.calc-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.calc-row:last-child { border-bottom: none; }
+.calc-num { font-family: var(--mono); font-size: 22px; font-weight: 800; color: var(--navy); }
+.calc-label { font-size: 11px; color: var(--muted); }
+
+/* ── MOBILE ── */
+@media (max-width: 600px) {
+  .main { padding: 8px; }
+  .header-title { font-size: 15px; }
+  .header-sub { display: none; }
+  .tab { padding: 9px 10px; font-size: 12px; }
+  .card { padding: 12px; margin-bottom: 10px; }
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  .metric-value { font-size: 20px; }
+  .field { min-width: 120px; }
+  .st th, .st td { padding: 6px 4px; font-size: 11px; }
+  .dbadge { font-size: 9px; padding: 2px 4px; }
+  .htag, .cobadge { font-size: 8px; padding: 1px 3px; margin-left: 3px; }
+  .acc-head { padding: 9px 12px; }
+  .acc-title { font-size: 13px; }
+  .acc-meta { font-size: 11px; }
+  .day-head { padding: 5px 10px; font-size: 11px; }
+  .slot-head { padding: 3px 10px; font-size: 10px; }
+
+  /* Schedule/score table — mobile column widths */
+  .gt td { padding: 7px 3px; font-size: 12px; }
+  .gt td.g-num  { width: 40px; padding-left: 8px; }
+  .gt td.g-time { width: 44px; }
+  .gt td.g-vs   { width: 18px; }
+  .gt td.g-home { width: auto; }
+  .gt td.g-away { width: auto; }
+  .gt td.g-dm   { display: none; }
+  .gt td.g-sc   { width: 32px; padding-right: 8px; }
+  .gt td.g-si   { width: 44px; padding: 3px 1px; }
+  .gt td.g-sep  { width: 10px; }
+  .gt td.g-wx   { width: 30px; }
+  input.si      { width: 40px !important; height: 32px !important; font-size: 14px !important; }
+  .wx-btn       { width: 26px; height: 26px; font-size: 12px; }
+  .fc { padding: 4px 10px; font-size: 11px; }
+}
+
+@media (max-width: 420px) {
+  .header-title { font-size: 14px; }
+  .metric-grid { grid-template-columns: 1fr 1fr; }
+  .row { flex-direction: column; }
+  .gt td.g-num { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">⚾</div>
+  <div>
+    <div class="header-title">Hamilton Classic Co-Ed Softball</div>
+    <div class="header-sub">Turner Park · Tuesday Nights · 2026</div>
+  </div>
+</div>
+
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('schedule',this)">Schedule</button>
+  <button class="tab" onclick="showTab('scores',this)">Scores</button>
+  <button class="tab" onclick="showTab('standings',this)">Standings</button>
+  <button class="tab" onclick="showTab('stats',this)">Stats</button>
+  <button class="tab" onclick="showTab('edit',this)">Edit Games</button>
+  <button class="tab" onclick="showTab('rules',this)">Rules</button>
+  <button class="tab" onclick="showTab('teams',this)">Settings</button>
+</div>
+
+<div class="main">
+
+  <div id="tab-teams" class="section">
+    <div class="card">
+      <div class="card-title">Manage Teams</div>
+      <div class="row">
+        <div class="field">
+          <label>Team Name</label>
+          <input type="text" id="ti" placeholder="Enter team name..." />
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="addTeam()">+ Add</button>
+        </div>
+      </div>
+      <div class="team-list" id="tl"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Manage Diamonds</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Add, rename, or remove diamonds. Toggle lights on/off. Changes affect the schedule generator.</div>
+      <div id="diamond-list" style="display:grid;gap:8px;margin-bottom:12px"></div>
+      <button class="btn" onclick="addDiamond()" style="font-size:13px">+ Add Diamond</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Season Settings</div>
+      <div class="row">
+        <div class="field">
+          <label>Season Start</label>
+          <input type="date" id="ss" value="2026-05-19" oninput="updateGptNotice()" />
+        </div>
+        <div class="field">
+          <label>Season End</label>
+          <input type="date" id="se" value="2026-09-15" oninput="updateGptNotice()" />
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0.9rem">
+        <label>Game Nights</label>
+        <div id="day-checks" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Games Per Team</label>
+          <input type="number" id="gpt" value="22" min="1" max="60" placeholder="e.g. 22" oninput="updateGptNotice()" />
+        </div>
+        <div class="field">
+          <label>CrossOver Bye Weeks</label>
+          <input type="number" id="cobyes" value="0" min="0" max="10" placeholder="e.g. 3" oninput="updateGptNotice()" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>First Game Time</label>
+          <select id="time1" class="sel">
+            <option>5:00 PM</option><option>5:15 PM</option><option>5:30 PM</option>
+            <option>5:45 PM</option><option>6:00 PM</option><option>6:15 PM</option>
+            <option selected>6:30 PM</option><option>6:45 PM</option><option>7:00 PM</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Second Game Time (DH)</label>
+          <select id="time2" class="sel">
+            <option>7:00 PM</option><option>7:15 PM</option><option>7:30 PM</option>
+            <option>7:45 PM</option><option>8:00 PM</option><option selected>8:15 PM</option>
+            <option>8:30 PM</option><option>8:45 PM</option><option>9:00 PM</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Times Each Team Faces Each Opponent</label>
+          <select id="tfaced" class="sel" onchange="updateGptNotice()">
+            <option value="1">1× — every team plays each opponent once</option>
+            <option value="2" selected>2× — every team plays each opponent twice</option>
+            <option value="3">3× — every team plays each opponent three times</option>
+            <option value="4">4× — every team plays each opponent four times</option>
+            <option value="5">5× — every team plays each opponent five times</option>
+          </select>
+        </div>
+      </div>
+      <div id="gpt-notice" style="margin-bottom:1rem"></div>
+      <button class="btn btn-primary" onclick="genSched()">⚾ Generate Schedule</button>
+      <button class="btn" onclick="clearData()" style="color:var(--red);border-color:var(--red);margin-left:8px">🗑 Clear All Data</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Scheduler Rules</div>
+
+      <div style="margin-bottom:1.1rem">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏟 Diamonds</div>
+        <div id="rules-diamonds" style="display:grid;gap:6px"></div>
+      </div>
+
+      <div style="margin-bottom:1.1rem">
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏆 Standings</div>
+        <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
+          <div>CrossOver is <strong>excluded from standings</strong> — guest team only.</div>
+          <div>Results vs CrossOver <strong>count</strong> for league teams' W/L/T records.</div>
+          <div>Run differential <strong>capped at +7</strong> per game.</div>
+          <div>Ranked by points (W=2, T=1, L=0), tiebroken by run differential.</div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">📍 Venue</div>
+        <div style="font-size:13px;color:var(--text)">Turner Park, Hamilton · Tuesday nights</div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="tab-schedule" class="section active">
+    <div id="export-bar" class="export-bar">
+      <span class="export-label">Export:</span>
+      <button class="btn" onclick="exportCSV()" style="font-size:12px;padding:6px 14px">⬇ CSV / Excel</button>
+      <button class="btn" onclick="exportPrint()" style="font-size:12px;padding:6px 14px">🖨 Print / PDF</button>
+      <button class="btn" onclick="exportICal()" style="font-size:12px;padding:6px 14px">📅 iCal (.ics)</button>
+    </div>
+    <div id="team-filter-bar" class="filter-bar">
+      <div class="filter-label">Filter by Team</div>
+      <div id="team-filter-chips" class="filter-chips"></div>
+    </div>
+    <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
+  </div>
+
+  <div id="tab-scores" class="section">
+    <div id="sco"><div class="empty">Generate a schedule to enter scores</div></div>
+  </div>
+
+  <div id="tab-standings" class="section">
+    <div id="sto"><div class="empty">// ENTER SCORES TO SEE STANDINGS //</div></div>
+  </div>
+
+  <div id="tab-stats" class="section">
+    <div id="sta"><div class="empty">Generate a schedule to view stats</div></div>
+  </div>
+
+  <div id="tab-edit" class="section">
+    <div id="edi"><div class="empty">Generate a schedule to edit games</div></div>
+  </div>
+
+  <div id="tab-rules" class="section">
+
+    <div class="card">
+      <div class="card-title">Membership &amp; Eligibility</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">1.0</span><span class="rule-text">Membership is open to Adult Baseball teams whose players are <strong>21+</strong> (exception: 18+ with majority captain vote if a parent/guardian is on the team). All new members serve a 1-year probation. Teams must confirm entry by <strong>April 1</strong> each year.</span></div>
+        <div class="rule-item"><span class="rule-num">1.1</span><span class="rule-text">SPN Rules allow pregnant players to continue. If disclosed, both player and coach must sign a <strong>Pregnancy Waiver</strong> removing league liability.</span></div>
+        <div class="rule-item"><span class="rule-num">3.0</span><span class="rule-text">Maximum <strong>20 players</strong> on a roster, all aged 21+ as of December 31 of the calendar year (18+ exception applies).</span></div>
+        <div class="rule-item"><span class="rule-num">4.0</span><span class="rule-text">No team may dress more than <strong>20 players</strong>. Using an ineligible player = game forfeiture + manager suspended for next <strong>3</strong> league or playoff games.</span></div>
+        <div class="rule-item"><span class="rule-num">5.0</span><span class="rule-text">Playing rosters must be submitted to the Tier Convener by the start of the season. Players may be <strong>added but not removed</strong>. Maximum 20.</span></div>
+        <div class="rule-item"><span class="rule-num">5.1</span><span class="rule-text">Rosters <strong>freeze after August 27, 2025</strong>. Frozen roster = playoff roster. Max 20 players.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Game Eligibility &amp; Fielding</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">6.0</span><span class="rule-text">Minimum <strong>9 players</strong> required to play. No automatic out if fielding 4F+5M or 4M+5F.</span></div>
+        <div class="rule-item"><span class="rule-num">6.1</span><span class="rule-text">League-sanctioned games permitted with a minimum of <strong>3 females</strong> (regular season only).</span></div>
+        <div class="rule-item"><span class="rule-num">6.2</span><span class="rule-text">Team with only 3 females receives an <strong>automatic out</strong> in the 4th female batting spot. Females cannot be rotated within the batting lineup.</span></div>
+        <div class="rule-item"><span class="rule-num">6.3</span><span class="rule-text">Fielding team with 3 females plays max <strong>6 males</strong> in the field — cannot field 7 males + 3 females.</span></div>
+        <div class="rule-item"><span class="rule-num">6.4</span><span class="rule-text">If a team drops below <strong>8 players</strong> mid-game due to injury/ejection, the game is a forfeit at that point.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Reporting, Rescheduling &amp; Forfeits</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">7.0</span><span class="rule-text">Game results (scores, ejections, cancellations) must be reported to the Tier Convener within <strong>48 hours</strong> by the winning team.</span></div>
+        <div class="rule-item"><span class="rule-num">7.1</span><span class="rule-text">All ejections must be reported by <strong>both coaches</strong> to the Tier Convener and Disciplinary Committee within 48 hours.</span></div>
+        <div class="rule-item"><span class="rule-num">8.0</span><span class="rule-text">Games cancelled due to weather are recorded as a <strong>7–7 tie</strong>. No rain-out weeks or makeup games. Diamond rental/umpire savings are held as a rebate for returning teams.</span></div>
+        <div class="rule-item"><span class="rule-num">8.1</span><span class="rule-text">Forfeiture with <strong>less than 24 hours</strong> notice = <strong>$35 league fine</strong> (covers umpire fees). 24+ hours notice = no fine.</span></div>
+        <div class="rule-item"><span class="rule-num">23.0</span><span class="rule-text">A team that forfeits <strong>5 or more</strong> regular-season games is ineligible for playoffs.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Standings &amp; Tiebreakers <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 10.0)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">PTS</span><span class="rule-text"><strong>Win = 2 pts · Tie = 1 pt · Loss = 0 pts</strong></span></div>
+        <div class="rule-item rule-highlight"><span class="rule-num">a)</span><span class="rule-text"><strong>Head-to-head record</strong> among all tied teams.</span></div>
+        <div class="rule-item rule-highlight"><span class="rule-num">b)</span><span class="rule-text"><strong>Winner of last regular-season matchup</strong> between the tied teams. If that game was a tie, walk back to the next most recent result between them.</span></div>
+        <div class="rule-item rule-highlight"><span class="rule-num">c)</span><span class="rule-text"><strong>Coin toss.</strong></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Game Rules <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 11 — HCCSL Specific)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">a)</span><span class="rule-text">Pitchers may pitch from <strong>6 feet to unlimited</strong> distance.</span></div>
+        <div class="rule-item"><span class="rule-num">b)</span><span class="rule-text">Pitcher's mound zone: <strong>2 feet left/right</strong>, max <strong>5 feet behind</strong> the pitcher's box.</span></div>
+        <div class="rule-item"><span class="rule-num">c)</span><span class="rule-text"><strong>5-run max per inning</strong> except the final inning, which is unlimited.</span></div>
+        <div class="rule-item"><span class="rule-num">d)</span><span class="rule-text"><strong>No leading off</strong> — runners cannot leave the base until bat contacts ball.</span></div>
+        <div class="rule-item"><span class="rule-num">e)</span><span class="rule-text"><strong>No direct throws</strong> from outfield to 1st base. Relay throws (outfield → infield → 1st) are allowed.</span></div>
+        <div class="rule-item"><span class="rule-num">f)</span><span class="rule-text"><strong>Mercy rule:</strong> 12 runs after 5 complete innings.</span></div>
+        <div class="rule-item"><span class="rule-num">g)</span><span class="rule-text">Tagging a runner from home to 1st base is <strong>permitted</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">h)</span><span class="rule-text">Tagging is <strong>not permitted</strong> between the commitment line and home plate — runner is ruled safe.</span></div>
+        <div class="rule-item"><span class="rule-num">i)</span><span class="rule-text"><strong>150-foot rule:</strong> Outfielders must stay behind the 150-ft pylon line until the ball is struck. Violation = batter awarded 1 base.</span></div>
+        <div class="rule-item"><span class="rule-num">j)</span><span class="rule-text"><strong>2-base walk:</strong> If a male batter is walked and a female follows in the order, the male advances to 2nd. (Exception: declared 1st-base-only male goes to 1st only.)</span></div>
+        <div class="rule-item"><span class="rule-num">k)</span><span class="rule-text">A male batter <strong>cannot be intentionally walked</strong> to force an Auto-Out (female) to end the inning — he must hit or strike/foul out.</span></div>
+        <div class="rule-item"><span class="rule-num">l)</span><span class="rule-text">Male or female declared 1st-only hitting a <strong>home run over the fence</strong> is awarded 1st base only; all other runners score.</span></div>
+        <div class="rule-item"><span class="rule-num">m)</span><span class="rule-text">Official ball is the <strong>"Hot Dot"</strong> — no other grade permitted in regular season or playoffs.</span></div>
+        <div class="rule-item"><span class="rule-num">n)</span><span class="rule-text">A <strong>5-person infield</strong> is prohibited.</span></div>
+        <div class="rule-item"><span class="rule-num">o)</span><span class="rule-text">Rotating a fielder to another position must be done for <strong>all pitches</strong> to that batter.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Game Format</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">12.0</span><span class="rule-text"><strong>7 innings.</strong> No new inning after <strong>1h 30m</strong> from first pitch. 15-min grace period if both teams and umpire agree (counts toward 1h 45m total). Game reverts to last complete inning if time expires (regular season).</span></div>
+        <div class="rule-item"><span class="rule-num">12.1</span><span class="rule-text">Official game = <strong>3½ innings</strong> (home team leading) or <strong>4 complete innings</strong>.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Playoffs <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 13.0–13.4)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">13.0</span><span class="rule-text">Two PODs for round robin — <strong>POD A &amp; POD B</strong>, 5 teams each.</span></div>
+        <div class="rule-item"><span class="rule-num">13.2</span><span class="rule-text">All playoff games are <strong>single game, 7 innings</strong>, subject to 12-run mercy rule after 5 innings.</span></div>
+        <div class="rule-item"><span class="rule-num">13.3</span><span class="rule-text">Playoff tie after 7 innings → <strong>international tiebreaker</strong> extra innings. Weather-interrupted games suspended/rescheduled at Tier Convener's discretion.</span></div>
+        <div class="rule-item"><span class="rule-num">13.4</span><span class="rule-text">Playoff eligibility requires <strong>40% attendance</strong> (8 of 20 games). Playoff roster must be submitted by <strong>August 27, 2025</strong>.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Batting Order &amp; Substitutions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 15–16)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">15.0</span><span class="rule-text">Each team must provide a complete lineup to the opposing team before each game. Attendance sheets submitted to league website within <strong>48 hours</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">16.0</span><span class="rule-text">Late-arriving players (10 or fewer in order) must be added to the <strong>bottom of the batting order</strong> or sit out.</span></div>
+        <div class="rule-item"><span class="rule-num">16.2</span><span class="rule-text">Substitute players must be declared at game start. Late arrivals can only be added if the order has not been completed once.</span></div>
+        <div class="rule-item"><span class="rule-num">16.4</span><span class="rule-text">Mid-game substitutions must be <strong>gender-for-gender</strong> (male for male, female for female) unless the batting order allows otherwise.</span></div>
+        <div class="rule-item"><span class="rule-num">16.5</span><span class="rule-text"><strong>Pinch runners:</strong> max <strong>3 per game</strong>. Male for male, female for female.</span></div>
+        <div class="rule-item"><span class="rule-num">16.6</span><span class="rule-text"><strong>Declared injured players</strong> must be declared before game start. Allowed unlimited runners but only at <strong>1st base</strong> — cannot advance further (except on overthrow or male walk with female behind them).</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Ejections &amp; Suspensions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 20–21)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">Class I</span><span class="rule-text"><strong>Verbal:</strong> 1st ejection = that game + 1 auto suspension. 2nd = min 3-game suspension. 3rd = indefinite + disciplinary hearing + $50 team fine + team captain suspended.</span></div>
+        <div class="rule-item"><span class="rule-num">Class II</span><span class="rule-text"><strong>Physical/contact:</strong> 1st occurrence = ejection + immediate indefinite suspension pending disciplinary hearing. Must sit out until hearing regardless.</span></div>
+        <div class="rule-item"><span class="rule-num">29.0</span><span class="rule-text">Any ejection = automatic <strong>1-game suspension</strong> for next league or playoff game.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Equipment</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">26.0</span><span class="rule-text"><strong>No metal cleats.</strong></span></div>
+        <div class="rule-item"><span class="rule-num">26.1</span><span class="rule-text">Altered or tampered bats = batter out + ejection + possible additional penalties.</span></div>
+        <div class="rule-item"><span class="rule-num">26.3</span><span class="rule-text">Jewelry: stud earrings/nose piercings permitted. <strong>No hoop earrings/piercings. No necklaces.</strong> Violation during at-bat = out.</span></div>
+        <div class="rule-item"><span class="rule-num">26.4</span><span class="rule-text">Each team is responsible for carrying a fully stocked <strong>first aid kit</strong> to every game.</span></div>
+        <div class="rule-item"><span class="rule-num">31.0</span><span class="rule-text">Only bats on the current <strong>SPN Approved Bat List</strong> are permitted.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Conduct &amp; General</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">17.0</span><span class="rule-text"><strong>Blood/cut rule:</strong> Any player bleeding must leave the field until properly treated and wound covered. All blood-contaminated equipment must be removed.</span></div>
+        <div class="rule-item"><span class="rule-num">27.0</span><span class="rule-text"><strong>Zero tolerance</strong> for smoking, alcohol, violence, and abusive behavior at all facilities.</span></div>
+        <div class="rule-item"><span class="rule-num">28.0</span><span class="rule-text">Coaches are responsible for their spectators' behavior. Failure to control spectators can result in coach ejection or game forfeiture.</span></div>
+        <div class="rule-item"><span class="rule-num">19.0</span><span class="rule-text">Games must be officiated by at least <strong>1 umpire</strong>. No umpire = game cancelled. Semis/Finals may use 2 umpires.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Prize Breakdown</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">POD A</span><span class="rule-text">1st — <strong>$500</strong> &nbsp;·&nbsp; 2nd — <strong>$300</strong> &nbsp;·&nbsp; 3rd — <strong>$200</strong></span></div>
+        <div class="rule-item"><span class="rule-num">POD B</span><span class="rule-text">1st — <strong>$400</strong> &nbsp;·&nbsp; 2nd — <strong>$250</strong></span></div>
+        <div class="rule-item"><span class="rule-num">Total</span><span class="rule-text"><strong>$1,650</strong> year-end tournament prize pool</span></div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const CAP=7;
+const STORAGE_KEY='hccsl_2026';
+const MONTH_NAMES=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+// DIAMONDS is now dynamic — always use getDiamondIds() or G.diamonds
+function DIAMONDS(){ return getDiamondIds(); }
+
+let G={
+  teams:['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers',
+         'One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'],
+  diamonds:[
+    {id:5, name:'Diamond 5',  lights:false},
+    {id:9, name:'Diamond 9',  lights:true},
+    {id:12,name:'Diamond 12', lights:true},
+    {id:13,name:'Diamond 13', lights:false},
+    {id:14,name:'Diamond 14', lights:false}
+  ],
+  sched:[],scores:{}
+};
+const CROSSOVER='CrossOver';
+let hc={};
+
+// Derived diamond helpers — always read from G.diamonds
+function getDiamonds(){ return G.diamonds; }
+function getDiamondIds(){ return G.diamonds.map(d=>d.id); }
+function getDiamondName(id){ const d=G.diamonds.find(d=>d.id===id); return d?d.name:'D'+id; }
+function isDiamondLit(id){ const d=G.diamonds.find(d=>d.id===id); return d?d.lights:false; }
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// Always store and use dates as "YYYY-MM-DD" strings — never Date objects in G.sched
+function toDateStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+// Format "YYYY-MM-DD" → "TUESDAY, MAY 19" using local time only
+function fmtDate(s){
+  const[y,m,d]=s.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  return dt.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
+}
+
+// "YYYY-MM-DD" → "MAY 2026"
+function monthLabel(s){
+  const parts=s.split('-');
+  return MONTH_NAMES[parseInt(parts[1],10)-1]+' '+parts[0];
+}
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function pickHA(t1,t2){
+  const h1=hc[t1]||0,h2=hc[t2]||0;
+  if(h1<h2)return[t1,t2];
+  if(h2<h1)return[t2,t1];
+  return Math.random()<0.5?[t1,t2]:[t2,t1];
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function showTab(t,btn){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='schedule')renderSched();
+  if(t==='scores')renderScores();
+  if(t==='standings')renderStandings();
+  if(t==='stats')renderStats();
+  if(t==='edit')renderEdit();
+}
+
+// ── TEAMS ─────────────────────────────────────────────────────────────────────
+function addTeam(){
+  const inp=document.getElementById('ti');
+  const name=inp.value.trim();
+  if(!name||G.teams.includes(name))return;
+  if(G.teams.length>=10){alert("MAX 10 TEAMS, WU-TANG AIN'T FOREVER");return;}
+  G.teams.push(name);inp.value='';saveData();renderTeams();
+}
+document.getElementById('ti').addEventListener('keydown',e=>{if(e.key==='Enter')addTeam();});
+function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);saveData();renderTeams();}
+function renderTeams(){
+  const el=document.getElementById('tl');
+  if(!G.teams.length){el.innerHTML='<div style="color:var(--gray3);font-size:13px;font-weight:700;padding:8px 0">No teams added yet</div>';return;}
+  el.innerHTML='';
+  G.teams.forEach(t=>{
+    const span=document.createElement('span');
+    span.className='chip';
+    span.textContent=t;
+    const btn=document.createElement('button');
+    btn.className='chip-del';
+    btn.textContent='×';
+    btn.addEventListener('click',()=>removeTeam(t));
+    span.appendChild(btn);
+    el.appendChild(span);
+  });
+}
+
+// ── DIAMOND MANAGEMENT ────────────────────────────────────────────────────────
+function addDiamond(){// saved below
+
+  const newId=Math.max(0,...G.diamonds.map(d=>d.id))+1;
+  G.diamonds.push({id:newId,name:'Diamond '+newId,lights:true});
+  renderDiamonds();
+}
+function removeDiamond(id){
+  if(G.diamonds.length<=1){alert('Need at least one diamond.');return;}
+  G.diamonds=G.diamonds.filter(d=>d.id!==id);
+  renderDiamonds();
+}
+function updateDiamondName(id,name){
+  const d=G.diamonds.find(d=>d.id===id);
+  if(d) d.name=name;
+}
+function toggleDiamondLights(id){
+  const d=G.diamonds.find(d=>d.id===id);
+  if(d){d.lights=!d.lights;renderDiamonds();}
+}
+function renderDiamonds(){
+  const el=document.getElementById('diamond-list');
+  if(!el)return;
+  el.innerHTML=G.diamonds.map(d=>`
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 10px;background:var(--gray1);border:1.5px solid var(--border);border-radius:6px">
+      <input type="text" value="${esc(d.name)}" placeholder="Diamond name"
+        onchange="updateDiamondName(${d.id},this.value)"
+        style="font-size:13px;font-weight:700;background:var(--white);border:1.5px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-family:var(--font);outline:none" />
+      <button onclick="toggleDiamondLights(${d.id})"
+        style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
+        ${d.lights?'💡 Lights':'🌙 No Lights'}
+      </button>
+      <button onclick="removeDiamond(${d.id})"
+        style="padding:6px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:16px;cursor:pointer;line-height:1;font-family:var(--font)"
+        title="Remove diamond">×</button>
+    </div>`).join('');
+  // Also update the rules panel summary
+  const rd=document.getElementById('rules-diamonds');
+  if(rd) rd.innerHTML=G.diamonds.map(d=>
+    `<div style="font-size:13px;color:var(--text)">${d.name} — ${d.lights?'💡 Lights (DH capable)':'🌙 No Lights (6:30 only)'}</div>`
+  ).join('');
+  updateGptNotice();
+}
+// renderDiamonds called in DOMContentLoaded after all functions are defined
+
+// ── DAYS OF WEEK + SCHEDULE CALCULATOR ───────────────────────────────────────
+const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function initDayChecks(){
+  const el=document.getElementById('day-checks');
+  if(!el)return;
+  // Restore saved days, default to Tuesday (2)
+  let savedDays=[2];
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){const d=JSON.parse(raw);if(d.days&&d.days.length)savedDays=d.days;}
+  }catch(e){}
+  el.innerHTML=DAY_NAMES.map((name,i)=>{
+    const checked=savedDays.includes(i)?'checked':'';
+    const activeStyle='border-color:var(--navy);background:var(--navy);color:#fff';
+    const inactiveStyle='border-color:var(--border);background:var(--white);color:var(--text)';
+    return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${checked?activeStyle:inactiveStyle}">
+      <input type="checkbox" value="${i}" ${checked} onchange="onDayChange(${i},this)" style="display:none"> ${name}
+    </label>`;
+  }).join('');
+}
+
+function onDayChange(i,cb){
+  const lbl=document.getElementById('daylabel-'+i);
+  if(lbl){
+    if(cb.checked){
+      lbl.style.borderColor='var(--navy)';lbl.style.background='var(--navy)';lbl.style.color='#fff';
+    } else {
+      lbl.style.borderColor='var(--border)';lbl.style.background='var(--white)';lbl.style.color='var(--text)';
+    }
+  }
+  // Persist selected days
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    const d=raw?JSON.parse(raw):{};
+    d.days=getSelectedDays();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(d));
+  }catch(e){}
+  updateGptNotice();
+}
+
+function getSelectedDays(){
+  const checks=document.querySelectorAll('#day-checks input[type=checkbox]:checked');
+  return Array.from(checks).map(c=>parseInt(c.value));
+}
+
+function getGameNights(startStr,endStr,days){
+  if(!days||!days.length)days=[2];
+  const[sy,sm,sd]=startStr.split('-').map(Number);
+  const[ey,em,ed]=endStr.split('-').map(Number);
+  const d=new Date(sy,sm-1,sd);
+  const end=new Date(ey,em-1,ed);
+  const result=[];
+  while(d<=end){
+    if(days.includes(d.getDay()))result.push(toDateStr(d));
+    d.setDate(d.getDate()+1);
+  }
+  return result;
+}
+
+function updateGptNotice(){
+  const noticeEl=document.getElementById('gpt-notice');
+  if(!noticeEl)return;
+  const gpt=parseInt(document.getElementById('gpt')?.value)||0;
+  const cobyes=parseInt(document.getElementById('cobyes')?.value)||0;
+  const tfaced=parseInt(document.getElementById('tfaced')?.value)||3;
+  const t1=document.getElementById('time1')?.value||'6:30 PM';
+  const t2=document.getElementById('time2')?.value||'8:15 PM';
+  const ssEl=document.getElementById('ss');
+  const seEl=document.getElementById('se');
+  if(!ssEl||!seEl)return;
+  const selectedDays=getSelectedDays();
+  const leagueN=G.teams.filter(t=>t!==CROSSOVER).length;
+  const nights=getGameNights(
+    ssEl.value,
+    seEl.value,
+    selectedDays
+  ).length;
+
+  if(nights<1||selectedDays.length<1){
+    noticeEl.innerHTML=`<div class="notice" style="color:var(--muted)">Select at least one game day.</div>`;return;
+  }
+
+  // Matchup stats
+  const uniquePairs=leagueN*(leagueN-1)/2;  // 36 with 9 teams
+  const lgGamesFromFaced=uniquePairs*tfaced;  // total league games if all pairs play tfaced times
+
+  const dhDiamonds=G.diamonds.filter(d=>d.lights&&d.id!==9);
+  const singleDiamonds=G.diamonds.filter(d=>!d.lights);
+  const dhCount=dhDiamonds.length;
+  const singleCount=singleDiamonds.length;
+
+  // League pair slots per night = DH diamonds + single diamonds (D9 is CO only)
+  const lgPairSlotsPerNight=dhCount+singleCount;
+
+  // Required nights: uniquePairs * tfaced total pair-slots / slots per night
+  const requiredNights=lgPairSlotsPerNight>0
+    ?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight)
+    :0;
+  const nightsMatch=nights===requiredNights&&requiredNights>0;
+
+  // Games per team when season length is correct
+  const coEach=requiredNights>0?requiredNights/leagueN:tfaced;
+  const dhBonus=coEach*dhCount;
+  const league630=requiredNights-coEach;
+  const gamesPerTeam=Math.round(coEach+coEach+dhBonus+league630);
+
+  // Total games per night (no +1 — D9 CO is separate, not a league game)
+  const lgGamesPerNight=dhCount*2+singleCount;
+  const coGamesPerNight=2;
+  const totalGamesPerNight=lgGamesPerNight+coGamesPerNight;
+  const totalGames=totalGamesPerNight*(nightsMatch?requiredNights:nights);
+  const coTotalGames=coGamesPerNight*(nightsMatch?requiredNights:nights);
+  const lgTotalGames=totalGames-coTotalGames;
+
+  // Status
+  let statusHtml,statusBg;
+  if(!nightsMatch){
+    const diff=requiredNights-nights;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — `
+      +`${tfaced}× times faced needs exactly <strong>${requiredNights}</strong> nights. `
+      +`You have <strong>${nights}</strong>. `
+      +(diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`);
+    statusBg='#fff0f0';
+  } else {
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${gamesPerTeam} games per team, every pair plays ${tfaced}×</span>`;
+    statusBg='#edf7f0';
+  }
+  noticeEl.innerHTML=`
+  <div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;margin-top:4px">
+    <div style="background:var(--navy);color:#fff;padding:7px 12px;font-weight:800;font-size:11px;letter-spacing:0.8px;text-transform:uppercase">📊 Schedule Calculator</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border)">
+      <div style="padding:8px 12px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Your Nights</div>
+        <div style="font-size:22px;font-weight:800;color:${nightsMatch?'var(--navy)':'var(--red)'};line-height:1.2">${nights}</div>
+        <div style="font-size:11px;color:var(--muted)">Need ${requiredNights}</div>
+      </div>
+      <div style="padding:8px 12px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Games/Team</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${gamesPerTeam}</div>
+        <div style="font-size:11px;color:var(--muted)">${tfaced}× each opponent</div>
+      </div>
+      <div style="padding:8px 12px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${nightsMatch?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Night · ${t1} / ${t2}</div>
+      <div style="display:grid;gap:3px">
+        <div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH</span><strong>2 games</strong></div>
+        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(d.name)} — 💡 Doubleheader</span><strong>2 games</strong></div>`).join('')}
+        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>${esc(d.name)} — 🌙 Single only</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalGamesPerNight} games</span></div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Opponent Matchups</div>
+      <div style="display:grid;gap:2px;font-size:12px">
+        <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × ${tfaced}× each</span><strong>${lgGamesFromFaced} league games</strong></div>
+        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights (${tfaced} × ${leagueN} teams)</strong></div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
+  </div>`;
+}
+
+
+// ── SCHEDULE GENERATION ───────────────────────────────────────────────────────
+function getTues(startStr,endStr){
+  // Legacy wrapper — uses selected days
+  return getGameNights(startStr,endStr,getSelectedDays());
+}
+
+function genSched(){
+  if(G.teams.length!==10){alert('Need exactly 10 teams including CrossOver. Currently: '+G.teams.length);return;}
+
+  const selectedDays=getSelectedDays();
+  if(!selectedDays.length){alert('Please select at least one game day.');return;}
+  const gameNights=getGameNights(
+    document.getElementById('ss').value,
+    document.getElementById('se').value,
+    selectedDays
+  );
+  if(!gameNights.length){alert('No game nights found in that date range.');return;}
+
+  const TIME1 = document.getElementById('time1')?.value || '6:30 PM';
+  const TIME2 = document.getElementById('time2')?.value || '8:15 PM';
+  const TFACED = parseInt(document.getElementById('tfaced')?.value) || 2;
+
+  const leagueTeams = G.teams.filter(t => t !== CROSSOVER);
+  const n = leagueTeams.length;
+  const nights = gameNights.length;
+
+  // ── Diamond classification ────────────────────────────────────────────────
+  // D9  = CrossOver only (always, not in G.diamonds logic here)
+  // DH  = lights ON, not D9  → 6:30 + 8:15 swap.  Teams here play 2 games.
+  // litSingle = lights ON, but no DH partner available → user may never create these;
+  //             in current config D5 (lights=true) is listed separately.
+  //             App treats every lit non-D9 diamond as DH-capable.
+  //             So litSingleCount = 0 in standard config.
+  // noLit = lights OFF (D13, D14) → 6:30 ONLY, exactly 1 game, LOCKED OUT of 8:15.
+  const d9id = 9;
+  const dhIds     = G.diamonds.filter(d =>  d.lights && d.id !== d9id).map(d => d.id); // D12, D5 if lit
+  const noLitIds  = G.diamonds.filter(d => !d.lights).map(d => d.id);                  // D13, D14
+
+  // litSingle: lit non-D9 diamonds beyond dhIds — in current app there are none,
+  // because every lit non-D9 diamond becomes a DH diamond.
+  // coB eligible pool: coA (same team hits CO twice) — since litSingleCount=0.
+  // If dhIds.length === 0 that's an error.
+  if(dhIds.length === 0){
+    alert('Need at least one lit non-D9 diamond for doubleheaders.'); return;
+  }
+
+  const lgSlotsPerNight = dhIds.length + noLitIds.length;  // 1+2=3 or 2+2=4 etc.
+  const uniquePairs = n*(n-1)/2;
+  const requiredNights = lgSlotsPerNight > 0
+    ? Math.round(uniquePairs * TFACED / lgSlotsPerNight) : 0;
+
+  if(nights !== requiredNights){
+    alert(
+      `With ${TFACED}× times faced and ${lgSlotsPerNight} league diamond slots per night,\n`+
+      `you need exactly ${requiredNights} game nights.\n`+
+      `You currently have ${nights}.\n\n`+
+      `Adjust your season dates to get ${requiredNights} nights, or change Times Faced.`
+    );
+    return;
+  }
+
+  // Verify diamond slot count matches team count
+  // Per night: 1 coA on D9 + dhIds.length*2 on DH + noLitIds.length*2 on noLit = n
+  const spotsPerNight = 1 + dhIds.length*2 + noLitIds.length*2;
+  if(spotsPerNight !== n){
+    alert(
+      `Diamond configuration mismatch.\n`+
+      `${n} league teams need ${n} spots per night at 6:30,\n`+
+      `but config gives ${spotsPerNight} spots:\n`+
+      `  1 coOppA (D9) + ${dhIds.length} DH diamonds × 2 + ${noLitIds.length} no-lights × 2\n\n`+
+      `Add or remove diamonds to fix.`
+    );
+    return;
+  }
+
+  // ── Per-night game rules ──────────────────────────────────────────────────
+  // coA   → D9 6:30 (CO game). 1 game. Can also be coB same night → 2 games max.
+  // DH pair → D12/D5 6:30 + 8:15 swap. 2 games each. NEVER coB (would give 3 games).
+  // noLit pair → D13/D14 6:30 ONLY. Exactly 1 game. NEVER coB. NEVER touch 8:15.
+  // coB   → D9 8:15 (CO game). Must be coA (only eligible since litSingle=0).
+  //
+  // With litSingle=0: coB == coA every night (same team plays CO 6:30 AND CO 8:15).
+  // This means CrossOver faces the same league team twice that night (once home, once away).
+  // That is explicitly allowed by the league rules.
+
+  const coEach = nights / n;   // exact integer = TFACED
+
+  // Build pair budget: each unique pair (i,j) must play exactly TFACED times
+  // Pair appearances come from: DH slots (1 pair/DH diamond/night) + noLit slots (singleCount pairs/night)
+  // Total pair slots per night = dhIds.length + noLitIds.length = lgSlotsPerNight
+  // Total pair slots = lgSlotsPerNight * nights = uniquePairs * TFACED ✓ (validated above)
+
+  function makePool(perTeam){
+    const pool = [];
+    for(let t=0;t<n;t++) for(let k=0;k<perTeam;k++) pool.push(t);
+    return shuffle(pool);
+  }
+
+  for(let attempt=0; attempt<2000; attempt++){
+    // Reset pair budget each attempt
+    const pairPlayed = {};
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) pairPlayed[i+'_'+j] = 0;
+    function pairKey(a,b){ return a<b ? a+'_'+b : b+'_'+a; }
+    function pairOk(a,b){ return pairPlayed[pairKey(a,b)] < TFACED; }
+    function usePair(a,b){ pairPlayed[pairKey(a,b)]++; }
+
+    // coA: each team exactly coEach nights on D9 6:30
+    const coANights = makePool(coEach);
+    const coBNights = coANights.slice(); // coB === coA every night
+
+    // Pre-assign DH pairs per night with pair-budget awareness
+    const dhDeg = dhIds.map(() => new Array(n).fill(0));
+    const dhByNight = {};
+    let dhOk = true;
+
+    for(let ni=0; ni<nights; ni++){
+      dhByNight[ni] = [];
+      const coA = coANights[ni];
+      const blocked = new Set([coA]);
+
+      for(let di=0; di<dhIds.length; di++){
+        const usedNow = new Set([...blocked, ...dhByNight[ni].flat()]);
+        const cands = [];
+        for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+          if(!usedNow.has(i) && !usedNow.has(j) && pairOk(i,j)) cands.push([i,j]);
+        }
+        if(!cands.length){ dhOk=false; break; }
+
+        // Prefer pairs with fewest DH appearances (balance DH exposure)
+        const minS = Math.min(...cands.map(([i,j]) => dhDeg[di][i]+dhDeg[di][j]));
+        const best = cands.filter(([i,j]) => dhDeg[di][i]+dhDeg[di][j] === minS);
+        const pair = best[Math.floor(Math.random()*best.length)];
+        dhByNight[ni].push(pair);
+        dhDeg[di][pair[0]]++;
+        dhDeg[di][pair[1]]++;
+        usePair(pair[0], pair[1]);
+      }
+      if(!dhOk) break;
+    }
+    if(!dhOk) continue;
+
+    // Build schedule night by night
+    const sched = [];
+    const YEAR = new Date(gameNights[0]+'T12:00:00').getFullYear().toString().slice(-2);
+    hc = {}; G.teams.forEach(t => hc[t] = 0);
+    const gameCounts = {};
+    leagueTeams.forEach(t => gameCounts[t] = 0);
+
+    let assignOk = true;
+
+    for(let ni=0; ni<nights; ni++){
+      const dateStr   = gameNights[ni];
+      const coA       = coANights[ni];
+      const coB       = coBNights[ni];
+      const coATeam   = leagueTeams[coA];
+      const coBTeam   = leagueTeams[coB];
+      const dhPairs   = dhByNight[ni];
+      const dhTeams   = new Set(dhPairs.flat());
+
+      // rest = everyone except coA and DH teams → goes to noLit diamonds
+      const rest = [];
+      for(let t=0;t<n;t++) if(t!==coA && !dhTeams.has(t)) rest.push(t);
+
+      if(rest.length !== noLitIds.length*2){ assignOk=false; break; }
+
+      // Assign noLit pairs respecting pair budget
+      // Try up to 50 random shuffles to find a valid pairing
+      let noLitPairs = null;
+      for(let sp=0; sp<50; sp++){
+        const shuffled = shuffle([...rest]);
+        const pairs = [];
+        let valid = true;
+        for(let si=0; si<noLitIds.length; si++){
+          const a = shuffled[si*2], b = shuffled[si*2+1];
+          if(!pairOk(a,b)){ valid=false; break; }
+          pairs.push([a,b]);
+        }
+        if(valid){ noLitPairs=pairs; break; }
+      }
+      if(!noLitPairs){ assignOk=false; break; }
+
+      // Consume pair budget for noLit pairs
+      noLitPairs.forEach(([a,b]) => usePair(a,b));
+
+      // ── D9 6:30: CrossOver HOME vs coOppA AWAY ──────────────────────────
+      hc[CROSSOVER]++;
+      gameCounts[coATeam]++;
+      sched.push({
+        id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
+        diamond:d9id, lights:true, home:CROSSOVER, away:coATeam, bye:'', crossover:true
+      });
+
+      // ── DH diamonds: 6:30 + 8:15 swap ───────────────────────────────────
+      dhPairs.forEach((pair, di) => {
+        const dmId = dhIds[di];
+        const t1 = leagueTeams[pair[0]];
+        const t2 = leagueTeams[pair[1]];
+        const [home, away] = pickHA(t1, t2);
+        hc[home]++; gameCounts[t1]++; gameCounts[t2]++;
+        sched.push({
+          id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
+          diamond:dmId, lights:true, home, away, bye:'', crossover:false
+        });
+        // 8:15 DH swap (H/A reversed)
+        hc[away]++; gameCounts[t1]++; gameCounts[t2]++;
+        sched.push({
+          id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME2,
+          diamond:dmId, lights:true, home:away, away:home, bye:'', crossover:false
+        });
+      });
+
+      // ── noLit diamonds: 6:30 ONLY ────────────────────────────────────────
+      noLitPairs.forEach((pair, si) => {
+        const dmId = noLitIds[si];
+        const t1 = leagueTeams[pair[0]];
+        const t2 = leagueTeams[pair[1]];
+        const [home, away] = pickHA(t1, t2);
+        hc[home]++; gameCounts[t1]++; gameCounts[t2]++;
+        sched.push({
+          id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
+          diamond:dmId, lights:false, home, away, bye:'', crossover:false
+        });
+        // ── NO 8:15 game for noLit diamonds ─────────────────────────────
+      });
+
+      // ── D9 8:15: coOppB HOME vs CrossOver AWAY ──────────────────────────
+      // coB === coA, so this team now has 1 CO game at 6:30 + 1 CO game at 8:15 = 2 total
+      hc[coBTeam]++; gameCounts[coBTeam]++;
+      sched.push({
+        id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME2,
+        diamond:d9id, lights:true, home:coBTeam, away:CROSSOVER, bye:'', crossover:true
+      });
+    }
+
+    if(!assignOk) continue;
+
+    // ── Verify equal games AND every pair played exactly TFACED times ─────────
+    const counts = leagueTeams.map(t => gameCounts[t]);
+    if(!counts.every(c => c === counts[0])) continue;
+
+    const allPairsPlayed = Object.values(pairPlayed).every(v => v === TFACED);
+    if(!allPairsPlayed) continue;
+
+    // ── Accept ───────────────────────────────────────────────────────────────
+    G.sched   = sched;
+    schedFilterTeam = null;
+    G.scores  = {};
+    saveData();
+    document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', i===1));
+    document.querySelectorAll('.section').forEach((s,i) => s.classList.toggle('active', i===1));
+    renderSched();
+    return;
+  }
+
+  alert('Could not generate a valid schedule after 2000 attempts.\nTry adjusting your diamond configuration or season settings.');
+}
+
+function groupSched(games){
+  const monthMap={};
+  const monthOrder=[];
+  for(const g of games){
+    const ml=monthLabel(g.date);
+    if(!monthMap[ml]){monthMap[ml]={};monthOrder.push(ml);}
+    if(!monthMap[ml][g.date])monthMap[ml][g.date]=[];
+    monthMap[ml][g.date].push(g);
+  }
+  return monthOrder.map(ml=>({month:ml,dates:monthMap[ml]}));
+}
+
+function toggleMonth(id){
+  const body=document.getElementById(id);
+  const arr=document.getElementById('arr_'+id);
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  arr.textContent=isOpen?'▼':'▲';
+}
+
+function monthAccordion(month,inner,mi,prefix){
+  const id=prefix+'_m'+mi;
+  const nights=inner.split('day-head').length-1;
+  return `<div class="acc-wrap"><div class="acc-head" onclick="toggleMonth('${id}')"><span class="acc-title">${month}</span><span class="acc-meta">${nights} NIGHT${nights!==1?'S':''}</span><span class="acc-arr" id="arr_${id}">▼</span></div><div class="acc-body" id="${id}">${inner}</div></div>`;
+}
+
+function buildSchedInner(dates,isScore){
+  let inner='';
+  const T1=document.getElementById('time1')?.value||'6:30 PM';
+  const T2=document.getElementById('time2')?.value||'8:15 PM';
+  for(const[dateStr,games]of Object.entries(dates)){
+    inner+=`<div class="day-head">${fmtDate(dateStr)}</div>`;
+    const early=games.filter(g=>g.time!==T2);
+    const late=games.filter(g=>g.time===T2);
+    const usedAt1=new Set(early.map(g=>g.diamond));
+    const usedAt2=new Set(late.map(g=>g.diamond));
+    const openAt1=getDiamondIds().filter(d=>!usedAt1.has(d));
+    const openAt2=G.diamonds.filter(d=>d.lights).map(d=>d.id).filter(d=>!usedAt2.has(d));
+
+    if(early.length){
+      let sh=`<div class="slot-head">${T1}`;
+      if(openAt1.length) sh+=` &nbsp;· <span style="color:var(--green)">OPEN: ${openAt1.map(d=>getDiamondName(d)).join(', ')}</span>`;
+      inner+=sh+'</div>';
+      inner+='<table class="gt">';
+      for(const g of early){
+        const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
+        const cobadge=isCO?`<span class="cobadge">CO</span>`:'';
+        const badge=g.lights?`<span class="dbadge">${getDiamondName(g.diamond)} ☀</span>`:`<span class="dbadge nl">${getDiamondName(g.diamond)}</span>`;
+        const gnum=`<span class="gnum">#${g.id}</span>`;
+        if(isScore){
+          const sc=G.scores[g.id]||{h:'',a:''};
+          const isWx=G.scores[g.id]?.weather;
+          const wxStyle=isWx?'background:#fef3c7;border-color:#f59e0b':'';
+          const trClass=`${isCO?'co-row':''} ${isWx?'wx-row':''}`.trim();
+          inner+=`<tr class="${trClass}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home"><span>${esc(g.home)}</span><span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-wx"><button id="wb_${g.id}" class="wx-btn" title="${isWx?'Weather cancellation (7–7)':'Mark as weather cancellation (7–7)'}" onclick="weatherCancel('${g.id}')" style="${wxStyle}">🌧</button></td></tr>`;
+        } else {
+          const sc=G.scores[g.id];const res=sc?sc.h+'–'+sc.a:'—';
+          const isWx=sc?.weather;
+          inner+=`<tr ${isWx?'class="wx-row"':''}><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
+        }
+      }
+      inner+='</table>';
+    }
+    if(late.length){
+      let sh=`<div class="slot-head">${T2}`;
+      if(openAt2.length) sh+=` &nbsp;· <span style="color:var(--green)">OPEN: ${openAt2.map(d=>getDiamondName(d)).join(', ')}</span>`;
+      inner+=sh+'</div>';
+      inner+='<table class="gt">';
+      for(const g of late){
+        const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
+        const cobadge=isCO?`<span class="cobadge">CO</span>`:'';
+        const badge=`<span class="dbadge">${getDiamondName(g.diamond)} ☀</span>`;
+        const gnum=`<span class="gnum">#${g.id}</span>`;
+        if(isScore){
+          const sc=G.scores[g.id]||{h:'',a:''};
+          const isWx=G.scores[g.id]?.weather;
+          const wxStyle=isWx?'background:#fef3c7;border-color:#f59e0b':'';
+          const trClass=`g-late${isCO?' co-row':''} ${isWx?'wx-row':''}`.trim();
+          inner+=`<tr class="${trClass}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-si"><input type="number" min="0" class="si" id="sh_${g.id}" value="${sc.h}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="sa_${g.id}" value="${sc.a}" placeholder="–" onchange="saveScore('${g.id}')"/></td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-wx"><button id="wb_${g.id}" class="wx-btn" title="${isWx?'Weather cancellation (7–7)':'Mark as weather cancellation (7–7)'}" onclick="weatherCancel('${g.id}')" style="${wxStyle}">🌧</button></td></tr>`;
+        } else {
+          const sc=G.scores[g.id];const res=sc?sc.h+'–'+sc.a:'—';
+          const isWx=sc?.weather;
+          inner+=`<tr class="g-late${isWx?' wx-row':''}"><td class="g-num">${gnum}</td><td class="g-time"><span class="time-lbl late">${g.time}</span></td><td class="g-home">${esc(g.home)}<span class="htag">H</span>${cobadge}</td><td class="g-vs">VS</td><td class="g-away">${esc(g.away)}</td><td class="g-dm">${badge}</td><td class="g-sc${sc?' scored':''}">${isWx?'🌧 7–7':res}</td></tr>`;
+        }
+      }
+      inner+='</table>';
+    }
+  }
+  return inner;
+}
+
+function renderSchedFilterChips(){
+  const bar=document.getElementById('team-filter-bar');
+  const chips=document.getElementById('team-filter-chips');
+  if(!bar||!chips)return;
+  if(!G.sched.length){bar.style.display='none';return;}
+  bar.classList.add('vis');
+
+  const teams=[...G.teams].sort((a,b)=>a===CROSSOVER?1:b===CROSSOVER?-1:a.localeCompare(b));
+  const active=schedFilterTeam;
+
+  // Build buttons using DOM — avoids any string escaping issues with team names
+  chips.innerHTML='';
+
+  function makeChip(label, team, isActive, color){
+    const btn=document.createElement('button');
+    btn.textContent=label+(team===CROSSOVER?' 🏳':'');
+    btn.style.cssText=`padding:5px 13px;border-radius:20px;border:1.5px solid;cursor:pointer;`+
+      `font-size:12px;font-weight:700;font-family:var(--font);`+
+      `background:${isActive?color:'var(--white)'};`+
+      `color:${isActive?'#fff':'var(--text)'};`+
+      `border-color:${isActive?color:'var(--border)'};`+
+      `transition:all 0.15s;`;
+    btn.addEventListener('click',()=>setSchedFilter(team));
+    chips.appendChild(btn);
+  }
+
+  makeChip('All Teams', null, active===null, 'var(--navy)');
+  teams.forEach(t=>makeChip(t, t, active===t, 'var(--red)'));
+}
+
+function setSchedFilter(team){
+  schedFilterTeam=team;
+  renderSchedFilterChips();
+  renderSched();
+}
+
+function renderSched(){
+  const el=document.getElementById('so');
+  const bar=document.getElementById('export-bar');
+  if(!G.sched.length){
+    el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';
+    if(bar)bar.classList.remove('vis');
+    document.getElementById('team-filter-bar').classList.remove('vis');
+    return;
+  }
+  if(bar)bar.classList.add('vis');
+  renderSchedFilterChips();
+
+  // Apply team filter
+  const filtered=schedFilterTeam===null
+    ? G.sched
+    : G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
+
+  if(!filtered.length){
+    el.innerHTML=`<div class="empty">No games found for <strong>${esc(schedFilterTeam)}</strong>.</div>`;
+    return;
+  }
+
+  const grouped=groupSched(filtered);
+  el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
+}
+
+// ── EXPORTS ───────────────────────────────────────────────────────────────────
+
+function exportCSV(){
+  if(!G.sched.length){alert('Generate a schedule first.');return;}
+  const rows=[['Game #','Date','Day','Time','Diamond','Lights','Home','Away','CrossOver Game']];
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  for(const g of G.sched){
+    const d=new Date(g.date+'T12:00:00');
+    const day=dayNames[d.getDay()];
+    const dateFormatted=d.toLocaleDateString('en-CA',{year:'numeric',month:'short',day:'numeric'});
+    rows.push([
+      '#'+g.id,
+      dateFormatted,
+      day,
+      g.time,
+      getDiamondName(g.diamond),
+      g.lights?'Yes':'No',
+      g.home,
+      g.away,
+      g.crossover?'Yes':'No'
+    ]);
+  }
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='Hamilton_Classic_Schedule.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+function exportPrint(){
+  if(!G.sched.length){alert('Generate a schedule first.');return;}
+  const grouped=groupSched(G.sched);
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Hamilton Classic Co-Ed Softball — 2026 Schedule</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:11px;color:#111;padding:20px}
+    h1{font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+    .sub{font-size:10px;color:#666;margin-bottom:16px}
+    .month{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:1px;
+           background:#1a2744;color:#fff;padding:5px 10px;margin:14px 0 6px}
+    .week-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+              color:#c0392b;border-bottom:1px solid #ddd;padding:4px 0;margin:8px 0 3px}
+    table{width:100%;border-collapse:collapse;margin-bottom:4px}
+    th{background:#243058;color:#fff;font-size:9px;text-transform:uppercase;
+       letter-spacing:0.4px;padding:3px 6px;text-align:left}
+    td{padding:3px 6px;border-bottom:1px solid #eee;font-size:10px}
+    tr:nth-child(even) td{background:#f7f6f3}
+    .co td{background:#e8f5e9!important;font-style:italic}
+    .time{font-weight:700;white-space:nowrap;color:#c0392b}
+    .gnum{font-family:monospace;font-size:9px;color:#aaa;white-space:nowrap}
+    .diamond{font-family:monospace;font-size:9px;background:#e8edf7;
+             padding:1px 5px;border-radius:3px;white-space:nowrap}
+    .no-lights .diamond{background:#fdf0e8}
+    .bye-note{font-size:9px;color:#666;font-style:italic;padding:2px 0 6px}
+    @media print{
+      body{padding:10px}
+      .month{break-before:auto}
+      tr{break-inside:avoid}
+    }
+  </style></head><body>
+  <h1>Hamilton Classic Co-Ed Softball League</h1>
+  <div class="sub">Turner Park, Hamilton &nbsp;·&nbsp; 2026 Season Schedule &nbsp;·&nbsp; Generated ${new Date().toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})}</div>`;
+
+  for(const{month,dates} of grouped){
+    html+=`<div class="month">${month}</div>`;
+    for(const[dateStr,games] of Object.entries(dates)){
+      const d=new Date(dateStr+'T12:00:00');
+      const dayName=dayNames[d.getDay()];
+      const dateLabel=d.toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+      html+=`<div class="week-hdr">${dateLabel}</div>`;
+
+      const byeStr=games[0]?.bye||'';
+      if(byeStr.startsWith('CO BYE')){
+        const rt=byeStr.replace('CO BYE — ','').replace(' rest','');
+        html+=`<div class="bye-note">🚫 CrossOver Bye &nbsp;·&nbsp; ${rt} rests</div>`;
+      } else if(byeStr){
+        html+=`<div class="bye-note">Bye: ${byeStr}</div>`;
+      }
+
+      html+=`<table><thead><tr><th>#</th><th>Time</th><th>Diamond</th><th>Home</th><th>Away</th></tr></thead><tbody>`;
+      for(const g of games){
+        const isCO=g.crossover;
+        const dmCell=`<span class="diamond">${getDiamondName(g.diamond)}${g.lights?' ☀':''}</span>`;
+        html+=`<tr class="${isCO?'co':''}">
+          <td class="gnum">#${g.id}</td>
+          <td class="time">${g.time}</td>
+          <td>${dmCell}</td>
+          <td>${g.home}${isCO&&g.home===CROSSOVER?' 🏳':''}</td>
+          <td>${g.away}</td>
+        </tr>`;
+      }
+      html+=`</tbody></table>`;
+    }
+  }
+  html+=`</body></html>`;
+
+  // Use a hidden iframe for printing — works from file:// without popup blocker issues
+  let iframe=document.getElementById('_print_frame');
+  if(!iframe){
+    iframe=document.createElement('iframe');
+    iframe.id='_print_frame';
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none';
+    document.body.appendChild(iframe);
+  }
+  iframe.srcdoc=html;
+  iframe.onload=()=>{
+    try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){
+      // Fallback: open data URI in new tab
+      const a=document.createElement('a');
+      a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html);
+      a.target='_blank';a.click();
+    }
+  };
+}
+
+function exportICal(){
+  if(!G.sched.length){alert('Generate a schedule first.');return;}
+
+  function icalDate(dateStr,timeStr){
+    const[y,m,d]=dateStr.split('-').map(Number);
+    const[time,ampm]=timeStr.split(' ');
+    let[h,min]=time.split(':').map(Number);
+    if(ampm==='PM'&&h!==12)h+=12;
+    if(ampm==='AM'&&h===12)h=0;
+    return `${String(y)}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}T${String(h).padStart(2,'0')}${String(min).padStart(2,'0')}00`;
+  }
+
+  function icalEndTime(dateStr,timeStr){
+    // Games are approximately 75 minutes
+    const[y,m,d]=dateStr.split('-').map(Number);
+    const[time,ampm]=timeStr.split(' ');
+    let[h,min]=time.split(':').map(Number);
+    if(ampm==='PM'&&h!==12)h+=12;
+    if(ampm==='AM'&&h===12)h=0;
+    min+=75;h+=Math.floor(min/60);min%=60;
+    return `${String(y)}${String(m).padStart(2,'0')}${String(d).padStart(2,'0')}T${String(h).padStart(2,'0')}${String(min).padStart(2,'0')}00`;
+  }
+
+  function uid(g){return `${g.id}-hamilton-classic-2026@softball`;}
+
+  const now=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  let cal=`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Hamilton Classic Softball//Schedule//EN\r\nCALSCALE:GREGORIAN\r\nX-WR-CALNAME:Hamilton Classic 2026\r\nX-WR-TIMEZONE:America/Toronto\r\n`;
+
+  for(const g of G.sched){
+    const dmName=getDiamondName(g.diamond);
+    const lights=g.lights?'(Lights)':'(No Lights)';
+    const summary=`[#${g.id}] ${g.home} vs ${g.away} — ${dmName}`;
+    const desc=`Game #${g.id}\\n${g.home} (Home) vs ${g.away} (Away)\\n${dmName} ${lights}\\nTurner Park, Hamilton${g.crossover?' — CrossOver Game':''}`;
+    cal+=`BEGIN:VEVENT\r\n`;
+    cal+=`UID:${uid(g)}\r\n`;
+    cal+=`DTSTAMP:${now}\r\n`;
+    cal+=`DTSTART;TZID=America/Toronto:${icalDate(g.date,g.time)}\r\n`;
+    cal+=`DTEND;TZID=America/Toronto:${icalEndTime(g.date,g.time)}\r\n`;
+    cal+=`SUMMARY:${summary}\r\n`;
+    cal+=`DESCRIPTION:${desc}\r\n`;
+    cal+=`LOCATION:Turner Park, Hamilton, ON\r\n`;
+    cal+=`END:VEVENT\r\n`;
+  }
+  cal+=`END:VCALENDAR\r\n`;
+
+  const a=document.createElement('a');
+  a.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(cal);
+  a.download='Hamilton_Classic_2026.ics';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+// ── RENDER SCORES ─────────────────────────────────────────────────────────────
+function renderScores(){
+  const el=document.getElementById('sco');
+  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to enter scores</div>';return;}
+  const grouped=groupSched(G.sched);
+  el.innerHTML=`<div class="notice">Enter final scores · 🌧 sets 7–7 weather tie · Run differential capped at +7</div>`
+    +grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,true),i,'sk')).join('');
+}
+
+function saveScore(gid){
+  const h=document.getElementById('sh_'+gid)?.value;
+  const a=document.getElementById('sa_'+gid)?.value;
+  if(h!==''&&a!=='')G.scores[gid]={h:parseInt(h),a:parseInt(a),weather:false};
+  else delete G.scores[gid];
+  saveData();
+  renderSched();
+  renderStandings();
+}
+
+function weatherCancel(gid){
+  // Rule 8.0: cancelled game = 7-7 tie
+  G.scores[gid]={h:7,a:7,weather:true};
+  saveData();
+  const sh=document.getElementById('sh_'+gid);
+  const sa=document.getElementById('sa_'+gid);
+  if(sh)sh.value=7;
+  if(sa)sa.value=7;
+  // Mark the row visually
+  const btn=document.getElementById('wb_'+gid);
+  if(btn){btn.style.background='#fef3c7';btn.style.borderColor='#f59e0b';btn.title='Weather cancellation (7–7) — click to clear';}
+  renderSched();
+  renderStandings();
+}
+
+// ── STANDINGS ─────────────────────────────────────────────────────────────────
+function capRuns(h,a){
+  if(h===a)return{ch:h,ca:a};
+  if(h>a)return{ch:Math.min(h,a+CAP),ca:a};
+  return{ch:h,ca:Math.min(a,h+CAP)};
+}
+
+function renderStandings(){
+  const el=document.getElementById('sto');
+  if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+  const stats={};
+  for(const t of leagueTeams)stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
+  for(const g of G.sched){
+    const sc=G.scores[g.id];if(!sc)continue;
+    const{ch,ca}=capRuns(sc.h,sc.a);
+    if(stats[g.home]!==undefined){
+      stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
+      if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
+      else if(sc.a>sc.h){stats[g.home].l++;}
+      else{stats[g.home].tie++;stats[g.home].pts++;}
+    }
+    if(stats[g.away]!==undefined){
+      stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
+      if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
+      else if(sc.h>sc.a){stats[g.away].l++;}
+      else{stats[g.away].tie++;stats[g.away].pts++;}
+    }
+  }
+
+  // ── Rule 10: Tiebreaker logic ─────────────────────────────────────────────
+  // a) Head-to-head points among tied teams
+  // b) Winner of last regular-season matchup between tied teams (walk back if tie)
+  // c) Coin toss (random, stable within this render)
+
+  // Build h2h stats and chronological game log between league teams
+  const h2hStats={};  // h2hStats[a][b] = {pts, games:[{date,result}]}
+  for(const t of leagueTeams){
+    h2hStats[t]={};
+    for(const u of leagueTeams) h2hStats[t][u]={pts:0,games:[]};
+  }
+  const scoredGames=[...G.sched].filter(g=>G.scores[g.id]&&stats[g.home]!==undefined&&stats[g.away]!==undefined&&g.home!==CROSSOVER&&g.away!==CROSSOVER);
+  scoredGames.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  for(const g of scoredGames){
+    const sc=G.scores[g.id];
+    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
+    h2hStats[g.home][g.away].games.push({date:g.date,homePts:hw?2:tie?1:0});
+    h2hStats[g.away][g.home].games.push({date:g.date,homePts:aw?2:tie?1:0});
+    if(hw){h2hStats[g.home][g.away].pts+=2;}
+    else if(aw){h2hStats[g.away][g.home].pts+=2;}
+    else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
+  }
+
+  // Stable coin toss seed (hash of team names so it's consistent per render)
+  function stableRand(a,b){let h=0;for(const c of (a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
+
+  function tiebreak(group){
+    // a) H2H points among group
+    const h2hPts={};
+    for(const t of group){
+      h2hPts[t]=0;
+      for(const u of group) if(u!==t) h2hPts[t]+=h2hStats[t][u]?.pts||0;
+    }
+    const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
+    const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
+    if(afterH2H.length===1) return afterH2H[0];
+
+    // b) Walk back through most recent matchups among still-tied teams
+    // Collect all games between the remaining tied teams, newest first
+    const allGames=[];
+    for(let i=0;i<afterH2H.length;i++){
+      for(let j=i+1;j<afterH2H.length;j++){
+        const a=afterH2H[i],b=afterH2H[j];
+        for(const g of (h2hStats[a][b]?.games||[])){
+          allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
+        }
+      }
+    }
+    allGames.sort((a,b)=>b.date.localeCompare(a.date));
+    for(const g of allGames){
+      if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
+    }
+
+    // c) Coin toss (stable random)
+    return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
+  }
+
+  // Sort: pts desc, then tiebreak groups
+  const sorted=leagueTeams.slice().sort((a,b)=>{
+    const pdiff=stats[b].pts-stats[a].pts;
+    if(pdiff!==0) return pdiff;
+    return 0; // same pts: will be resolved by tiebreak below
+  });
+
+  // Assign final rank resolving ties
+  const ranked=[];
+  let i=0;
+  while(i<sorted.length){
+    let j=i+1;
+    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
+    const group=sorted.slice(i,j);
+    if(group.length===1){
+      ranked.push({team:group[0],tied:false});
+    } else {
+      // Recursively rank the tied group
+      const rankGroup=(g)=>{
+        if(g.length===0) return [];
+        const winner=tiebreak(g);
+        return [{team:winner,tied:g.length>1},...rankGroup(g.filter(t=>t!==winner))];
+      };
+      ranked.push(...rankGroup(group).map((r,idx)=>({...r,tied:idx>0||group.length>1})));
+    }
+    i=j;
+  }
+
+  const gp=Object.values(G.scores).length;
+
+  // ── Extra stats: Home/Away records, Last 10, Streak ──────────────────────
+  const homeStats={},awayStats={};
+  for(const t of leagueTeams){ homeStats[t]={w:0,l:0,tie:0}; awayStats[t]={w:0,l:0,tie:0}; }
+
+  // Chronological list of results per team for Last10 and Streak
+  const teamResults={}; // teamResults[t] = [{res:'W'|'L'|'T'}, ...] chronological
+  for(const t of leagueTeams) teamResults[t]=[];
+
+  const chronoGames=[...G.sched].filter(g=>G.scores[g.id]).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  for(const g of chronoGames){
+    const sc=G.scores[g.id];
+    // Home record
+    if(homeStats[g.home]!==undefined){
+      if(sc.h>sc.a){homeStats[g.home].w++;teamResults[g.home].push('W');}
+      else if(sc.a>sc.h){homeStats[g.home].l++;teamResults[g.home].push('L');}
+      else{homeStats[g.home].tie++;teamResults[g.home].push('T');}
+    }
+    // Away record
+    if(awayStats[g.away]!==undefined){
+      if(sc.a>sc.h){awayStats[g.away].w++;teamResults[g.away].push('W');}
+      else if(sc.h>sc.a){awayStats[g.away].l++;teamResults[g.away].push('L');}
+      else{awayStats[g.away].tie++;teamResults[g.away].push('T');}
+    }
+  }
+
+  // Compute Last 10 and Streak for each team
+  function last10(t){ const r=teamResults[t].slice(-10); const w=r.filter(x=>x==='W').length,l=r.filter(x=>x==='L').length; return r.length?`${w}-${l}`:'—'; }
+  function streak(t){
+    const r=teamResults[t];if(!r.length)return{s:'—',cls:''};
+    const last=r[r.length-1];let cnt=0;
+    for(let i=r.length-1;i>=0&&r[i]===last;i--)cnt++;
+    return{s:`${last}${cnt}`,cls:last==='W'?'w':last==='L'?'l':'t'};
+  }
+
+  // GB: games behind leader (based on pts; formula = (leaderW - teamW + teamL - leaderL)/2)
+  const leader=ranked[0]?.team;
+  function gb(t){
+    if(t===leader)return'—';
+    const ls=stats[leader],ts2=stats[t];
+    const gbVal=((ls.w-ts2.w)+(ts2.l-ls.l))/2;
+    return gbVal<=0?'—':gbVal%1===0?String(gbVal):`${gbVal}`;
+  }
+
+  // Win %
+  function winPct(t){
+    const s=stats[t];if(s.gp===0)return'—';
+    return((s.pts/(s.gp*2))).toFixed(3).replace(/^0/,'');
+  }
+
+  el.innerHTML=`
+  <div class="metric-grid">
+    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${leagueTeams.length}</div></div>
+    <div class="metric"><div class="metric-label">Played</div><div class="metric-value">${gp}</div></div>
+    <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.filter(g=>!G.scores[g.id]).length}</div></div>
+    <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
+  </div>
+  <div class="notice">W=2 · T=1 · L=0 · Tiebreakers: a) H2H points · b) Last matchup · c) Coin toss · RF/RA capped at +7</div>
+  <div class="st-wrap"><table class="st">
+    <colgroup>
+      <col style="width:28px"><!-- # -->
+      <col><!-- Team -->
+      <col style="width:58px"><!-- Record -->
+      <col style="width:46px"><!-- Win% -->
+      <col style="width:36px"><!-- GB -->
+      <col style="width:50px"><!-- Home -->
+      <col style="width:50px"><!-- Away -->
+      <col style="width:34px"><!-- RF -->
+      <col style="width:34px"><!-- RA -->
+      <col style="width:42px"><!-- DIFF -->
+      <col style="width:42px"><!-- Last 10 -->
+      <col style="width:40px"><!-- Streak -->
+      <col style="width:24px"><!-- TB -->
+    </colgroup>
+    <thead><tr>
+      <th>#</th><th>Team</th><th>Record</th><th>Win%</th><th>GB</th>
+      <th>Home</th><th>Away</th><th>RF</th><th>RA</th><th>Diff</th>
+      <th>Last 10</th><th>Streak</th><th></th>
+    </tr></thead>
+    <tbody>${ranked.map(({team:t,tied},idx)=>{
+      const s=stats[t];const diff=s.rf-s.ra;
+      const ds=s.gp===0?'—':(diff>0?'+'+diff:''+diff);
+      const hs=homeStats[t],as2=awayStats[t];
+      const hrec=`${hs.w}-${hs.l}${hs.tie?'-'+hs.tie:''}`;
+      const arec=`${as2.w}-${as2.l}${as2.tie?'-'+as2.tie:''}`;
+      const str=streak(t);
+      const tieIcon=tied?`<td title="Tiebreaker applied" style="color:var(--orange);font-size:11px;text-align:center">TB</td>`:`<td></td>`;
+      return`<tr>
+        <td class="rank">${idx+1}</td>
+        <td style="font-weight:600">${esc(t)}</td>
+        <td class="rec">${s.w}-${s.l}${s.tie?'-'+s.tie:''}</td>
+        <td class="pct">${winPct(t)}</td>
+        <td class="gb">${gb(t)}</td>
+        <td class="hrec">${hrec}</td>
+        <td class="hrec">${arec}</td>
+        <td class="mono">${s.rf}</td>
+        <td class="mono">${s.ra}</td>
+        <td class="mono">${ds}</td>
+        <td class="l10">${last10(t)}</td>
+        <td class="strk ${str.cls}">${str.s}</td>
+        ${tieIcon}
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function renderStats(){
+  const el=document.getElementById('sta');
+  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to view stats</div>';return;}
+
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER); // for standings/h2h
+  const allTeams=G.teams; // for game count table
+  const ts={};
+  for(const t of allTeams){
+    ts[t]={total:0,home:0,away:0,dh:0,fields:{}};
+    getDiamondIds().forEach(d=>ts[t].fields[d]=0);
+  }
+  const h2h={};
+  const coGames={};  // coGames[t] = number of games vs CrossOver
+  for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]=0;coGames[t]=0;}
+  const dTotal={};getDiamondIds().forEach(d=>dTotal[d]=0);
+  const nightCount={};
+
+  for(const g of G.sched){
+    dTotal[g.diamond]=(dTotal[g.diamond]||0)+1;
+    if(ts[g.home]){ts[g.home].total++;ts[g.home].home++;ts[g.home].fields[g.diamond]++;}
+    if(ts[g.away]){ts[g.away].total++;ts[g.away].away++;ts[g.away].fields[g.diamond]++;}
+    // h2h between league teams only
+    if(ts[g.home]&&ts[g.away]&&g.home!==CROSSOVER&&g.away!==CROSSOVER){
+      h2h[g.home][g.away]++;h2h[g.away][g.home]++;
+    }
+    // CO game tracking
+    if(g.home===CROSSOVER&&coGames[g.away]!==undefined) coGames[g.away]++;
+    if(g.away===CROSSOVER&&coGames[g.home]!==undefined) coGames[g.home]++;
+    if(g.home!==CROSSOVER) nightCount[g.date+'|'+g.home]=(nightCount[g.date+'|'+g.home]||0)+1;
+    if(g.away!==CROSSOVER) nightCount[g.date+'|'+g.away]=(nightCount[g.date+'|'+g.away]||0)+1;
+  }
+  for(const[key,cnt] of Object.entries(nightCount)){
+    if(cnt>=2){const t=key.split('|').slice(1).join('|');if(ts[t])ts[t].dh++;}
+  }
+
+  const totalNights=new Set(G.sched.map(g=>g.date)).size;
+  const sorted=[...allTeams].sort((a,b)=>ts[b].total-ts[a].total);
+
+  el.innerHTML=`
+  <div class="metric-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.25rem">
+    <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
+    <div class="metric"><div class="metric-label">Tuesday Nights</div><div class="metric-value">${totalNights}</div></div>
+    <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${allTeams.length}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Games Per Team</div>
+    <div class="notice">All 10 teams play exactly 24 games · CrossOver marked as guest — excluded from standings · Results vs CrossOver count for league teams</div>
+    <table class="games-table"><thead><tr><th>Team</th><th>Total</th><th>Home</th><th>Away</th><th>2× Nights</th></tr></thead>
+    <tbody>${sorted.map(t=>{
+      const s=ts[t];
+      const isCO=t===CROSSOVER;
+      const imb=Math.abs(s.home-s.away)>1;
+      return`<tr${isCO?' style="opacity:0.6;font-style:italic"':''}>
+        <td>${esc(t)}${isCO?'<span style="margin-left:6px;font-size:10px;font-weight:700;color:var(--success);background:#edf7f0;border:1px solid #b8e8c8;border-radius:3px;padding:1px 5px;font-style:normal">GUEST</span>':''}</td>
+        <td class="gold">${s.total}</td>
+        <td class="${imb?'warn':''}">${s.home}</td>
+        <td class="${imb?'warn':''}">${s.away}</td>
+        <td>${s.dh}</td>
+      </tr>`;
+    }).join('')}</tbody></table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Diamond Usage — Overall</div>
+    <table class="games-table"><thead><tr><th>Diamond</th><th>Lights</th><th>Total Games</th></tr></thead>
+    <tbody>${getDiamondIds().map(d=>`<tr><td>${getDiamondName(d)}</td><td>${isDiamondLit(d)?'Yes':'No'}</td><td class="gold">${dTotal[d]||0}</td></tr>`).join('')}</tbody></table>
+  </div>
+  <div class="card">
+    <div class="card-title">Diamond Usage — Per Team</div>
+    <div class="notice">Amber = Spread &gt; 2 between most and least used diamond</div>
+    <div class="matrix-wrap"><table class="matrix">
+      <thead><tr><th class="row-label">Team</th>${getDiamondIds().map(d=>`<th title="${getDiamondName(d)}">D${d}</th>`).join('')}</tr></thead>
+      <tbody>${sorted.map(t=>{
+        const vals=getDiamondIds().map(d=>ts[t].fields[d]);
+        const imb=Math.max(...vals)-Math.min(...vals)>2;
+        const mx=Math.max(...vals);
+        return`<tr><th class="row-label">${esc(t)}</th>${getDiamondIds().map((d,i)=>`<td class="${vals[i]===mx?'played':''} ${imb?'warn':''}">${vals[i]}</td>`).join('')}</tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Head-to-Head Matrix</div>
+    <div class="notice">Games scheduled between each pair (league games only) · <span style="color:var(--green);font-weight:600">CO</span> = games vs CrossOver</div>
+    <div class="matrix-wrap"><table class="matrix">
+      <thead><tr><th class="row-label">vs →</th>${leagueTeams.map(t=>`<th class="col-head"><span>${esc(t)}</span></th>`).join('')}<th class="col-head" style="background:#f0fff4;border-color:#bbf7d0"><span style="color:#15803d">CrossOver</span></th></tr></thead>
+      <tbody>${leagueTeams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${leagueTeams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}<td style="background:#f0fff4;color:#15803d;font-weight:700;border-color:#bbf7d0;font-family:var(--mono)">${coGames[r]||0}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+// ── EDIT GAMES ────────────────────────────────────────────────────────────────
+function renderEdit(){
+  const el=document.getElementById('edi');
+  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
+  const grp=groupSched(G.sched);
+  let html=`<div class="notice">Change home team, away team, diamond or time · Updates apply instantly</div>`;
+  grp.forEach(({month,dates},mi)=>{
+    let inner='';
+    for(const[dateStr,games] of Object.entries(dates)){
+      inner+=`<div class="week-header">${fmtDate(dateStr)}</div>`;
+      const byeTeam=games[0]?games[0].bye:'';
+      if(byeTeam==='CO BYE') inner+=`<div style="font-family:var(--mono);font-size:11px;font-weight:500;color:#27ae60;letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid rgba(39,174,96,0.3);border-radius:4px;display:inline-block;background:#edf7f0">// CROSSOVER BYE WEEK //</div>`;
+      else if(byeTeam) inner+=`<div style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted);letter-spacing:1px;margin-bottom:8px;padding:5px 10px;border:1px solid var(--border);border-radius:4px;display:inline-block;background:var(--gray1)">// BYE: ${esc(byeTeam).toUpperCase()} //</div>`;
+      for(const g of games){
+        const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
+        inner+=`<div class="edit-row${g.time!=='6:30 PM'?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
+          <span class="time-lbl${g.time==='8:15 PM'?' late':''}" style="width:54px;flex-shrink:0">${g.time}</span>
+          <select onchange="editGame('${g.id}','home',this.value)" class="sel">
+            ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.home?' selected':''}>${esc(t)}</option>`).join('')}
+          </select>
+          <select onchange="editGame('${g.id}','away',this.value)" class="sel">
+            ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
+          </select>
+          <select onchange="editGame('${g.id}','diamond',this.value)" class="sel">
+            ${getDiamondIds().map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>${getDiamondName(d)}</option>`).join('')}
+          </select>
+          <select onchange="editGame('${g.id}','time',this.value)" class="sel">
+            <option value="6:30 PM"${g.time==='6:30 PM'?' selected':''}>6:30 PM</option>
+            <option value="8:15 PM"${g.time==='8:15 PM'?' selected':''}>8:15 PM</option>
+          </select>
+        </div>`;
+      }
+    }
+    html+=`<div style="margin-bottom:6px">
+      <button onclick="toggleMonth('em${mi}')" style="width:100%;background:var(--navy);border:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;text-align:left;border-radius:7px 7px 0 0">
+        <span style="font-family:var(--font);font-size:15px;font-weight:800;letter-spacing:0.5px;color:#fff;text-transform:uppercase;flex:1">${month}</span>
+        <span id="arr_em${mi}" style="font-size:14px;color:rgba(255,255,255,0.7)">▼</span>
+      </button>
+      <div id="em${mi}" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 7px 7px;padding:0 8px 8px;background:var(--gray1)">${inner}</div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+function editGame(id,field,value){
+  const g=G.sched.find(x=>x.id===id);
+  if(!g)return;
+  if(field==='diamond'){
+    g.diamond=parseInt(value);
+    g.lights=isDiamondLit(g.diamond);
+  }
+  else if(field==='home') g.home=value;
+  else if(field==='away') g.away=value;
+  else if(field==='time') g.time=value;
+  g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
+  saveData();
+  renderSched();
+}
+
+// ── PERSISTENCE ───────────────────────────────────────────────────────────────
+
+function saveData(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      teams:   G.teams,
+      diamonds:G.diamonds,
+      sched:   G.sched,
+      scores:  G.scores,
+      days:    getSelectedDays(),
+      ss:      document.getElementById('ss')?.value||'',
+      se:      document.getElementById('se')?.value||''
+    }));
+  }catch(e){ console.warn('Save failed:', e); }
+}
+
+function loadData(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const d=JSON.parse(raw);
+    if(d.teams)   G.teams   = d.teams;
+    if(d.diamonds)G.diamonds= d.diamonds;
+    if(d.sched)   G.sched   = d.sched;
+    if(d.scores)  G.scores  = d.scores;
+    // Restore season date inputs
+    if(d.ss){const el=document.getElementById('ss');if(el)el.value=d.ss;}
+    if(d.se){const el=document.getElementById('se');if(el)el.value=d.se;}
+    return true;
+  }catch(e){ console.warn('Load failed:', e); return false; }
+}
+
+function clearData(){
+  if(!confirm('Clear ALL saved data — teams, schedule and scores? This cannot be undone.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// Init on page load
+document.addEventListener('DOMContentLoaded', function(){
+  try{ loadData(); }catch(e){ console.error('loadData failed:',e); }
+  try{ renderTeams(); }catch(e){ console.error('renderTeams failed:',e); }
+  try{ renderDiamonds(); }catch(e){ console.error('renderDiamonds failed:',e); }
+  try{ initDayChecks(); }catch(e){ console.error('initDayChecks failed:',e); }
+  try{ updateGptNotice(); }catch(e){ console.error('updateGptNotice failed:',e); }
+  try{ if(G.sched.length){ renderSched(); renderStandings(); } }catch(e){ console.error('renderSched failed:',e); }
+});
+</script>
+</body>
+</html>
