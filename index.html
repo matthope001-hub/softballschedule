@@ -1899,25 +1899,17 @@ function renderEdit(){
   const el=document.getElementById('edi');
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
 
-  // Build full list of season nights including 2 extra beyond the last scheduled game
-  // Use saved season dates; fall back to deriving from schedule if not available
+  // Use the full season window (May 19 – Sep 29 = exactly 20 Tuesdays)
   const ssEl=document.getElementById('ss');
   const seEl=document.getElementById('se');
   let days=getSelectedDays();
   if(!days.length) days=[2]; // default Tuesday if Settings not yet visited
 
-  const ssVal=ssEl?.value||G.sched[0]?.date||'2026-05-19';
+  const ssVal=ssEl?.value||'2026-05-19';
   const seVal=seEl?.value||'2026-09-29';
 
-  let allNights=getGameNights(ssVal, seVal, days);
-
-  // Always extend 2 more nights beyond last scheduled game date
-  const allSchedDates=G.sched.map(g=>g.date).sort();
-  const lastSchedDate=allSchedDates[allSchedDates.length-1]||ssVal;
-  const lastInWindow=allNights[allNights.length-1]||ssVal;
-  const extFrom=lastInWindow>lastSchedDate?lastInWindow:lastSchedDate;
-  const ext=getGameNights(extFrom,'2027-12-31',days).filter(d=>d>extFrom).slice(0,2);
-  allNights=[...new Set([...allNights,...ext])].sort();
+  // All game nights in the season window — no extension needed, window already covers 20 weeks
+  const allNights=getGameNights(ssVal, seVal, days);
 
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
