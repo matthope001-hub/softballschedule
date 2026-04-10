@@ -474,6 +474,23 @@ function renderChampions(){
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">Year by Year</div>
+      ${gapNote}
+      <table style="width:100%;border-collapse:collapse;border-radius:var(--r-sm);overflow:hidden">
+        <thead>
+          <tr style="background:var(--gray1)">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);width:60px">Year</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Champion</th>
+            <th style="padding:8px 12px;width:40px"></th>
+          </tr>
+        </thead>
+        <tbody style="border-top:1px solid var(--border)">
+          ${yearRows}
+        </tbody>
+      </table>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-bottom:12px">
       <div class="card" style="border-radius:0 0 0 var(--r)">
         <div class="card-title">Most Championships</div>
@@ -503,23 +520,6 @@ function renderChampions(){
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Year by Year</div>
-      ${gapNote}
-      <table style="width:100%;border-collapse:collapse;border-radius:var(--r-sm);overflow:hidden">
-        <thead>
-          <tr style="background:var(--gray1)">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);width:60px">Year</th>
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Champion</th>
-            <th style="padding:8px 12px;width:40px"></th>
-          </tr>
-        </thead>
-        <tbody style="border-top:1px solid var(--border)">
-          ${yearRows}
-        </tbody>
-      </table>
     </div>
   `;
 }
