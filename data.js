@@ -340,6 +340,8 @@ function updateGptNotice(){
 // champion = single-tier format (pre-pod era)
 const CHAMPIONS = [
   { year:2026, podA:null, podB:null, note:'Season in progress' },
+  { year:2025, podA:'Kibosh', podB:'JAFT' },
+  { year:2024, podA:'Alcoballics', podB:'Steel City Sluggers' },
   { year:2023, podA:'Basic Pitches', podB:'Landon Longballers' },
   { year:2022, champion:'Alcoballics' },
   { year:2018, champion:'One Hit Wonders' },
