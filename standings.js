@@ -402,5 +402,171 @@ function renderStats(){
       <thead><tr><th class="row-label">vs →</th>${leagueTeams.map(t=>`<th class="col-head"><span>${esc(t)}</span></th>`).join('')}<th class="col-head" style="background:#f0fff4;border-color:#bbf7d0"><span style="color:#15803d">CrossOver</span></th></tr></thead>
       <tbody>${leagueTeams.map(r=>`<tr><th class="row-label">${esc(r)}</th>${leagueTeams.map(c=>r===c?`<td class="self">—</td>`:(h2h[r][c]>0?`<td class="played">${h2h[r][c]}</td>`:`<td class="zero">0</td>`)).join('')}<td style="background:#f0fff4;color:#15803d;font-weight:700;border-color:#bbf7d0;font-family:var(--mono)">${coGames[r]||0}</td></tr>`).join('')}</tbody>
     </table></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📈 Standings History</div>
+    <div id="standings-history-chart"></div>
   </div>`;
+
+  // Render the chart after the DOM is updated
+  setTimeout(renderStandingsHistoryChart, 0);
+}
+// ── STANDINGS HISTORY CHART ───────────────────────────────────────────────────
+
+// 9 visually distinct colours for the 9 league teams
+const TEAM_COLOURS = [
+  '#e63946','#2a9d8f','#e9c46a','#264653','#f4a261',
+  '#6a4c93','#1982c4','#8ac926','#ff595e'
+];
+
+function buildStandingsHistory() {
+  const leagueTeams = G.teams.filter(t => t !== CROSSOVER);
+  if (!leagueTeams.length) return { dates: [], positions: {} };
+
+  // Get all unique scored game nights, sorted chronologically
+  const scoredDates = [...new Set(
+    G.sched
+      .filter(g => !g.playoff && G.scores[g.id])
+      .map(g => g.date)
+  )].sort();
+
+  if (!scoredDates.length) return { dates: [], positions: {} };
+
+  // For each cumulative snapshot, calculate standings position
+  const positions = {};
+  for (const t of leagueTeams) positions[t] = [];
+
+  for (const snapshotDate of scoredDates) {
+    // Build stats using all non-playoff games on or before this date
+    const stats = {};
+    for (const t of leagueTeams) stats[t] = { pts: 0, rf: 0, ra: 0, gp: 0, w: 0, l: 0, tie: 0 };
+
+    for (const g of G.sched) {
+      if (g.playoff) continue;
+      if (g.date > snapshotDate) continue;
+      const sc = G.scores[g.id];
+      if (!sc) continue;
+      const { ch, ca } = capRuns(sc.h, sc.a);
+      if (stats[g.home] !== undefined) {
+        stats[g.home].gp++;
+        stats[g.home].rf += ch;
+        stats[g.home].ra += ca;
+        if (sc.h > sc.a) { stats[g.home].w++; stats[g.home].pts += 2; }
+        else if (sc.a > sc.h) stats[g.home].l++;
+        else { stats[g.home].tie++; stats[g.home].pts++; }
+      }
+      if (stats[g.away] !== undefined) {
+        stats[g.away].gp++;
+        stats[g.away].rf += ca;
+        stats[g.away].ra += ch;
+        if (sc.a > sc.h) { stats[g.away].w++; stats[g.away].pts += 2; }
+        else if (sc.h > sc.a) stats[g.away].l++;
+        else { stats[g.away].tie++; stats[g.away].pts++; }
+      }
+    }
+
+    // Rank teams at this snapshot
+    const ranked = leagueTeams.slice().sort((a, b) =>
+      stats[b].pts - stats[a].pts ||
+      (stats[b].rf - stats[b].ra) - (stats[a].rf - stats[a].ra) ||
+      a.localeCompare(b)
+    );
+
+    for (let i = 0; i < ranked.length; i++) {
+      positions[ranked[i]].push(i + 1);
+    }
+  }
+
+  return { dates: scoredDates, positions };
+}
+
+function renderStandingsHistoryChart() {
+  const container = document.getElementById('standings-history-chart');
+  if (!container) return;
+
+  const leagueTeams = G.teams.filter(t => t !== CROSSOVER);
+  const { dates, positions } = buildStandingsHistory();
+
+  if (!dates.length) {
+    container.innerHTML = '<div class="empty" style="padding:1.5rem">Enter some scores to see how standings have changed over the season.</div>';
+    return;
+  }
+
+  const n = leagueTeams.length; // number of teams
+  const W = container.clientWidth || 700;
+  const H = 340;
+  const PAD = { top: 20, right: 20, bottom: 56, left: 36 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+
+  // Map date index → x, position → y
+  const xStep = dates.length > 1 ? chartW / (dates.length - 1) : chartW;
+  const yStep = chartH / (n - 1 || 1);
+
+  function xOf(i) { return PAD.left + (dates.length > 1 ? i * xStep : chartW / 2); }
+  function yOf(pos) { return PAD.top + (pos - 1) * yStep; }
+
+  // Build SVG
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${H}px;display:block;overflow:visible">`;
+
+  // Grid lines (horizontal — one per position)
+  for (let p = 1; p <= n; p++) {
+    const y = yOf(p);
+    svg += `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+    svg += `<text x="${PAD.left - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="#94a3b8" font-family="ui-monospace,monospace">${p}</text>`;
+  }
+
+  // Vertical date markers
+  dates.forEach((d, i) => {
+    const x = xOf(i);
+    svg += `<line x1="${x}" y1="${PAD.top}" x2="${x}" y2="${H - PAD.bottom}" stroke="#f1f5f9" stroke-width="1"/>`;
+    // Date label — show month+day, rotate for space
+    const label = new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+    svg += `<text x="${x}" y="${H - PAD.bottom + 14}" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="ui-sans-serif,Arial">${label}</text>`;
+  });
+
+  // Lines + dots per team
+  leagueTeams.forEach((team, ti) => {
+    const colour = TEAM_COLOURS[ti % TEAM_COLOURS.length];
+    const pts = positions[team] || [];
+    if (!pts.length) return;
+
+    // Line path
+    const pathD = pts.map((pos, i) => `${i === 0 ? 'M' : 'L'} ${xOf(i)} ${yOf(pos)}`).join(' ');
+    svg += `<path d="${pathD}" fill="none" stroke="${colour}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>`;
+
+    // Dots
+    pts.forEach((pos, i) => {
+      const x = xOf(i); const y = yOf(pos);
+      svg += `<circle cx="${x}" cy="${y}" r="4" fill="${colour}" stroke="white" stroke-width="1.5">
+        <title>${esc(team)} — Week ${i + 1} (${dates[i]}): Position ${pos}</title>
+      </circle>`;
+    });
+
+    // End label (last known position)
+    const lastX = xOf(pts.length - 1);
+    const lastY = yOf(pts[pts.length - 1]);
+    // Only show label if we have room (not too crowded at the right edge)
+    if (dates.length > 1) {
+      svg += `<text x="${lastX + 7}" y="${lastY + 4}" font-size="10" font-weight="600" fill="${colour}" font-family="ui-sans-serif,Arial">${pts[pts.length - 1]}</text>`;
+    }
+  });
+
+  svg += `</svg>`;
+
+  // Legend
+  const legendItems = leagueTeams.map((team, ti) => {
+    const colour = TEAM_COLOURS[ti % TEAM_COLOURS.length];
+    const lastPos = (positions[team] || []).slice(-1)[0];
+    return `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text);white-space:nowrap">
+      <svg width="18" height="10"><line x1="0" y1="5" x2="18" y2="5" stroke="${colour}" stroke-width="2.5"/><circle cx="9" cy="5" r="3.5" fill="${colour}" stroke="white" stroke-width="1"/></svg>
+      <span>${esc(team)}${lastPos ? ' <span style="color:var(--muted)">(' + lastPos + ')</span>' : ''}</span>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">League position over time — lower number = higher in standings · hover dots for details</div>
+    ${svg}
+    <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px;padding:10px 12px;background:var(--gray1);border-radius:var(--r-sm)">${legendItems}</div>
+  `;
 }
