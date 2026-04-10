@@ -432,7 +432,79 @@ function setSchedFilter(team){
   renderSched();
 }
 
-// ── SEASON COUNTDOWN BANNER ───────────────────────────────────────────────────
+// ── LAST RESULTS TICKER ───────────────────────────────────────────────────────
+function renderLastResults(){
+  const el=document.getElementById('last-results');
+  if(!el) return;
+
+  const today=toDateStr(new Date());
+
+  // Find the most recent game night that has at least one score entered
+  // and is in the past (not today or future)
+  const scoredDates=[...new Set(
+    G.sched.filter(g=>G.scores[g.id]&&g.date<today).map(g=>g.date)
+  )].sort().reverse();
+
+  if(!scoredDates.length){el.innerHTML='';return;}
+
+  const lastDate=scoredDates[0];
+  const lastGames=G.sched
+    .filter(g=>g.date===lastDate&&G.scores[g.id])
+    .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+
+  if(!lastGames.length){el.innerHTML='';return;}
+
+  const dateLabel=fmtDate(lastDate); // e.g. "Tuesday, May 26"
+
+  // Build result pills
+  const pills=lastGames.map(g=>{
+    const sc=G.scores[g.id];
+    const isWx=sc.weather;
+    const homeWon=sc.h>sc.a, awayWon=sc.a>sc.h, tied=sc.h===sc.a;
+    const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
+
+    // Shorten long team names for the ticker
+    function shortName(t){
+      const map={
+        'Alcoballics':'Alcoballics',
+        'Foul Poles':'Foul Poles',
+        'JAFT':'JAFT',
+        'Landon Longballers':'Longballers',
+        'One Hit Wonders':'One Hit Wonders',
+        'Steel City Sluggers':'Steel City',
+        "Pitch Don't Kill My Vibe":'PDKMV',
+        'Wayco':'Wayco',
+        'Kibosh':'Kibosh',
+        'CrossOver':'CrossOver',
+      };
+      return map[t]||t;
+    }
+
+    const h=shortName(g.home), a=shortName(g.away);
+    const scoreStr=isWx?`🌧 7–7`:`${sc.h}–${sc.a}`;
+    const winnerStyle='font-weight:700;color:var(--text)';
+    const loserStyle='color:var(--muted)';
+
+    return `<div style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--white);border-radius:var(--r-sm);border:1px solid var(--border);flex-shrink:0;white-space:nowrap">
+      ${isCO?`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:#dcfce7;color:#15803d;margin-right:2px">CO</span>`:''}
+      <span style="${homeWon?winnerStyle:loserStyle}">${esc(h)}</span>
+      <span style="font-family:var(--mono);font-size:13px;font-weight:700;color:${isWx?'#d97706':tied?'var(--muted)':'var(--navy)'};">${scoreStr}</span>
+      <span style="${awayWon?winnerStyle:loserStyle}">${esc(a)}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML=`<div style="margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Last Results</span>
+      <span style="font-size:11px;color:var(--muted)">·</span>
+      <span style="font-size:11px;font-weight:600;color:var(--navy)">${dateLabel}</span>
+    </div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      ${pills}
+    </div>
+  </div>`;
+}
+
 function renderSeasonBanner(){
   const el=document.getElementById('season-banner');
   if(!el||!G.sched.length) return;
@@ -582,11 +654,13 @@ function renderSched(){
     if(bar)bar.classList.remove('vis');
     document.getElementById('team-filter-bar').classList.remove('vis');
     renderSeasonBanner();
+    renderLastResults();
     return;
   }
   if(bar)bar.classList.add('vis');
   renderSchedFilterChips();
   renderSeasonBanner();
+  renderLastResults();
 
   const filtered=schedFilterTeam===null
     ? G.sched
