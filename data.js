@@ -335,10 +335,11 @@ function updateGptNotice(){
 
 
 // ── CHAMPIONS ─────────────────────────────────────────────────────────────────
+// podA = League Champion (top pod)
+// podB = Tier B Champion (marked with * in display)
+// champion = single-tier format (pre-pod era)
 const CHAMPIONS = [
   { year:2026, podA:null, podB:null, note:'Season in progress' },
-  { year:2025, podA:'Kibosh', podB:'JAFT' },
-  { year:2024, podA:'Alcoballics', podB:'Steel City Sluggers' },
   { year:2023, podA:'Basic Pitches', podB:'Landon Longballers' },
   { year:2022, champion:'Alcoballics' },
   { year:2018, champion:'One Hit Wonders' },
@@ -366,62 +367,177 @@ const CHAMPIONS = [
   { year:1996, champion:"Carrera's Mustangs" },
 ];
 
-// Count total championships per team
+// 2023 season archive — all 110 regular season game results
+const ARCHIVE_2023 = [
+  {date:'2023-05-23',time:'6:30 PM',away:'Foul Poles',home:'Basic Pitches',diamond:'D12',as:8,hs:15},
+  {date:'2023-05-23',time:'6:30 PM',away:'Alcoballics',home:'One Hit Wonders',diamond:'D13',as:22,hs:16},
+  {date:'2023-05-23',time:'6:30 PM',away:'Landon Longballers',home:'JAFT',diamond:'D14',as:4,hs:6},
+  {date:'2023-05-23',time:'6:30 PM',away:'Steel City Sluggers',home:'Wayco',diamond:'D5',as:5,hs:10},
+  {date:'2023-05-23',time:'6:30 PM',away:'Kibosh',home:'Stiff Competition',diamond:'D9',as:16,hs:9},
+  {date:'2023-05-23',time:'8:15 PM',away:'Kibosh',home:'Basic Pitches',diamond:'D12',as:17,hs:18},
+  {date:'2023-05-23',time:'8:15 PM',away:'Foul Poles',home:'Stiff Competition',diamond:'D9',as:14,hs:7},
+  {date:'2023-05-30',time:'6:30 PM',away:'Landon Longballers',home:'One Hit Wonders',diamond:'D12',as:16,hs:18},
+  {date:'2023-05-30',time:'6:30 PM',away:'Foul Poles',home:'Kibosh',diamond:'D13',as:17,hs:18},
+  {date:'2023-05-30',time:'6:30 PM',away:'Steel City Sluggers',home:'Stiff Competition',diamond:'D14',as:20,hs:13},
+  {date:'2023-05-30',time:'6:30 PM',away:'Alcoballics',home:'Wayco',diamond:'D5',as:12,hs:17},
+  {date:'2023-05-30',time:'6:30 PM',away:'Basic Pitches',home:'JAFT',diamond:'D9',as:18,hs:12},
+  {date:'2023-05-30',time:'8:15 PM',away:'Foul Poles',home:'One Hit Wonders',diamond:'D12',as:11,hs:18},
+  {date:'2023-05-30',time:'8:15 PM',away:'Landon Longballers',home:'JAFT',diamond:'D9',as:10,hs:14},
+  {date:'2023-06-06',time:'6:30 PM',away:'Alcoballics',home:'Steel City Sluggers',diamond:'D12',as:9,hs:15},
+  {date:'2023-06-06',time:'6:30 PM',away:'Foul Poles',home:'Stiff Competition',diamond:'D13',as:19,hs:21},
+  {date:'2023-06-06',time:'6:30 PM',away:'Wayco',home:'JAFT',diamond:'D14',as:17,hs:15},
+  {date:'2023-06-06',time:'6:30 PM',away:'Landon Longballers',home:'Basic Pitches',diamond:'D5',as:11,hs:4},
+  {date:'2023-06-06',time:'6:30 PM',away:'One Hit Wonders',home:'Kibosh',diamond:'D9',as:8,hs:11},
+  {date:'2023-06-06',time:'8:15 PM',away:'One Hit Wonders',home:'Steel City Sluggers',diamond:'D12',as:20,hs:21},
+  {date:'2023-06-06',time:'8:15 PM',away:'Alcoballics',home:'Kibosh',diamond:'D9',as:10,hs:10},
+  {date:'2023-06-13',time:'6:30 PM',away:'Stiff Competition',home:'Basic Pitches',diamond:'D12',as:8,hs:15},
+  {date:'2023-06-13',time:'6:30 PM',away:'Steel City Sluggers',home:'Foul Poles',diamond:'D13',as:13,hs:11},
+  {date:'2023-06-13',time:'6:30 PM',away:'One Hit Wonders',home:'Wayco',diamond:'D14',as:11,hs:8},
+  {date:'2023-06-13',time:'6:30 PM',away:'Kibosh',home:'JAFT',diamond:'D5',as:21,hs:20},
+  {date:'2023-06-13',time:'6:30 PM',away:'Alcoballics',home:'Landon Longballers',diamond:'D9',as:11,hs:10},
+  {date:'2023-06-13',time:'8:15 PM',away:'Alcoballics',home:'Basic Pitches',diamond:'D12',as:14,hs:15},
+  {date:'2023-06-13',time:'8:15 PM',away:'Stiff Competition',home:'Landon Longballers',diamond:'D9',as:7,hs:12},
+  {date:'2023-06-20',time:'6:30 PM',away:'One Hit Wonders',home:'JAFT',diamond:'D12',as:9,hs:2},
+  {date:'2023-06-20',time:'6:30 PM',away:'Foul Poles',home:'Alcoballics',diamond:'D13',as:14,hs:20},
+  {date:'2023-06-20',time:'6:30 PM',away:'Landon Longballers',home:'Kibosh',diamond:'D14',as:20,hs:19},
+  {date:'2023-06-20',time:'6:30 PM',away:'Stiff Competition',home:'Wayco',diamond:'D5',as:0,hs:7},
+  {date:'2023-06-20',time:'6:30 PM',away:'Steel City Sluggers',home:'Basic Pitches',diamond:'D9',as:14,hs:19},
+  {date:'2023-06-20',time:'8:15 PM',away:'Steel City Sluggers',home:'JAFT',diamond:'D12',as:19,hs:12},
+  {date:'2023-06-20',time:'8:15 PM',away:'Wayco',home:'Basic Pitches',diamond:'D9',as:9,hs:10},
+  {date:'2023-06-27',time:'6:30 PM',away:'Steel City Sluggers',home:'Landon Longballers',diamond:'D12',as:7,hs:7,wx:true},
+  {date:'2023-06-27',time:'6:30 PM',away:'One Hit Wonders',home:'Basic Pitches',diamond:'D13',as:7,hs:7,wx:true},
+  {date:'2023-06-27',time:'6:30 PM',away:'Stiff Competition',home:'JAFT',diamond:'D14',as:7,hs:7,wx:true},
+  {date:'2023-06-27',time:'6:30 PM',away:'Alcoballics',home:'Foul Poles',diamond:'D5',as:7,hs:7,wx:true},
+  {date:'2023-06-27',time:'6:30 PM',away:'Wayco',home:'Kibosh',diamond:'D9',as:7,hs:7,wx:true},
+  {date:'2023-06-27',time:'8:15 PM',away:'Alcoballics',home:'Landon Longballers',diamond:'D12',as:7,hs:7,wx:true},
+  {date:'2023-06-27',time:'8:15 PM',away:'Steel City Sluggers',home:'Kibosh',diamond:'D9',as:7,hs:7,wx:true},
+  {date:'2023-07-04',time:'6:30 PM',away:'Stiff Competition',home:'One Hit Wonders',diamond:'D12',as:7,hs:7,wx:true},
+  {date:'2023-07-04',time:'6:30 PM',away:'Steel City Sluggers',home:'Kibosh',diamond:'D13',as:7,hs:7,wx:true},
+  {date:'2023-07-04',time:'6:30 PM',away:'JAFT',home:'Alcoballics',diamond:'D14',as:7,hs:7,wx:true},
+  {date:'2023-07-04',time:'6:30 PM',away:'Foul Poles',home:'Landon Longballers',diamond:'D5',as:7,hs:7,wx:true},
+  {date:'2023-07-04',time:'6:30 PM',away:'Basic Pitches',home:'Wayco',diamond:'D9',as:7,hs:7,wx:true},
+  {date:'2023-07-04',time:'8:15 PM',away:'JAFT',home:'One Hit Wonders',diamond:'D12',as:7,hs:7,wx:true},
+  {date:'2023-07-04',time:'8:15 PM',away:'Foul Poles',home:'Wayco',diamond:'D9',as:7,hs:7,wx:true},
+  {date:'2023-07-11',time:'6:30 PM',away:'Foul Poles',home:'One Hit Wonders',diamond:'D12',as:10,hs:16},
+  {date:'2023-07-11',time:'6:30 PM',away:'Alcoballics',home:'Basic Pitches',diamond:'D13',as:14,hs:15},
+  {date:'2023-07-11',time:'6:30 PM',away:'Landon Longballers',home:'Stiff Competition',diamond:'D14',as:15,hs:8},
+  {date:'2023-07-11',time:'6:30 PM',away:'Wayco',home:'Kibosh',diamond:'D5',as:8,hs:1},
+  {date:'2023-07-11',time:'6:30 PM',away:'Steel City Sluggers',home:'JAFT',diamond:'D9',as:8,hs:6},
+  {date:'2023-07-11',time:'8:15 PM',away:'Steel City Sluggers',home:'One Hit Wonders',diamond:'D12',as:9,hs:9},
+  {date:'2023-07-11',time:'8:15 PM',away:'Wayco',home:'JAFT',diamond:'D9',as:8,hs:1},
+  {date:'2023-07-18',time:'6:30 PM',away:'Stiff Competition',home:'Alcoballics',diamond:'D12',as:8,hs:15},
+  {date:'2023-07-18',time:'6:30 PM',away:'Basic Pitches',home:'JAFT',diamond:'D13',as:16,hs:9},
+  {date:'2023-07-18',time:'6:30 PM',away:'One Hit Wonders',home:'Steel City Sluggers',diamond:'D14',as:12,hs:5},
+  {date:'2023-07-18',time:'6:30 PM',away:'Landon Longballers',home:'Wayco',diamond:'D5',as:3,hs:10},
+  {date:'2023-07-18',time:'6:30 PM',away:'Kibosh',home:'Foul Poles',diamond:'D9',as:10,hs:10},
+  {date:'2023-07-18',time:'8:15 PM',away:'Alcoballics',home:'Stiff Competition',diamond:'D12',as:20,hs:13},
+  {date:'2023-07-18',time:'8:15 PM',away:'Foul Poles',home:'Kibosh',diamond:'D9',as:17,hs:12},
+  {date:'2023-07-25',time:'6:30 PM',away:'Basic Pitches',home:'Foul Poles',diamond:'D12',as:10,hs:3},
+  {date:'2023-07-25',time:'6:30 PM',away:'One Hit Wonders',home:'Alcoballics',diamond:'D13',as:15,hs:10},
+  {date:'2023-07-25',time:'6:30 PM',away:'JAFT',home:'Landon Longballers',diamond:'D14',as:10,hs:17},
+  {date:'2023-07-25',time:'6:30 PM',away:'Wayco',home:'Steel City Sluggers',diamond:'D5',as:8,hs:9},
+  {date:'2023-07-25',time:'6:30 PM',away:'Stiff Competition',home:'Kibosh',diamond:'D9',as:10,hs:13},
+  {date:'2023-07-25',time:'8:15 PM',away:'Foul Poles',home:'Basic Pitches',diamond:'D12',as:9,hs:16},
+  {date:'2023-07-25',time:'8:15 PM',away:'Kibosh',home:'Stiff Competition',diamond:'D9',as:18,hs:16},
+  {date:'2023-08-01',time:'6:30 PM',away:'One Hit Wonders',home:'Landon Longballers',diamond:'D12',as:12,hs:5},
+  {date:'2023-08-01',time:'6:30 PM',away:'Basic Pitches',home:'Kibosh',diamond:'D13',as:18,hs:11},
+  {date:'2023-08-01',time:'6:30 PM',away:'Stiff Competition',home:'Steel City Sluggers',diamond:'D14',as:7,hs:0},
+  {date:'2023-08-01',time:'6:30 PM',away:'Wayco',home:'Alcoballics',diamond:'D5',as:12,hs:5},
+  {date:'2023-08-01',time:'6:30 PM',away:'JAFT',home:'Foul Poles',diamond:'D9',as:18,hs:11},
+  {date:'2023-08-01',time:'8:15 PM',away:'JAFT',home:'Landon Longballers',diamond:'D12',as:22,hs:15},
+  {date:'2023-08-01',time:'8:15 PM',away:'Wayco',home:'Foul Poles',diamond:'D9',as:21,hs:17},
+  {date:'2023-08-08',time:'6:30 PM',away:'Steel City Sluggers',home:'Alcoballics',diamond:'D12',as:8,hs:15},
+  {date:'2023-08-08',time:'6:30 PM',away:'Stiff Competition',home:'Foul Poles',diamond:'D13',as:13,hs:9},
+  {date:'2023-08-08',time:'6:30 PM',away:'JAFT',home:'Wayco',diamond:'D14',as:3,hs:10},
+  {date:'2023-08-08',time:'6:30 PM',away:'Basic Pitches',home:'Landon Longballers',diamond:'D5',as:15,hs:8},
+  {date:'2023-08-08',time:'6:30 PM',away:'One Hit Wonders',home:'Kibosh',diamond:'D9',as:15,hs:8},
+  {date:'2023-08-08',time:'8:15 PM',away:'One Hit Wonders',home:'Alcoballics',diamond:'D12',as:8,hs:9},
+  {date:'2023-08-15',time:'6:30 PM',away:'Basic Pitches',home:'Stiff Competition',diamond:'D12',as:7,hs:7,wx:true},
+  {date:'2023-08-15',time:'6:30 PM',away:'Foul Poles',home:'Steel City Sluggers',diamond:'D13',as:7,hs:7,wx:true},
+  {date:'2023-08-15',time:'6:30 PM',away:'Wayco',home:'One Hit Wonders',diamond:'D14',as:7,hs:7,wx:true},
+  {date:'2023-08-15',time:'6:30 PM',away:'JAFT',home:'Kibosh',diamond:'D5',as:7,hs:7,wx:true},
+  {date:'2023-08-15',time:'6:30 PM',away:'Landon Longballers',home:'Alcoballics',diamond:'D9',as:7,hs:7,wx:true},
+  {date:'2023-08-15',time:'8:15 PM',away:'Landon Longballers',home:'Stiff Competition',diamond:'D12',as:7,hs:7,wx:true},
+  {date:'2023-08-15',time:'8:15 PM',away:'Basic Pitches',home:'Alcoballics',diamond:'D9',as:7,hs:7,wx:true},
+  {date:'2023-08-22',time:'6:30 PM',away:'Wayco',home:'Stiff Competition',diamond:'D12',as:16,hs:8},
+  {date:'2023-08-22',time:'6:30 PM',away:'JAFT',home:'One Hit Wonders',diamond:'D13',as:15,hs:20},
+  {date:'2023-08-22',time:'6:30 PM',away:'Kibosh',home:'Landon Longballers',diamond:'D14',as:15,hs:8},
+  {date:'2023-08-22',time:'6:30 PM',away:'Alcoballics',home:'Foul Poles',diamond:'D5',as:8,hs:12},
+  {date:'2023-08-22',time:'6:30 PM',away:'Basic Pitches',home:'Steel City Sluggers',diamond:'D9',as:16,hs:9},
+  {date:'2023-08-22',time:'8:15 PM',away:'Basic Pitches',home:'Stiff Competition',diamond:'D12',as:9,hs:2},
+  {date:'2023-08-22',time:'8:15 PM',away:'Wayco',home:'Steel City Sluggers',diamond:'D9',as:10,hs:10},
+  {date:'2023-08-29',time:'6:30 PM',away:'Landon Longballers',home:'Steel City Sluggers',diamond:'D12',as:7,hs:14},
+  {date:'2023-08-29',time:'6:30 PM',away:'Wayco',home:'Foul Poles',diamond:'D13',as:14,hs:9},
+  {date:'2023-08-29',time:'6:30 PM',away:'JAFT',home:'Stiff Competition',diamond:'D14',as:15,hs:11},
+  {date:'2023-08-29',time:'6:30 PM',away:'Basic Pitches',home:'One Hit Wonders',diamond:'D5',as:6,hs:7},
+  {date:'2023-08-29',time:'6:30 PM',away:'Kibosh',home:'Alcoballics',diamond:'D9',as:4,hs:10},
+  {date:'2023-08-29',time:'8:15 PM',away:'Kibosh',home:'Steel City Sluggers',diamond:'D12',as:5,hs:12},
+  {date:'2023-09-05',time:'6:30 PM',away:'Stiff Competition',home:'One Hit Wonders',diamond:'D12',as:0,hs:7},
+  {date:'2023-09-05',time:'6:30 PM',away:'Landon Longballers',home:'Foul Poles',diamond:'D13',as:11,hs:9},
+  {date:'2023-09-05',time:'6:30 PM',away:'JAFT',home:'Alcoballics',diamond:'D14',as:8,hs:8},
+  {date:'2023-09-05',time:'6:30 PM',away:'Kibosh',home:'Steel City Sluggers',diamond:'D5',as:13,hs:17},
+  {date:'2023-09-05',time:'6:30 PM',away:'Basic Pitches',home:'Wayco',diamond:'D9',as:17,hs:13},
+  {date:'2023-09-05',time:'8:15 PM',away:'JAFT',home:'One Hit Wonders',diamond:'D12',as:4,hs:11},
+  {date:'2023-09-05',time:'8:15 PM',away:'Landon Longballers',home:'Wayco',diamond:'D9',as:14,hs:10},
+];
+
+// Count league championships per team (POD A = league champ, POD B = tier B only)
 function champCounts(){
   const counts={};
+  const podBCounts={};
   for(const row of CHAMPIONS){
-    if(row.champion){
-      counts[row.champion]=(counts[row.champion]||0)+1;
-    }
-    if(row.podA) counts[row.podA]=(counts[row.podA]||0)+1;
-    if(row.podB) counts[row.podB]=(counts[row.podB]||0)+1;
+    if(row.champion) counts[row.champion]=(counts[row.champion]||0)+1;
+    if(row.podA)     counts[row.podA]=(counts[row.podA]||0)+1;
+    if(row.podB)     podBCounts[row.podB]=(podBCounts[row.podB]||0)+1;
   }
-  return counts;
+  return {counts, podBCounts};
 }
 
 function renderChampions(){
   const el=document.getElementById('champ-content');
   if(!el) return;
 
-  const counts=champCounts();
+  const {counts,podBCounts}=champCounts();
   const leaderboard=Object.entries(counts)
     .sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
 
-  // Dynasty detection — 3+ consecutive wins
+  // Dynasty detection — 3+ consecutive wins (POD A / champion only)
   const dynasties=[];
   let streak=1;
   for(let i=1;i<CHAMPIONS.length;i++){
     const prev=CHAMPIONS[i-1],curr=CHAMPIONS[i];
     const prevChamp=prev.champion||prev.podA||'';
     const currChamp=curr.champion||curr.podA||'';
-    if(prevChamp&&currChamp&&prevChamp===currChamp){
-      streak++;
-    } else {
+    if(prevChamp&&currChamp&&prevChamp===currChamp) streak++;
+    else{
       if(streak>=3) dynasties.push({team:prevChamp,streak,endYear:CHAMPIONS[i-1].year});
       streak=1;
     }
   }
 
-  // Medal emoji for top finishes
   const medals=['🥇','🥈','🥉'];
 
-  // Build leaderboard rows
+  // Leaderboard rows
   const lbRows=leaderboard.map(([team,wins],i)=>{
-    const currentTeam=G.teams.includes(team);
+    const currentTeam=G.teams.filter(t=>t!=='CrossOver').includes(team);
+    const podBWins=podBCounts[team]||0;
     return`<tr style="${currentTeam?'background:#f0f9ff':''}">
       <td style="padding:8px 12px;font-size:13px;font-weight:700;color:var(--muted);width:36px">${i<3?medals[i]:i+1}</td>
       <td style="padding:8px 12px;font-size:14px;font-weight:${currentTeam?'700':'500'};color:${currentTeam?'var(--navy)':'var(--text)'}">${esc(team)}${currentTeam?` <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-left:4px">2026</span>`:''}</td>
-      <td style="padding:8px 12px;text-align:right">
+      <td style="padding:8px 12px;text-align:right;white-space:nowrap">
         ${'<span style="display:inline-block;width:10px;height:10px;background:var(--navy);border-radius:2px;margin-right:2px"></span>'.repeat(wins)}
         <span style="font-size:13px;font-weight:700;color:var(--navy);margin-left:4px">${wins}</span>
+        ${podBWins?`<span style="font-size:11px;color:var(--muted);margin-left:4px">(+${podBWins} POD B*)</span>`:''}
       </td>
     </tr>`;
   }).join('');
 
-  // Build year-by-year rows
+  // Year-by-year rows
+  const years=CHAMPIONS.map(c=>c.year).sort((a,b)=>a-b);
   const yearRows=CHAMPIONS.map(row=>{
     const isPodFormat=!!(row.podA||row.podB);
     const isCurrent=row.year===2026;
+    const hasArchive=row.year===2023;
 
     if(isCurrent){
       return`<tr style="background:#f0fdf4">
@@ -432,14 +548,23 @@ function renderChampions(){
 
     if(isPodFormat){
       return`<tr>
-        <td style="padding:10px 12px;font-size:15px;font-weight:800;color:var(--navy);width:60px">${row.year}</td>
+        <td style="padding:10px 12px;font-size:15px;font-weight:800;color:var(--navy);width:60px">
+          ${row.year}
+          ${hasArchive?`<div style="font-size:9px;font-weight:600;color:var(--muted);margin-top:2px">ARCHIVE</div>`:''}
+        </td>
         <td style="padding:10px 12px">
           <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="font-size:13px"><span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-right:6px">POD A</span><strong>${esc(row.podA)}</strong></div>
-            <div style="font-size:13px"><span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#fce7f3;color:#9d174d;margin-right:6px">POD B</span><strong>${esc(row.podB)}</strong></div>
+            <div style="font-size:13px;font-weight:600">
+              <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-right:6px">POD A</span>
+              ${esc(row.podA)} <span style="font-size:11px;color:var(--muted);font-weight:400">League Champion</span>
+            </div>
+            <div style="font-size:13px;color:var(--muted)">
+              <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#fce7f3;color:#9d174d;margin-right:6px">POD B</span>
+              ${esc(row.podB)}* <span style="font-size:11px;font-weight:400">Tier B Champion</span>
+            </div>
           </div>
         </td>
-        <td style="padding:10px 12px;text-align:right;font-size:18px">🏆🏆</td>
+        <td style="padding:10px 12px;text-align:right;font-size:18px">🏆🥈</td>
       </tr>`;
     }
 
@@ -450,15 +575,41 @@ function renderChampions(){
     </tr>`;
   }).join('');
 
-  // Years between recorded seasons
-  const years=CHAMPIONS.map(c=>c.year).sort((a,b)=>a-b);
-  const gaps=[];
-  for(let i=1;i<years.length;i++){
-    if(years[i]-years[i-1]>1){
-      gaps.push(`${years[i-1]+1}–${years[i]-1}`);
+  // 2023 archive standings
+  const archiveTeams={};
+  for(const g of ARCHIVE_2023){
+    if(!archiveTeams[g.home]) archiveTeams[g.home]={w:0,l:0,t:0,pts:0,rf:0,ra:0,gp:0};
+    if(!archiveTeams[g.away]) archiveTeams[g.away]={w:0,l:0,t:0,pts:0,rf:0,ra:0,gp:0};
+    archiveTeams[g.home].gp++; archiveTeams[g.away].gp++;
+    archiveTeams[g.home].rf+=g.hs; archiveTeams[g.home].ra+=g.as;
+    archiveTeams[g.away].rf+=g.as; archiveTeams[g.away].ra+=g.hs;
+    if(g.wx){
+      archiveTeams[g.home].t++;archiveTeams[g.home].pts++;
+      archiveTeams[g.away].t++;archiveTeams[g.away].pts++;
+    } else if(g.hs>g.as){
+      archiveTeams[g.home].w++;archiveTeams[g.home].pts+=2;archiveTeams[g.away].l++;
+    } else if(g.as>g.hs){
+      archiveTeams[g.away].w++;archiveTeams[g.away].pts+=2;archiveTeams[g.home].l++;
+    } else {
+      archiveTeams[g.home].t++;archiveTeams[g.home].pts++;
+      archiveTeams[g.away].t++;archiveTeams[g.away].pts++;
     }
   }
-  const gapNote=gaps.length?`<div class="notice" style="margin-bottom:12px">No records found for: ${gaps.join(', ')}</div>`:'';
+  const archiveRanked=Object.entries(archiveTeams).sort((a,b)=>b[1].pts-a[1].pts||(b[1].rf-b[1].ra)-(a[1].rf-a[1].ra));
+  const archiveRows=archiveRanked.map(([team,s],i)=>`
+    <tr style="${i===0?'background:#f0f9ff':''}">
+      <td style="padding:6px 10px;font-size:12px;color:var(--muted);width:28px;font-family:var(--mono)">${i+1}</td>
+      <td style="padding:6px 10px;font-size:13px;font-weight:${i===0?'700':'500'};color:${i===0?'var(--navy)':'var(--text)'}">${esc(team)}${i===0?' 🏆':''}</td>
+      <td style="padding:6px 10px;font-family:var(--mono);font-size:12px;text-align:center">${s.w}-${s.l}-${s.t}</td>
+      <td style="padding:6px 10px;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--navy);text-align:center">${s.pts}</td>
+      <td style="padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center">${s.rf}-${s.ra}</td>
+    </tr>`).join('');
+
+  const wxNights=[...new Set(ARCHIVE_2023.filter(g=>g.wx).map(g=>g.date))];
+  const gapNote=[];
+  for(let i=1;i<years.length;i++){
+    if(years[i]-years[i-1]>1) gapNote.push(`${years[i-1]+1}–${years[i]-1}`);
+  }
 
   el.innerHTML=`
     <div class="card" style="background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;margin-bottom:0;border-radius:var(--r) var(--r) 0 0">
@@ -468,37 +619,37 @@ function renderChampions(){
           <div style="font-size:26px;font-weight:900;letter-spacing:-0.5px">Hall of Champions</div>
           <div style="font-size:13px;opacity:0.65;margin-top:4px">${CHAMPIONS.filter(c=>c.champion||c.podA).length} seasons recorded · Est. 1996</div>
         </div>
-        <div style="margin-left:auto;text-align:right;flex-shrink:0">
-          <div style="font-size:40px;line-height:1">🏆</div>
-        </div>
+        <div style="margin-left:auto;text-align:right;flex-shrink:0"><div style="font-size:40px;line-height:1">🏆</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0;border-top:none;border-radius:0;background:var(--gray1)">
+      <div style="font-size:12px;color:var(--muted);line-height:1.6">
+        <strong>🏆 League Champion</strong> — POD A winner or pre-pod era champion · counts toward the all-time leaderboard<br>
+        <strong>🥈 *POD B Champion</strong> — Tier B winner in seasons using a two-pod format · shown separately, does <em>not</em> count toward the all-time leaderboard<br>
+        <strong>Weather nights</strong> — games called due to rain are recorded as 7–7 ties per league rules
       </div>
     </div>
 
     <div class="card">
       <div class="card-title">Year by Year</div>
-      ${gapNote}
+      ${gapNote.length?`<div class="notice" style="margin-bottom:12px">No records found for: ${gapNote.join(', ')}</div>`:''}
       <table style="width:100%;border-collapse:collapse;border-radius:var(--r-sm);overflow:hidden">
-        <thead>
-          <tr style="background:var(--gray1)">
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);width:60px">Year</th>
-            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Champion</th>
-            <th style="padding:8px 12px;width:40px"></th>
-          </tr>
-        </thead>
-        <tbody style="border-top:1px solid var(--border)">
-          ${yearRows}
-        </tbody>
+        <thead><tr style="background:var(--gray1)">
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);width:60px">Year</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Champion</th>
+          <th style="padding:8px 12px;width:40px"></th>
+        </tr></thead>
+        <tbody style="border-top:1px solid var(--border)">${yearRows}</tbody>
       </table>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-bottom:12px">
-      <div class="card" style="border-radius:0 0 0 var(--r)">
-        <div class="card-title">Most Championships</div>
-        <table style="width:100%;border-collapse:collapse">
-          ${lbRows}
-        </table>
+      <div class="card" style="border-radius:var(--r)">
+        <div class="card-title">All-Time Leaderboard <span style="font-size:11px;font-weight:400;color:var(--muted)">(League Champions only)</span></div>
+        <table style="width:100%;border-collapse:collapse">${lbRows}</table>
       </div>
-      <div class="card" style="border-radius:0 0 var(--r) 0">
+      <div class="card" style="border-radius:var(--r)">
         <div class="card-title">Fast Facts</div>
         <div style="display:grid;gap:10px">
           <div style="padding:10px;background:var(--gray1);border-radius:var(--r-sm)">
@@ -511,7 +662,7 @@ function renderChampions(){
             ${dynasties.length
               ?`<div style="font-size:16px;font-weight:800;color:var(--navy)">${esc(dynasties.sort((a,b)=>b.streak-a.streak)[0].team)}</div>
                  <div style="font-size:12px;color:var(--muted)">${dynasties.sort((a,b)=>b.streak-a.streak)[0].streak} consecutive titles</div>`
-              :`<div style="font-size:13px;color:var(--muted)">No dynasty of 3+ found</div>`}
+              :`<div style="font-size:13px;color:var(--muted)">No 3+ year dynasty on record</div>`}
           </div>
           <div style="padding:10px;background:var(--gray1);border-radius:var(--r-sm)">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:3px">Seasons Recorded</div>
@@ -520,6 +671,21 @@ function renderChampions(){
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📦 2023 Season Archive <span style="font-size:11px;font-weight:400;color:var(--muted)">— ${ARCHIVE_2023.length} games · ${wxNights.length} weather night${wxNights.length!==1?'s':''}</span></div>
+      <div class="notice" style="margin-bottom:12px">Full regular season results from the 2023 HCCSL season. POD A champion: <strong>Basic Pitches</strong> · POD B champion: <strong>Landon Longballers*</strong></div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--gray1)">
+          <th style="padding:6px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);width:28px">#</th>
+          <th style="padding:6px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Team</th>
+          <th style="padding:6px 10px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">W-L-T</th>
+          <th style="padding:6px 10px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">PTS</th>
+          <th style="padding:6px 10px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">RF-RA</th>
+        </tr></thead>
+        <tbody style="border-top:1px solid var(--border)">${archiveRows}</tbody>
+      </table>
     </div>
   `;
 }
