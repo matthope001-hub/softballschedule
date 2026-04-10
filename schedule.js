@@ -337,7 +337,7 @@ function buildSchedInner(dates,isScore){
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
   for(const[dateStr,games]of Object.entries(dates)){
-    inner+=`<div class="day-head">${fmtDate(dateStr)}${sunsetBadge(dateStr)}</div>`;
+    inner+=`<div class="day-head" data-date="${dateStr}">${fmtDate(dateStr)}${sunsetBadge(dateStr)}</div>`;
     const early=games.filter(g=>g.time!==T2);
     const late=games.filter(g=>g.time===T2);
     const usedAt1=new Set(early.map(g=>g.diamond));
@@ -432,6 +432,148 @@ function setSchedFilter(team){
   renderSched();
 }
 
+// ── SEASON COUNTDOWN BANNER ───────────────────────────────────────────────────
+function renderSeasonBanner(){
+  const el=document.getElementById('season-banner');
+  if(!el||!G.sched.length) return;
+
+  const now=new Date();
+  const today=toDateStr(now);
+
+  // Regular season games (non-playoff, non-exhibition)
+  const regGames=G.sched.filter(g=>!g.playoff&&!g.exhibition);
+  const scoredIds=new Set(Object.keys(G.scores));
+  const played=regGames.filter(g=>scoredIds.has(g.id)).length;
+  const remaining=regGames.length-played;
+
+  // Next game night
+  const upcomingDates=[...new Set(regGames.filter(g=>g.date>=today).map(g=>g.date))].sort();
+  const nextDate=upcomingDates[0]||null;
+
+  // Last regular season date
+  const lastDate=regGames.length?regGames.reduce((a,b)=>a.date>b.date?a:b).date:null;
+
+  // Are playoffs seeded?
+  const playoffsSeeded=G.playoffs?.seeded;
+
+  // Days until next game
+  let daysUntil=null;
+  if(nextDate){
+    const diff=new Date(nextDate+'T12:00:00')-new Date(today+'T00:00:00');
+    daysUntil=Math.ceil(diff/(1000*60*60*24));
+  }
+
+  // Build banner message
+  let icon='⚾', msg='', sub='', bg=`background:linear-gradient(135deg,${`var(--navy)`},${`var(--navy2)`})`, color='#fff';
+
+  if(!lastDate){
+    return; // no schedule yet
+  } else if(today>lastDate&&!playoffsSeeded){
+    // Regular season over, playoffs not seeded
+    icon='🏁';
+    msg='Regular Season Complete';
+    sub='Head to the Playoffs tab to seed the bracket';
+    bg='background:linear-gradient(135deg,#1e3a5f,#2d6a4f)';
+  } else if(today>lastDate&&playoffsSeeded){
+    icon='🏆';
+    msg='Playoffs Underway';
+    sub='Check the Playoffs tab for bracket and scores';
+    bg='background:linear-gradient(135deg,#7c3aed,#4338ca)';
+  } else if(daysUntil===0){
+    icon='🎽';
+    msg='Game Night Tonight!';
+    sub=`${remaining} game${remaining!==1?'s':''} remaining in the regular season`;
+    bg='background:linear-gradient(135deg,#065f46,#047857)';
+  } else if(daysUntil===1){
+    icon='📅';
+    msg='Game Night Tomorrow';
+    sub=`${remaining} game${remaining!==1?'s':''} remaining · ${played} played`;
+  } else if(daysUntil!==null){
+    icon='📅';
+    msg=`Next game in ${daysUntil} day${daysUntil!==1?'s':''}`;
+    sub=`${remaining} game${remaining!==1?'s':''} remaining in the regular season · ${played} played`;
+  }
+
+  if(!msg){el.innerHTML='';return;}
+
+  el.innerHTML=`<div style="${bg};color:${color};padding:10px 16px;border-radius:var(--r);margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:22px;line-height:1">${icon}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:800;letter-spacing:-0.2px">${msg}</div>
+      ${sub?`<div style="font-size:12px;opacity:0.8;margin-top:1px">${sub}</div>`:''}
+    </div>
+    ${remaining>0&&daysUntil!==null?`<div style="text-align:right;flex-shrink:0">
+      <div style="font-size:24px;font-weight:900;line-height:1">${remaining}</div>
+      <div style="font-size:10px;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px">games left</div>
+    </div>`:''}
+  </div>`;
+}
+
+// ── WEATHER FORECAST (Open-Meteo, Hamilton ON) ────────────────────────────────
+// Cache: {date: {icon, label, precip, temp, fetched}}
+const weatherCache={};
+const HAMILTON_LAT=43.26;
+const HAMILTON_LON=-79.87;
+
+// WMO weather code → emoji + short label
+function wmoIcon(code, precip){
+  if(code===0) return{icon:'☀️',label:'Clear'};
+  if(code<=2)  return{icon:'🌤',label:'Partly cloudy'};
+  if(code===3) return{icon:'☁️',label:'Overcast'};
+  if(code<=49) return{icon:'🌫',label:'Fog'};
+  if(code<=59) return{icon:'🌦',label:'Drizzle'};
+  if(code<=69) return{icon:'🌧',label:'Rain'};
+  if(code<=79) return{icon:'🌨',label:'Snow'};
+  if(code<=82) return{icon:'🌧',label:'Showers'};
+  if(code<=84) return{icon:'🌨',label:'Snow showers'};
+  if(code<=99) return{icon:'⛈',label:'Thunderstorm'};
+  return{icon:'🌡',label:'Unknown'};
+}
+
+async function fetchWeatherForDates(dates){
+  // Only fetch dates within the next 16 days (API limit)
+  const today=toDateStr(new Date());
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()+16);
+  const cutoffStr=toDateStr(cutoff);
+  const toFetch=dates.filter(d=>d>=today&&d<=cutoffStr&&!weatherCache[d]);
+  if(!toFetch.length) return;
+
+  const startDate=toFetch[0];
+  const endDate=toFetch[toFetch.length-1];
+
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${HAMILTON_LAT}&longitude=${HAMILTON_LON}`+
+      `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max`+
+      `&timezone=America%2FToronto&start_date=${startDate}&end_date=${endDate}`;
+    const res=await fetch(url);
+    if(!res.ok) return;
+    const data=await res.json();
+    const {time,weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max}=data.daily;
+    time.forEach((d,i)=>{
+      const{icon,label}=wmoIcon(weather_code[i],precipitation_probability_max[i]);
+      weatherCache[d]={
+        icon, label,
+        precip:precipitation_probability_max[i],
+        tempHi:Math.round(temperature_2m_max[i]),
+        tempLo:Math.round(temperature_2m_min[i]),
+        fetched:Date.now()
+      };
+    });
+  }catch(e){
+    console.warn('Weather fetch failed:',e);
+  }
+}
+
+function weatherBadge(dateStr){
+  const w=weatherCache[dateStr];
+  if(!w) return '';
+  const precipColor=w.precip>=60?'#dc2626':w.precip>=30?'#d97706':'#16a34a';
+  const precipText=w.precip!=null?`${w.precip}% 🌧`:'';
+  return `<span style="margin-left:8px;font-size:11px;font-weight:600;padding:1px 8px;border-radius:4px;background:rgba(0,0,0,0.06);color:var(--text);display:inline-flex;align-items:center;gap:4px">
+    ${w.icon} ${w.tempHi}°<span style="opacity:0.5">${w.tempLo}°</span>${precipText?`<span style="color:${precipColor};margin-left:2px">${precipText}</span>`:''}
+  </span>`;
+}
+
 function renderSched(){
   const el=document.getElementById('so');
   const bar=document.getElementById('export-bar');
@@ -439,10 +581,12 @@ function renderSched(){
     el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';
     if(bar)bar.classList.remove('vis');
     document.getElementById('team-filter-bar').classList.remove('vis');
+    renderSeasonBanner();
     return;
   }
   if(bar)bar.classList.add('vis');
   renderSchedFilterChips();
+  renderSeasonBanner();
 
   const filtered=schedFilterTeam===null
     ? G.sched
@@ -466,6 +610,21 @@ function renderSched(){
       const arr=document.getElementById('arr_sc_m'+i);
       if(body&&!body.classList.contains('open')){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
     }
+  });
+
+  // Fetch weather for upcoming game dates and re-render day headers
+  const allDates=[...new Set(filtered.map(g=>g.date))].sort();
+  fetchWeatherForDates(allDates).then(()=>{
+    // Patch weather badges into existing day-head elements without full re-render
+    allDates.forEach(d=>{
+      if(!weatherCache[d]) return;
+      document.querySelectorAll('.day-head').forEach(el=>{
+        if(el.dataset.date===d&&!el.dataset.weatherDone){
+          el.innerHTML+=weatherBadge(d);
+          el.dataset.weatherDone='1';
+        }
+      });
+    });
   });
 }
 
