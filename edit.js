@@ -33,7 +33,11 @@ function renderEdit(){
     monthMap[ml].push(dateStr);
   }
 
-  let html=`<div class="notice">Edit or remove scheduled games · Add teams to open slots · Changes require admin PIN</div>`;
+  let html=`<div class="notice" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <span>Edit or remove scheduled games · Add teams to open slots · Changes require admin PIN</span>
+    <button onclick="showAddGameForm()" style="flex-shrink:0;padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;font-family:var(--font)">+ Add Game</button>
+  </div>
+  <div id="add-game-form" style="display:none"></div>`;
 
   monthOrder.forEach((month,mi)=>{
     let inner='';
@@ -189,4 +193,116 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   renderStandings();
   renderStats();
   showToast(`✓ Game #${newId} added — ${home} vs ${away}`);
+}
+
+// ── ADD GAME FORM (any date, any diamond) ─────────────────────────────────────
+function showAddGameForm(){
+  if(!checkAdmin()) return;
+  const form=document.getElementById('add-game-form');
+  if(!form) return;
+
+  // Toggle: if already open, close it
+  if(form.style.display!=='none'){ form.style.display='none'; return; }
+
+  const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  const dmOpts=G.diamonds.map(d=>`<option value="${d.id}">${esc(d.name)}${d.lights?' 💡':' 🌙'}</option>`).join('');
+  const gameTypes=[
+    {value:'regular',label:'Regular Season'},
+    {value:'playoff',label:'🏆 Playoff'},
+    {value:'exhibition',label:'Exhibition / Makeup'},
+  ];
+  const typeOpts=gameTypes.map(t=>`<option value="${t.value}">${t.label}</option>`).join('');
+
+  form.innerHTML=`
+    <div style="background:var(--white);border:1.5px solid var(--navy);border-radius:var(--r);padding:16px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">Add a Game</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">DATE</label>
+          <input type="date" id="agDate" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box" value="2026-10-06"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">TIME</label>
+          <input type="text" id="agTime" placeholder="6:30 PM" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box" value="6:30 PM"/>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">HOME TEAM</label>
+          <select id="agHome" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
+            <option value="">— Select —</option>${teamOpts}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">AWAY TEAM</label>
+          <select id="agAway" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
+            <option value="">— Select —</option>${teamOpts}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">DIAMOND</label>
+          <select id="agDiamond" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
+            ${dmOpts}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">GAME TYPE</label>
+          <select id="agType" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
+            ${typeOpts}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="submitAddGame()" style="padding:8px 20px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;font-family:var(--font)">✓ Add Game</button>
+        <button onclick="document.getElementById('add-game-form').style.display='none'" style="padding:8px 14px;background:none;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--muted);font-family:var(--font)">Cancel</button>
+      </div>
+    </div>`;
+  form.style.display='block';
+  document.getElementById('agDate').focus();
+}
+
+function submitAddGame(){
+  const date=document.getElementById('agDate')?.value;
+  const time=document.getElementById('agTime')?.value?.trim();
+  const home=document.getElementById('agHome')?.value;
+  const away=document.getElementById('agAway')?.value;
+  const dmId=parseInt(document.getElementById('agDiamond')?.value);
+  const type=document.getElementById('agType')?.value;
+
+  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please enter a valid date.');return;}
+  if(!time){alert('Please enter a time.');return;}
+  if(!home){alert('Please select a home team.');return;}
+  if(!away){alert('Please select an away team.');return;}
+  if(home===away){alert('Home and away teams must be different.');return;}
+  if(isNaN(dmId)){alert('Please select a diamond.');return;}
+
+  const dm=G.diamonds.find(d=>d.id===dmId);
+  const yr=new Date(date+'T12:00:00').getFullYear().toString().slice(-2);
+  const newId=`${yr}${String(G.sched.length+1).padStart(3,'0')}`;
+
+  const newGame={
+    id:newId, date, time,
+    diamond:dmId, lights:dm?.lights||false,
+    home, away, bye:'',
+    crossover:home===CROSSOVER||away===CROSSOVER,
+    playoff:type==='playoff',
+    exhibition:type==='exhibition',
+  };
+
+  G.sched.push(newGame);
+  G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+
+  // Mark open month for accordion
+  const d=new Date(date+'T12:00:00');
+  const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
+  const edi=document.getElementById('edi');
+  if(edi) edi.dataset.openMonth=openMonth;
+
+  saveData();
+  renderEdit();
+  renderSched();
+  renderScores();
+  renderStandings();
+  renderStats();
+
+  const typeLabel=type==='playoff'?'🏆 Playoff game':type==='exhibition'?'Exhibition game':'Game';
+  showToast(`✓ ${typeLabel} #${newId} added — ${home} vs ${away} · ${date}`);
 }
