@@ -72,6 +72,7 @@ function showTab(t,btn){
   if(t==='stats')renderStats();
   if(t==='edit')renderEdit();
   if(t==='playoffs')renderPlayoffs();
+  if(t==='champions')renderChampions();
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -332,3 +333,193 @@ function updateGptNotice(){
   </div>`;
 }
 
+
+// ── CHAMPIONS ─────────────────────────────────────────────────────────────────
+const CHAMPIONS = [
+  { year:2026, podA:null, podB:null, note:'Season in progress' },
+  { year:2025, podA:'Kibosh', podB:'JAFT' },
+  { year:2024, podA:'Alcoballics', podB:'Steel City Sluggers' },
+  { year:2023, podA:'Basic Pitches', podB:'Landon Longballers' },
+  { year:2022, champion:'Alcoballics' },
+  { year:2018, champion:'One Hit Wonders' },
+  { year:2017, champion:'Stiff Competition' },
+  { year:2016, champion:'Stiff Competition' },
+  { year:2015, champion:'Stiff Competition' },
+  { year:2014, champion:'Stiff Competition' },
+  { year:2013, champion:'Institutes' },
+  { year:2012, champion:'Stiff Competition' },
+  { year:2011, champion:'Institutes' },
+  { year:2010, champion:'Institutes' },
+  { year:2009, champion:'Road Runners' },
+  { year:2008, champion:'Institutes' },
+  { year:2007, champion:'Dilligaf' },
+  { year:2006, champion:'Institutes' },
+  { year:2005, champion:'Institutes' },
+  { year:2004, champion:"Assholes & Bitches" },
+  { year:2003, champion:'Mars Metal Maniacs' },
+  { year:2002, champion:'Admiral Inn' },
+  { year:2001, champion:'Admiral Inn' },
+  { year:2000, champion:'Mustangs' },
+  { year:1999, champion:'Mustangs' },
+  { year:1998, champion:'Road Runners' },
+  { year:1997, champion:'Play It Again Sports' },
+  { year:1996, champion:"Carrera's Mustangs" },
+];
+
+// Count total championships per team
+function champCounts(){
+  const counts={};
+  for(const row of CHAMPIONS){
+    if(row.champion){
+      counts[row.champion]=(counts[row.champion]||0)+1;
+    }
+    if(row.podA) counts[row.podA]=(counts[row.podA]||0)+1;
+    if(row.podB) counts[row.podB]=(counts[row.podB]||0)+1;
+  }
+  return counts;
+}
+
+function renderChampions(){
+  const el=document.getElementById('champ-content');
+  if(!el) return;
+
+  const counts=champCounts();
+  const leaderboard=Object.entries(counts)
+    .sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+
+  // Dynasty detection — 3+ consecutive wins
+  const dynasties=[];
+  let streak=1;
+  for(let i=1;i<CHAMPIONS.length;i++){
+    const prev=CHAMPIONS[i-1],curr=CHAMPIONS[i];
+    const prevChamp=prev.champion||prev.podA||'';
+    const currChamp=curr.champion||curr.podA||'';
+    if(prevChamp&&currChamp&&prevChamp===currChamp){
+      streak++;
+    } else {
+      if(streak>=3) dynasties.push({team:prevChamp,streak,endYear:CHAMPIONS[i-1].year});
+      streak=1;
+    }
+  }
+
+  // Medal emoji for top finishes
+  const medals=['🥇','🥈','🥉'];
+
+  // Build leaderboard rows
+  const lbRows=leaderboard.map(([team,wins],i)=>{
+    const currentTeam=G.teams.includes(team);
+    return`<tr style="${currentTeam?'background:#f0f9ff':''}">
+      <td style="padding:8px 12px;font-size:13px;font-weight:700;color:var(--muted);width:36px">${i<3?medals[i]:i+1}</td>
+      <td style="padding:8px 12px;font-size:14px;font-weight:${currentTeam?'700':'500'};color:${currentTeam?'var(--navy)':'var(--text)'}">${esc(team)}${currentTeam?` <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-left:4px">2026</span>`:''}</td>
+      <td style="padding:8px 12px;text-align:right">
+        ${'<span style="display:inline-block;width:10px;height:10px;background:var(--navy);border-radius:2px;margin-right:2px"></span>'.repeat(wins)}
+        <span style="font-size:13px;font-weight:700;color:var(--navy);margin-left:4px">${wins}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Build year-by-year rows
+  const yearRows=CHAMPIONS.map(row=>{
+    const isPodFormat=!!(row.podA||row.podB);
+    const isCurrent=row.year===2026;
+
+    if(isCurrent){
+      return`<tr style="background:#f0fdf4">
+        <td style="padding:10px 12px;font-size:15px;font-weight:800;color:var(--navy);width:60px">${row.year}</td>
+        <td style="padding:10px 12px;font-size:13px;color:#16a34a;font-weight:600;font-style:italic" colspan="2">Season in progress ⚾</td>
+      </tr>`;
+    }
+
+    if(isPodFormat){
+      return`<tr>
+        <td style="padding:10px 12px;font-size:15px;font-weight:800;color:var(--navy);width:60px">${row.year}</td>
+        <td style="padding:10px 12px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-size:13px"><span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-right:6px">POD A</span><strong>${esc(row.podA)}</strong></div>
+            <div style="font-size:13px"><span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;background:#fce7f3;color:#9d174d;margin-right:6px">POD B</span><strong>${esc(row.podB)}</strong></div>
+          </div>
+        </td>
+        <td style="padding:10px 12px;text-align:right;font-size:18px">🏆🏆</td>
+      </tr>`;
+    }
+
+    return`<tr>
+      <td style="padding:10px 12px;font-size:15px;font-weight:800;color:var(--navy);width:60px">${row.year}</td>
+      <td style="padding:10px 12px;font-size:15px;font-weight:700;color:var(--text)">${esc(row.champion)}</td>
+      <td style="padding:10px 12px;text-align:right;font-size:18px">🏆</td>
+    </tr>`;
+  }).join('');
+
+  // Years between recorded seasons
+  const years=CHAMPIONS.map(c=>c.year).sort((a,b)=>a-b);
+  const gaps=[];
+  for(let i=1;i<years.length;i++){
+    if(years[i]-years[i-1]>1){
+      gaps.push(`${years[i-1]+1}–${years[i]-1}`);
+    }
+  }
+  const gapNote=gaps.length?`<div class="notice" style="margin-bottom:12px">No records found for: ${gaps.join(', ')}</div>`:'';
+
+  el.innerHTML=`
+    <div class="card" style="background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;margin-bottom:0;border-radius:var(--r) var(--r) 0 0">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:0.6;margin-bottom:4px">Hamilton Classic Co-Ed Softball League</div>
+          <div style="font-size:26px;font-weight:900;letter-spacing:-0.5px">Hall of Champions</div>
+          <div style="font-size:13px;opacity:0.65;margin-top:4px">${CHAMPIONS.filter(c=>c.champion||c.podA).length} seasons recorded · Est. 1996</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;flex-shrink:0">
+          <div style="font-size:40px;line-height:1">🏆</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;margin-bottom:12px">
+      <div class="card" style="border-radius:0 0 0 var(--r)">
+        <div class="card-title">Most Championships</div>
+        <table style="width:100%;border-collapse:collapse">
+          ${lbRows}
+        </table>
+      </div>
+      <div class="card" style="border-radius:0 0 var(--r) 0">
+        <div class="card-title">Fast Facts</div>
+        <div style="display:grid;gap:10px">
+          <div style="padding:10px;background:var(--gray1);border-radius:var(--r-sm)">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:3px">Most Titles</div>
+            <div style="font-size:16px;font-weight:800;color:var(--navy)">${leaderboard[0]?esc(leaderboard[0][0]):''}</div>
+            <div style="font-size:12px;color:var(--muted)">${leaderboard[0]?leaderboard[0][1]+' championship'+(leaderboard[0][1]>1?'s':''):''}</div>
+          </div>
+          <div style="padding:10px;background:var(--gray1);border-radius:var(--r-sm)">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:3px">Longest Dynasty</div>
+            ${dynasties.length
+              ?`<div style="font-size:16px;font-weight:800;color:var(--navy)">${esc(dynasties.sort((a,b)=>b.streak-a.streak)[0].team)}</div>
+                 <div style="font-size:12px;color:var(--muted)">${dynasties.sort((a,b)=>b.streak-a.streak)[0].streak} consecutive titles</div>`
+              :`<div style="font-size:13px;color:var(--muted)">No dynasty of 3+ found</div>`}
+          </div>
+          <div style="padding:10px;background:var(--gray1);border-radius:var(--r-sm)">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:3px">Seasons Recorded</div>
+            <div style="font-size:16px;font-weight:800;color:var(--navy)">${CHAMPIONS.filter(c=>c.champion||c.podA).length}</div>
+            <div style="font-size:12px;color:var(--muted)">from ${Math.min(...years)} to ${Math.max(...years)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Year by Year</div>
+      ${gapNote}
+      <table style="width:100%;border-collapse:collapse;border-radius:var(--r-sm);overflow:hidden">
+        <thead>
+          <tr style="background:var(--gray1)">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);width:60px">Year</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted)">Champion</th>
+            <th style="padding:8px 12px;width:40px"></th>
+          </tr>
+        </thead>
+        <tbody style="border-top:1px solid var(--border)">
+          ${yearRows}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
