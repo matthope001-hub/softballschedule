@@ -166,3 +166,8 @@ document.addEventListener('DOMContentLoaded', async function(){
     }
   }catch(e){ console.error('renderSched failed:',e); }
 });
+
+// Redraw standings history chart on resize (SVG is responsive but needs width recalc)
+window.addEventListener('resize', ()=>{
+  try{ renderStandingsHistoryChart(); }catch(e){}
+});
