@@ -7,6 +7,8 @@ function capRuns(h,a){
 
 function renderStandings(){
   const el=document.getElementById('sto');
+  const tabActive=document.getElementById('tab-standings')?.classList.contains('active');
+  if(!tabActive){ if(el) el.dataset.stale='1'; return; }
   if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
