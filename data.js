@@ -9,11 +9,19 @@ let G={
   teams:['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers',
          'One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'],
   diamonds:[
-    {id:5,  name:'Diamond 5',  lights:false, lightsCapable:true},
-    {id:9,  name:'Diamond 9',  lights:true,  lightsCapable:true},
-    {id:12, name:'Diamond 12', lights:true,  lightsCapable:true},
-    {id:13, name:'Diamond 13', lights:false, lightsCapable:false},
-    {id:14, name:'Diamond 14', lights:false, lightsCapable:false}
+    {id:2,  name:'Diamond 2',  lights:false, lightsCapable:false, active:false},
+    {id:3,  name:'Diamond 3',  lights:false, lightsCapable:false, active:false},
+    {id:4,  name:'Diamond 4',  lights:false, lightsCapable:false, active:false},
+    {id:5,  name:'Diamond 5',  lights:false, lightsCapable:true,  active:true},
+    {id:6,  name:'Diamond 6',  lights:false, lightsCapable:true,  active:false},
+    {id:7,  name:'Diamond 7',  lights:false, lightsCapable:true,  active:false},
+    {id:8,  name:'Diamond 8',  lights:false, lightsCapable:true,  active:false},
+    {id:9,  name:'Diamond 9',  lights:true,  lightsCapable:true,  active:true},
+    {id:10, name:'Diamond 10', lights:false, lightsCapable:true,  active:false},
+    {id:11, name:'Diamond 11', lights:false, lightsCapable:true,  active:false},
+    {id:12, name:'Diamond 12', lights:true,  lightsCapable:true,  active:true},
+    {id:13, name:'Diamond 13', lights:false, lightsCapable:false, active:true},
+    {id:14, name:'Diamond 14', lights:false, lightsCapable:false, active:true}
   ],
   sched:[],scores:{},
   playoffs:{seeded:false,podA:[],podB:[],games:{},finals:{}}
@@ -24,7 +32,8 @@ let schedFilterTeam=null;
 
 // Derived diamond helpers — always read from G.diamonds
 function getDiamonds(){ return G.diamonds; }
-function getDiamondIds(){ return G.diamonds.map(d=>d.id); }
+// Only return IDs for ACTIVE diamonds (used by scheduler)
+function getDiamondIds(){ return G.diamonds.filter(d=>d.active).map(d=>d.id); }
 function getDiamondName(id){ const d=G.diamonds.find(d=>d.id===id); return d?d.name:'D'+id; }
 function isDiamondLit(id){ const d=G.diamonds.find(d=>d.id===id); return d?d.lights:false; }
 
@@ -103,26 +112,46 @@ function renderTeams(){
 }
 
 // ── DIAMOND MANAGEMENT ────────────────────────────────────────────────────────
-function addDiamond(){// saved below
-
+function addDiamond(){
   const newId=Math.max(0,...G.diamonds.map(d=>d.id))+1;
-  G.diamonds.push({id:newId,name:'Diamond '+newId,lights:true});
+  G.diamonds.push({id:newId,name:'Diamond '+newId,lights:false,lightsCapable:true,active:true});
+  saveData();
   renderDiamonds();
 }
 function removeDiamond(id){
-  if(G.diamonds.length<=1){alert('Need at least one diamond.');return;}
+  if(G.diamonds.filter(d=>d.active).length<=1){alert('Need at least one active diamond.');return;}
   G.diamonds=G.diamonds.filter(d=>d.id!==id);
+  saveData();
   renderDiamonds();
 }
 function updateDiamondName(id,name){
   const d=G.diamonds.find(d=>d.id===id);
-  if(d) d.name=name;
+  if(d){ d.name=name; saveData(); }
+}
+function toggleDiamondActive(id){
+  const d=G.diamonds.find(d=>d.id===id);
+  if(!d)return;
+  // Don't allow deactivating the last active diamond
+  if(d.active && G.diamonds.filter(x=>x.active).length<=1){
+    alert('Need at least one active diamond.');return;
+  }
+  d.active=!d.active;
+  // If deactivating, also turn off lights
+  if(!d.active) d.lights=false;
+  saveData();
+  renderDiamonds();
+  renderRulesDiamonds();
+  updateGptNotice();
 }
 function toggleDiamondLights(id){
   const d=G.diamonds.find(d=>d.id===id);
   if(d){
     if(d.lightsCapable===false){
       alert(`${d.name} has no lights infrastructure and cannot be enabled.`);
+      return;
+    }
+    if(!d.active){
+      alert(`${d.name} is inactive. Activate it first before toggling lights.`);
       return;
     }
     d.lights=!d.lights;
@@ -135,32 +164,73 @@ function toggleDiamondLights(id){
 function renderDiamonds(){
   const el=document.getElementById('diamond-list');
   if(!el)return;
-  el.innerHTML=G.diamonds.map(d=>{
-    const capable=d.lightsCapable!==false; // default true if not set (backward compat)
-    const lightsBtn=capable
-      ? `<button onclick="toggleDiamondLights(${d.id})"
-          style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
-          ${d.lights?'💡 Lights':'🌙 No Lights'}
-        </button>`
-      : `<span style="padding:6px 12px;border-radius:5px;border:1.5px solid var(--border);background:var(--gray2);color:var(--gray3);font-size:12px;font-weight:700;white-space:nowrap;font-family:var(--font);display:inline-block" title="No lights infrastructure at this diamond">🚫 No Lights</span>`;
+
+  // Separate into active and inactive groups for display
+  const active=G.diamonds.filter(d=>d.active);
+  const inactive=G.diamonds.filter(d=>!d.active);
+
+  function renderRow(d){
+    const capable=d.lightsCapable!==false;
+    const isActive=d.active;
+
+    // Active toggle button
+    const activeBtn=`<button onclick="toggleDiamondActive(${d.id})"
+        title="${isActive?'Click to deactivate this diamond':'Click to activate this diamond'}"
+        style="padding:6px 12px;border-radius:5px;border:1.5px solid ${isActive?'var(--success,#27ae60)':'var(--border)'};background:${isActive?'#edf7f0':'var(--gray2)'};color:${isActive?'var(--success,#27ae60)':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
+        ${isActive?'✅ Active':'⬜ Inactive'}
+      </button>`;
+
+    // Lights button — only shown when active
+    const lightsBtn=!isActive
+      ? '' // hidden when inactive
+      : capable
+        ? `<button onclick="toggleDiamondLights(${d.id})"
+            style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
+            ${d.lights?'💡 Lights':'🌙 No Lights'}
+          </button>`
+        : `<span style="padding:6px 12px;border-radius:5px;border:1.5px solid var(--border);background:var(--gray2);color:var(--gray3);font-size:12px;font-weight:700;white-space:nowrap;font-family:var(--font);display:inline-block" title="No lights infrastructure at this diamond">🚫 No Lights</span>`;
+
+    const rowBg=isActive?'var(--white)':'var(--gray2)';
+    const columns=isActive
+      ? 'grid-template-columns:48px 1fr auto auto auto'
+      : 'grid-template-columns:48px 1fr auto auto';
+
     return `
-    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 10px;background:var(--gray1);border:1.5px solid var(--border);border-radius:6px">
+    <div style="display:grid;${columns};gap:8px;align-items:center;padding:8px 10px;background:${rowBg};border:1.5px solid var(--border);border-radius:6px;opacity:${isActive?'1':'0.6'}">
+      <span style="font-family:var(--font);font-size:13px;font-weight:800;color:var(--muted);text-align:center">D${d.id}</span>
       <input type="text" value="${esc(d.name)}" placeholder="Diamond name"
         onchange="updateDiamondName(${d.id},this.value)"
         style="font-size:13px;font-weight:700;background:var(--white);border:1.5px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-family:var(--font);outline:none" />
+      ${activeBtn}
       ${lightsBtn}
       <button onclick="removeDiamond(${d.id})"
         style="padding:6px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:16px;cursor:pointer;line-height:1;font-family:var(--font)"
         title="Remove diamond">×</button>
     </div>`;
-  }).join('');
+  }
+
+  let html='';
+
+  if(active.length){
+    html+=`<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--navy);margin-bottom:6px;margin-top:4px">✅ Active Diamonds (${active.length})</div>`;
+    html+=active.map(renderRow).join('');
+  }
+
+  if(inactive.length){
+    html+=`<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);margin-bottom:6px;margin-top:14px">⬜ Inactive Diamonds (${inactive.length}) — not used in scheduling</div>`;
+    html+=inactive.map(renderRow).join('');
+  }
+
+  el.innerHTML=html;
+
   // Also update the rules panel summary
   const rd=document.getElementById('rules-diamonds');
-  if(rd) rd.innerHTML=G.diamonds.map(d=>{
+  if(rd) rd.innerHTML=G.diamonds.filter(d=>d.active).map(d=>{
     const capable=d.lightsCapable!==false;
-    if(!capable) return `<div style="font-size:13px;color:var(--text)">${d.name} — 🚫 No lights infrastructure (6:30 only)</div>`;
-    return `<div style="font-size:13px;color:var(--text)">${d.name} — ${d.lights?'💡 Lights (DH capable)':'🌙 No Lights (6:30 only)'}</div>`;
+    if(!capable) return `<div style="font-size:13px;color:var(--text)">D${d.id} — ${esc(d.name)} — 🚫 No lights infrastructure (6:30 only)</div>`;
+    return `<div style="font-size:13px;color:var(--text)">D${d.id} — ${esc(d.name)} — ${d.lights?'💡 Lights (DH capable)':'🌙 No Lights (6:30 only)'}</div>`;
   }).join('');
+
   updateGptNotice();
 }
 // renderDiamonds called in DOMContentLoaded after all functions are defined
@@ -248,19 +318,21 @@ function updateGptNotice(){
     noticeEl.innerHTML=`<div class="notice" style="color:var(--muted)">Select at least one game day.</div>`;return;
   }
 
-  // Matchup stats
-  const uniquePairs=leagueN*(leagueN-1)/2;  // 36 with 9 teams
-  const lgGamesFromFaced=uniquePairs*tfaced;  // total league games if all pairs play tfaced times
-
-  const dhDiamonds=G.diamonds.filter(d=>d.lights&&d.id!==9);
-  const singleDiamonds=G.diamonds.filter(d=>!d.lights);
+  // Only use ACTIVE diamonds in calculator
+  const activeDiamonds=G.diamonds.filter(d=>d.active);
+  const dhDiamonds=activeDiamonds.filter(d=>d.lights&&d.id!==9);
+  const singleDiamonds=activeDiamonds.filter(d=>!d.lights);
   const dhCount=dhDiamonds.length;
   const singleCount=singleDiamonds.length;
+
+  // Matchup stats
+  const uniquePairs=leagueN*(leagueN-1)/2;
+  const lgGamesFromFaced=uniquePairs*tfaced;
 
   // League pair slots per night = DH diamonds + single diamonds (D9 is CO only)
   const lgPairSlotsPerNight=dhCount+singleCount;
 
-  // Required nights: uniquePairs * tfaced total pair-slots / slots per night
+  // Required nights
   const requiredNights=lgPairSlotsPerNight>0
     ?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight)
     :0;
@@ -272,7 +344,7 @@ function updateGptNotice(){
   const league630=requiredNights-coEach;
   const gamesPerTeam=Math.round(coEach+coEach+dhBonus+league630);
 
-  // Total games per night (no +1 — D9 CO is separate, not a league game)
+  // Total games per night
   const lgGamesPerNight=dhCount*2+singleCount;
   const coGamesPerNight=2;
   const totalGamesPerNight=lgGamesPerNight+coGamesPerNight;
@@ -314,11 +386,11 @@ function updateGptNotice(){
       </div>
     </div>
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Night · ${t1} / ${t2}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Night · ${t1} / ${t2} · ${activeDiamonds.length} active diamonds</div>
       <div style="display:grid;gap:3px">
         <div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH</span><strong>2 games</strong></div>
-        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(d.name)} — 💡 Doubleheader</span><strong>2 games</strong></div>`).join('')}
-        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>${esc(d.name)} — 🌙 Single only</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
+        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>D${d.id} — ${esc(d.name)} — 💡 Doubleheader</span><strong>2 games</strong></div>`).join('')}
+        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>D${d.id} — ${esc(d.name)} — 🌙 Single only</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
         <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalGamesPerNight} games</span></div>
       </div>
     </div>
