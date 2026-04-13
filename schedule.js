@@ -649,6 +649,8 @@ function weatherBadge(dateStr){
 function renderSched(){
   const el=document.getElementById('so');
   const bar=document.getElementById('export-bar');
+  const tabActive=document.getElementById('tab-schedule')?.classList.contains('active');
+  if(!tabActive){ if(el) el.dataset.stale='1'; return; }
   if(!G.sched.length){
     el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';
     if(bar)bar.classList.remove('vis');
