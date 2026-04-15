@@ -80,7 +80,7 @@ function showTab(t,btn){
   if(t==='stats')renderStats();
   if(t==='playoffs')renderPlayoffs();
   if(t==='champions')renderChampions();
-  if(t==='admin')refreshActiveAdminTab();
+  if(t==='admin' && typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
