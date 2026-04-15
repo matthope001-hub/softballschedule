@@ -76,12 +76,11 @@ function showTab(t,btn){
   if(btn)btn.classList.add('active');
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='schedule')renderSched();
-  if(t==='scores')renderScores();
   if(t==='standings')renderStandings();
   if(t==='stats')renderStats();
-  if(t==='edit')renderEdit();
   if(t==='playoffs')renderPlayoffs();
   if(t==='champions')renderChampions();
+  if(t==='admin')refreshActiveAdminTab();
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
