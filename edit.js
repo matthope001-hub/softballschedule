@@ -15,7 +15,6 @@ function renderEdit(){
   const windowNights=getGameNights(ssVal, seVal, days);
 
   // Also include any scheduled game dates that fall outside the window
-  // (e.g. if se was saved as Sep 15 but games exist on Sep 22/29)
   const schedDates=new Set(G.sched.map(g=>g.date));
   const extraDates=[...schedDates].filter(d=>!windowNights.includes(d)).sort();
 
@@ -24,6 +23,12 @@ function renderEdit(){
 
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
+
+  // All diamond IDs — active ones plus any referenced in existing games
+  const allDiamondIds=[...new Set([
+    ...getDiamondIds(),
+    ...G.sched.map(g=>g.diamond)
+  ])].sort((a,b)=>a-b);
 
   // Group all nights by month
   const monthMap={};const monthOrder=[];
@@ -35,7 +40,10 @@ function renderEdit(){
 
   let html=`<div class="notice" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
     <span>Edit or remove scheduled games · Add teams to open slots · Changes require admin PIN</span>
-    <button onclick="showAddGameForm()" style="flex-shrink:0;padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;font-family:var(--font)">+ Add Game</button>
+    <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap">
+      <button onclick="clearScheduleOnly()" style="padding:6px 14px;background:none;color:var(--red);border:1.5px solid var(--red);border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;font-family:var(--font)">🗑 Clear Schedule</button>
+      <button onclick="showAddGameForm()" style="padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;font-family:var(--font)">+ Add Game</button>
+    </div>
   </div>
   <div id="add-game-form" style="display:none"></div>`;
 
@@ -65,10 +73,10 @@ function renderEdit(){
           <select onchange="editGame('${g.id}','away',this.value)" class="sel">
             ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
           </select>
-          <select onchange="editGame('${g.id}','diamond',this.value)" class="sel">
-            ${getDiamondIds().map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>${getDiamondName(d)}</option>`).join('')}
+          <select onchange="editGame('${g.id}','diamond',this.value)" class="sel" style="min-width:110px;font-size:12px">
+            ${allDiamondIds.map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>${getDiamondName(d)}${isDiamondLit(d)?' 💡':' 🌙'}</option>`).join('')}
           </select>
-          <select onchange="editGame('${g.id}','time',this.value)" class="sel">
+          <select onchange="editGame('${g.id}','time',this.value)" class="sel" style="min-width:80px">
             <option value="${T1}"${g.time===T1?' selected':''}>${T1}</option>
             <option value="${T2}"${g.time===T2?' selected':''}>${T2}</option>
           </select>
@@ -115,7 +123,6 @@ function renderEdit(){
   // Auto-open: preserve currently open month if any, else open current month
   const now=new Date();
   const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
-  // Check if any month was open before re-render (stored in data attr)
   const lastOpenMonth=el.dataset.openMonth||currentMonth;
   let opened=false;
   monthOrder.forEach((month,i)=>{
@@ -125,7 +132,6 @@ function renderEdit(){
       if(body&&!body.classList.contains('open')){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
     }
   });
-  // Store the open month for next re-render
   el.dataset.openMonth=lastOpenMonth;
 }
 
@@ -149,13 +155,11 @@ function removeGame(id){
   const g=G.sched.find(x=>x.id===id);
   if(!g) return;
   if(!confirm(`Remove game #${id}?\n${g.home} vs ${g.away}\n${fmtDate(g.date)} at ${g.time}\n\nThe slot will remain available to fill.\nThis cannot be undone.`)) return;
-  // Store the month so Edit Games re-opens to the right place
   const d=new Date(g.date+'T12:00:00');
   const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
   G.sched=G.sched.filter(x=>x.id!==id);
   delete G.scores[id];
   saveData();
-  // Set which month to re-open before re-rendering
   const edi=document.getElementById('edi');
   if(edi) edi.dataset.openMonth=openMonth;
   renderEdit();
@@ -181,7 +185,6 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   };
   G.sched.push(newGame);
   G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
-  // Store which month to re-open
   const d=new Date(dateStr+'T12:00:00');
   const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
   const edi=document.getElementById('edi');
@@ -193,6 +196,25 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   renderStandings();
   renderStats();
   showToast(`✓ Game #${newId} added — ${home} vs ${away}`);
+}
+
+// ── CLEAR SCHEDULE ONLY ───────────────────────────────────────────────────────
+function clearScheduleOnly(){
+  if(!checkAdmin()) return;
+  const gameCount=G.sched.length;
+  const scoreCount=Object.keys(G.scores).length;
+  if(!confirm(`Clear the entire schedule?\n\nThis will remove:\n  • ${gameCount} scheduled games\n  • ${scoreCount} entered scores\n  • All playoff brackets\n\nThis will KEEP:\n  ✓ Your ${G.teams.length} teams\n  ✓ Your diamond configuration\n  ✓ Season dates and settings\n\nThis cannot be undone.`)) return;
+  if(!confirm(`Final confirmation — delete all ${gameCount} games?`)) return;
+  G.sched=[];
+  G.scores={};
+  G.playoffs={seeded:false,podA:[],podB:[],games:{},finals:{}};
+  saveData();
+  renderEdit();
+  renderSched();
+  renderScores();
+  renderStandings();
+  renderStats();
+  showToast('🗑 Schedule cleared — teams and diamonds preserved');
 }
 
 // ── ADD GAME FORM (any date, any diamond) ─────────────────────────────────────
@@ -290,7 +312,6 @@ function submitAddGame(){
   G.sched.push(newGame);
   G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
 
-  // Mark open month for accordion
   const d=new Date(date+'T12:00:00');
   const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
   const edi=document.getElementById('edi');
