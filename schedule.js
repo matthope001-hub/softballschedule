@@ -1,5 +1,4 @@
 // ── SUNSET SAFETY (Hamilton ON — no-lights diamonds D5/D13/D14) ───────────────
-// Level: safe = 10+ min margin, caution = 0-10 min, warning = dark before 8 PM
 const SUNSET_SAFETY = {
   '2026-05-19': {level:'safe',sunset:'8:34 PM'},
   '2026-05-26': {level:'safe',sunset:'8:41 PM'},
@@ -60,10 +59,9 @@ function genSched(){
   const n = leagueTeams.length;
   const nights = gameNights.length;
 
-  // ── Diamond classification ────────────────────────────────────────────────
   const d9id = 9;
-  const dhIds    = G.diamonds.filter(d =>  d.lights && d.id !== d9id).map(d => d.id); // D12, D5 if lit
-  const noLitIds = G.diamonds.filter(d => !d.lights).map(d => d.id);                  // D13, D14
+  const dhIds    = G.diamonds.filter(d =>  d.lights && d.id !== d9id).map(d => d.id);
+  const noLitIds = G.diamonds.filter(d => !d.lights).map(d => d.id);
 
   if(dhIds.length === 0){
     alert('Need at least one lit non-D9 diamond for doubleheaders.'); return;
@@ -84,12 +82,7 @@ function genSched(){
     return;
   }
 
-  // ── Per-night game rules ──────────────────────────────────────────────────
-  // coA   → D9 6:30 (CO game). coB === coA → same team plays CO 6:30 AND 8:15.
-  // DH pair → lit non-D9 diamond, 6:30 + 8:15 H/A swap.
-  // noLit pair → D13/D14, 6:30 ONLY. No 8:15 slot.
-
-  const coEach = nights / n; // exact integer = TFACED
+  const coEach = nights / n;
 
   function makePool(perTeam){
     const pool = [];
@@ -97,17 +90,21 @@ function genSched(){
     return shuffle(pool);
   }
 
+  // FIX #4: pairKey/pairOk/usePair hoisted outside the attempt loop
+  // pairPlayed is reset each attempt; functions close over it by reference
+  let pairPlayed = {};
+  function pairKey(a,b){ return a<b ? a+'_'+b : b+'_'+a; }
+  function pairOk(a,b){ return pairPlayed[pairKey(a,b)] < TFACED; }
+  function usePair(a,b){ pairPlayed[pairKey(a,b)]++; }
+
   for(let attempt=0; attempt<2000; attempt++){
-    const pairPlayed = {};
+    // Reset pair budget each attempt
+    pairPlayed = {};
     for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) pairPlayed[i+'_'+j] = 0;
-    function pairKey(a,b){ return a<b ? a+'_'+b : b+'_'+a; }
-    function pairOk(a,b){ return pairPlayed[pairKey(a,b)] < TFACED; }
-    function usePair(a,b){ pairPlayed[pairKey(a,b)]++; }
 
     const coANights = makePool(coEach);
-    const coBNights = coANights.slice(); // coB === coA every night
+    const coBNights = coANights.slice();
 
-    // Pre-assign DH pairs per night with pair-budget awareness
     const dhDeg = dhIds.map(() => new Array(n).fill(0));
     const dhByNight = {};
     let dhOk = true;
@@ -137,7 +134,6 @@ function genSched(){
     }
     if(!dhOk) continue;
 
-    // Build schedule night by night
     const sched = [];
     const YEAR = new Date(gameNights[0]+'T12:00:00').getFullYear().toString().slice(-2);
     hc = {}; G.teams.forEach(t => hc[t] = 0);
@@ -155,14 +151,12 @@ function genSched(){
       const dhPairs = dhByNight[ni];
       const dhTeams = new Set(dhPairs.flat());
 
-      // rest = everyone except coA and DH teams → goes to noLit diamonds
       const rest = [];
       for(let t=0;t<n;t++) if(t!==coA && !dhTeams.has(t)) rest.push(t);
 
       if(rest.length !== noLitIds.length*2){ assignOk=false; break; }
 
-      // ── FIX 2: Backtracking noLit pairer ────────────────────────────────
-      // Guaranteed to find a valid pairing if one exists — no false restarts.
+      // FIX #2 (backtracking noLit pairer — carried forward from previous update)
       let noLitPairs = null;
       const usedInBt = new Set();
       function btPair(pairs){
@@ -183,9 +177,7 @@ function genSched(){
       }
       btPair([]);
       if(!noLitPairs){ assignOk=false; break; }
-      // ── End Fix 2 ────────────────────────────────────────────────────────
 
-      // Consume pair budget for noLit pairs
       noLitPairs.forEach(([a,b]) => usePair(a,b));
 
       // ── D9 6:30: CrossOver HOME vs coOppA AWAY ──────────────────────────
@@ -225,7 +217,6 @@ function genSched(){
           id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
           diamond:dmId, lights:false, home, away, bye:'', crossover:false
         });
-        // ── NO 8:15 game for noLit diamonds ─────────────────────────────
       });
 
       // ── D9 8:15: coOppB HOME vs CrossOver AWAY ──────────────────────────
@@ -244,7 +235,6 @@ function genSched(){
     const allPairsPlayed = Object.values(pairPlayed).every(v => v === TFACED);
     if(!allPairsPlayed) continue;
 
-    // ── Accept ───────────────────────────────────────────────────────────────
     G.sched   = sched;
     schedFilterTeam = null;
     G.scores  = {};
