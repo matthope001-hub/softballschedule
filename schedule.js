@@ -26,7 +26,6 @@ const SUNSET_SAFETY = {
 function sunsetBadge(dateStr){
   const s=SUNSET_SAFETY[dateStr];
   if(!s||s.level==='safe') return '';
-  // Only warn when no-lights diamonds are in play
   const hasNoLit=G.diamonds.some(d=>!d.lights);
   if(!hasNoLit) return '';
   if(s.level==='caution')
@@ -38,7 +37,6 @@ function sunsetBadge(dateStr){
 
 // ── SCHEDULE GENERATION ───────────────────────────────────────────────────────
 function getTues(startStr,endStr){
-  // Legacy wrapper — uses selected days
   return getGameNights(startStr,endStr,getSelectedDays());
 }
 
@@ -63,26 +61,15 @@ function genSched(){
   const nights = gameNights.length;
 
   // ── Diamond classification ────────────────────────────────────────────────
-  // D9  = CrossOver only (always, not in G.diamonds logic here)
-  // DH  = lights ON, not D9  → 6:30 + 8:15 swap.  Teams here play 2 games.
-  // litSingle = lights ON, but no DH partner available → user may never create these;
-  //             in current config D5 (lights=true) is listed separately.
-  //             App treats every lit non-D9 diamond as DH-capable.
-  //             So litSingleCount = 0 in standard config.
-  // noLit = lights OFF (D13, D14) → 6:30 ONLY, exactly 1 game, LOCKED OUT of 8:15.
   const d9id = 9;
-  const dhIds     = G.diamonds.filter(d =>  d.lights && d.id !== d9id).map(d => d.id); // D12, D5 if lit
-  const noLitIds  = G.diamonds.filter(d => !d.lights).map(d => d.id);                  // D13, D14
+  const dhIds    = G.diamonds.filter(d =>  d.lights && d.id !== d9id).map(d => d.id); // D12, D5 if lit
+  const noLitIds = G.diamonds.filter(d => !d.lights).map(d => d.id);                  // D13, D14
 
-  // litSingle: lit non-D9 diamonds beyond dhIds — in current app there are none,
-  // because every lit non-D9 diamond becomes a DH diamond.
-  // coB eligible pool: coA (same team hits CO twice) — since litSingleCount=0.
-  // If dhIds.length === 0 that's an error.
   if(dhIds.length === 0){
     alert('Need at least one lit non-D9 diamond for doubleheaders.'); return;
   }
 
-  const lgSlotsPerNight = dhIds.length + noLitIds.length;  // 1+2=3 or 2+2=4 etc.
+  const lgSlotsPerNight = dhIds.length + noLitIds.length;
   const uniquePairs = n*(n-1)/2;
   const requiredNights = lgSlotsPerNight > 0
     ? Math.round(uniquePairs * TFACED / lgSlotsPerNight) : 0;
@@ -97,36 +84,12 @@ function genSched(){
     return;
   }
 
-  // Verify diamond slot count matches team count
-  // Per night: 1 coA on D9 + dhIds.length*2 on DH + noLitIds.length*2 on noLit = n
-  const spotsPerNight = 1 + dhIds.length*2 + noLitIds.length*2;
-  if(spotsPerNight !== n){
-    alert(
-      `Diamond configuration mismatch.\n`+
-      `${n} league teams need ${n} spots per night at 6:30,\n`+
-      `but config gives ${spotsPerNight} spots:\n`+
-      `  1 coOppA (D9) + ${dhIds.length} DH diamonds × 2 + ${noLitIds.length} no-lights × 2\n\n`+
-      `Add or remove diamonds to fix.`
-    );
-    return;
-  }
-
   // ── Per-night game rules ──────────────────────────────────────────────────
-  // coA   → D9 6:30 (CO game). 1 game. Can also be coB same night → 2 games max.
-  // DH pair → D12/D5 6:30 + 8:15 swap. 2 games each. NEVER coB (would give 3 games).
-  // noLit pair → D13/D14 6:30 ONLY. Exactly 1 game. NEVER coB. NEVER touch 8:15.
-  // coB   → D9 8:15 (CO game). Must be coA (only eligible since litSingle=0).
-  //
-  // With litSingle=0: coB == coA every night (same team plays CO 6:30 AND CO 8:15).
-  // This means CrossOver faces the same league team twice that night (once home, once away).
-  // That is explicitly allowed by the league rules.
+  // coA   → D9 6:30 (CO game). coB === coA → same team plays CO 6:30 AND 8:15.
+  // DH pair → lit non-D9 diamond, 6:30 + 8:15 H/A swap.
+  // noLit pair → D13/D14, 6:30 ONLY. No 8:15 slot.
 
-  const coEach = nights / n;   // exact integer = TFACED
-
-  // Build pair budget: each unique pair (i,j) must play exactly TFACED times
-  // Pair appearances come from: DH slots (1 pair/DH diamond/night) + noLit slots (singleCount pairs/night)
-  // Total pair slots per night = dhIds.length + noLitIds.length = lgSlotsPerNight
-  // Total pair slots = lgSlotsPerNight * nights = uniquePairs * TFACED ✓ (validated above)
+  const coEach = nights / n; // exact integer = TFACED
 
   function makePool(perTeam){
     const pool = [];
@@ -135,14 +98,12 @@ function genSched(){
   }
 
   for(let attempt=0; attempt<2000; attempt++){
-    // Reset pair budget each attempt
     const pairPlayed = {};
     for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) pairPlayed[i+'_'+j] = 0;
     function pairKey(a,b){ return a<b ? a+'_'+b : b+'_'+a; }
     function pairOk(a,b){ return pairPlayed[pairKey(a,b)] < TFACED; }
     function usePair(a,b){ pairPlayed[pairKey(a,b)]++; }
 
-    // coA: each team exactly coEach nights on D9 6:30
     const coANights = makePool(coEach);
     const coBNights = coANights.slice(); // coB === coA every night
 
@@ -164,7 +125,6 @@ function genSched(){
         }
         if(!cands.length){ dhOk=false; break; }
 
-        // Prefer pairs with fewest DH appearances (balance DH exposure)
         const minS = Math.min(...cands.map(([i,j]) => dhDeg[di][i]+dhDeg[di][j]));
         const best = cands.filter(([i,j]) => dhDeg[di][i]+dhDeg[di][j] === minS);
         const pair = best[Math.floor(Math.random()*best.length)];
@@ -187,13 +147,13 @@ function genSched(){
     let assignOk = true;
 
     for(let ni=0; ni<nights; ni++){
-      const dateStr   = gameNights[ni];
-      const coA       = coANights[ni];
-      const coB       = coBNights[ni];
-      const coATeam   = leagueTeams[coA];
-      const coBTeam   = leagueTeams[coB];
-      const dhPairs   = dhByNight[ni];
-      const dhTeams   = new Set(dhPairs.flat());
+      const dateStr = gameNights[ni];
+      const coA     = coANights[ni];
+      const coB     = coBNights[ni];
+      const coATeam = leagueTeams[coA];
+      const coBTeam = leagueTeams[coB];
+      const dhPairs = dhByNight[ni];
+      const dhTeams = new Set(dhPairs.flat());
 
       // rest = everyone except coA and DH teams → goes to noLit diamonds
       const rest = [];
@@ -201,21 +161,29 @@ function genSched(){
 
       if(rest.length !== noLitIds.length*2){ assignOk=false; break; }
 
-      // Assign noLit pairs respecting pair budget
-      // Try up to 50 random shuffles to find a valid pairing
+      // ── FIX 2: Backtracking noLit pairer ────────────────────────────────
+      // Guaranteed to find a valid pairing if one exists — no false restarts.
       let noLitPairs = null;
-      for(let sp=0; sp<50; sp++){
-        const shuffled = shuffle([...rest]);
-        const pairs = [];
-        let valid = true;
-        for(let si=0; si<noLitIds.length; si++){
-          const a = shuffled[si*2], b = shuffled[si*2+1];
-          if(!pairOk(a,b)){ valid=false; break; }
-          pairs.push([a,b]);
+      const usedInBt = new Set();
+      function btPair(pairs){
+        if(pairs.length === noLitIds.length){ noLitPairs = pairs.slice(); return true; }
+        const remaining = rest.filter(t => !usedInBt.has(t));
+        const a = remaining[0];
+        for(let k=1; k<remaining.length; k++){
+          const b = remaining[k];
+          if(pairOk(a,b)){
+            usedInBt.add(a); usedInBt.add(b);
+            pairs.push([a,b]);
+            if(btPair(pairs)) return true;
+            pairs.pop();
+            usedInBt.delete(a); usedInBt.delete(b);
+          }
         }
-        if(valid){ noLitPairs=pairs; break; }
+        return false;
       }
+      btPair([]);
       if(!noLitPairs){ assignOk=false; break; }
+      // ── End Fix 2 ────────────────────────────────────────────────────────
 
       // Consume pair budget for noLit pairs
       noLitPairs.forEach(([a,b]) => usePair(a,b));
@@ -239,7 +207,6 @@ function genSched(){
           id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME1,
           diamond:dmId, lights:true, home, away, bye:'', crossover:false
         });
-        // 8:15 DH swap (H/A reversed)
         hc[away]++; gameCounts[t1]++; gameCounts[t2]++;
         sched.push({
           id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME2,
@@ -262,7 +229,6 @@ function genSched(){
       });
 
       // ── D9 8:15: coOppB HOME vs CrossOver AWAY ──────────────────────────
-      // coB === coA, so this team now has 1 CO game at 6:30 + 1 CO game at 8:15 = 2 total
       hc[coBTeam]++; gameCounts[coBTeam]++;
       sched.push({
         id:`${YEAR}${String(sched.length+1).padStart(3,'0')}`, date:dateStr, time:TIME2,
@@ -272,7 +238,6 @@ function genSched(){
 
     if(!assignOk) continue;
 
-    // ── Verify equal games AND every pair played exactly TFACED times ─────────
     const counts = leagueTeams.map(t => gameCounts[t]);
     if(!counts.every(c => c === counts[0])) continue;
 
@@ -311,11 +276,9 @@ function toggleMonth(id){
   const isOpen=body.classList.contains('open');
   body.classList.toggle('open',!isOpen);
   arr.textContent=isOpen?'▼':'▲';
-  // If this is an edit tab accordion, remember which month is open
   if(id.startsWith('em_')){
     const edi=document.getElementById('edi');
     if(edi&&!isOpen){
-      // Find the month name for this accordion
       const mi=parseInt(id.replace('em_m',''));
       const title=document.querySelector(`#arr_${id}`)?.closest('.acc-head')?.querySelector('.acc-title')?.textContent;
       if(title) edi.dataset.openMonth=title;
@@ -406,7 +369,6 @@ function renderSchedFilterChips(){
   const teams=[...G.teams].sort((a,b)=>a===CROSSOVER?1:b===CROSSOVER?-1:a.localeCompare(b));
   const active=schedFilterTeam;
 
-  // Build buttons using DOM — avoids any string escaping issues with team names
   chips.innerHTML='';
 
   function makeChip(label, team, isActive, color){
@@ -439,8 +401,6 @@ function renderLastResults(){
 
   const today=toDateStr(new Date());
 
-  // Find the most recent game night that has at least one score entered
-  // and is in the past (not today or future)
   const scoredDates=[...new Set(
     G.sched.filter(g=>G.scores[g.id]&&g.date<today).map(g=>g.date)
   )].sort().reverse();
@@ -454,16 +414,14 @@ function renderLastResults(){
 
   if(!lastGames.length){el.innerHTML='';return;}
 
-  const dateLabel=fmtDate(lastDate); // e.g. "Tuesday, May 26"
+  const dateLabel=fmtDate(lastDate);
 
-  // Build result pills
   const pills=lastGames.map(g=>{
     const sc=G.scores[g.id];
     const isWx=sc.weather;
     const homeWon=sc.h>sc.a, awayWon=sc.a>sc.h, tied=sc.h===sc.a;
     const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
 
-    // Shorten long team names for the ticker
     function shortName(t){
       const map={
         'Alcoballics':'Alcoballics',
@@ -512,36 +470,29 @@ function renderSeasonBanner(){
   const now=new Date();
   const today=toDateStr(now);
 
-  // Regular season games (non-playoff, non-exhibition)
   const regGames=G.sched.filter(g=>!g.playoff&&!g.exhibition);
   const scoredIds=new Set(Object.keys(G.scores));
   const played=regGames.filter(g=>scoredIds.has(g.id)).length;
   const remaining=regGames.length-played;
 
-  // Next game night
   const upcomingDates=[...new Set(regGames.filter(g=>g.date>=today).map(g=>g.date))].sort();
   const nextDate=upcomingDates[0]||null;
 
-  // Last regular season date
   const lastDate=regGames.length?regGames.reduce((a,b)=>a.date>b.date?a:b).date:null;
 
-  // Are playoffs seeded?
   const playoffsSeeded=G.playoffs?.seeded;
 
-  // Days until next game
   let daysUntil=null;
   if(nextDate){
     const diff=new Date(nextDate+'T12:00:00')-new Date(today+'T00:00:00');
     daysUntil=Math.ceil(diff/(1000*60*60*24));
   }
 
-  // Build banner message
   let icon='⚾', msg='', sub='', bg=`background:linear-gradient(135deg,${`var(--navy)`},${`var(--navy2)`})`, color='#fff';
 
   if(!lastDate){
-    return; // no schedule yet
+    return;
   } else if(today>lastDate&&!playoffsSeeded){
-    // Regular season over, playoffs not seeded
     icon='🏁';
     msg='Regular Season Complete';
     sub='Head to the Playoffs tab to seed the bracket';
@@ -582,12 +533,10 @@ function renderSeasonBanner(){
 }
 
 // ── WEATHER FORECAST (Open-Meteo, Hamilton ON) ────────────────────────────────
-// Cache: {date: {icon, label, precip, temp, fetched}}
 const weatherCache={};
 const HAMILTON_LAT=43.26;
 const HAMILTON_LON=-79.87;
 
-// WMO weather code → emoji + short label
 function wmoIcon(code, precip){
   if(code===0) return{icon:'☀️',label:'Clear'};
   if(code<=2)  return{icon:'🌤',label:'Partly cloudy'};
@@ -603,7 +552,6 @@ function wmoIcon(code, precip){
 }
 
 async function fetchWeatherForDates(dates){
-  // Only fetch dates within the next 16 days (API limit)
   const today=toDateStr(new Date());
   const cutoff=new Date(); cutoff.setDate(cutoff.getDate()+16);
   const cutoffStr=toDateStr(cutoff);
@@ -676,7 +624,6 @@ function renderSched(){
   const grouped=groupSched(filtered);
   el.innerHTML=grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,false),i,'sc')).join('');
 
-  // Auto-open current month or first
   const now=new Date();
   const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
   let opened=false;
@@ -688,10 +635,8 @@ function renderSched(){
     }
   });
 
-  // Fetch weather for upcoming game dates and re-render day headers
   const allDates=[...new Set(filtered.map(g=>g.date))].sort();
   fetchWeatherForDates(allDates).then(()=>{
-    // Patch weather badges into existing day-head elements without full re-render
     allDates.forEach(d=>{
       if(!weatherCache[d]) return;
       document.querySelectorAll('.day-head').forEach(el=>{
@@ -803,7 +748,6 @@ function exportPrint(){
   }
   html+=`</body></html>`;
 
-  // Use a hidden iframe for printing — works from file:// without popup blocker issues
   let iframe=document.getElementById('_print_frame');
   if(!iframe){
     iframe=document.createElement('iframe');
@@ -814,7 +758,6 @@ function exportPrint(){
   iframe.srcdoc=html;
   iframe.onload=()=>{
     try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){
-      // Fallback: open data URI in new tab
       const a=document.createElement('a');
       a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html);
       a.target='_blank';a.click();
@@ -835,7 +778,6 @@ function exportICal(){
   }
 
   function icalEndTime(dateStr,timeStr){
-    // Games are approximately 75 minutes
     const[y,m,d]=dateStr.split('-').map(Number);
     const[time,ampm]=timeStr.split(' ');
     let[h,min]=time.split(':').map(Number);
@@ -881,7 +823,6 @@ function renderScores(){
   el.innerHTML=`<div class="notice">Enter final scores · 🌧 sets 7–7 weather tie · Run differential capped at +7</div>`
     +grouped.map(({month,dates},i)=>monthAccordion(month,buildSchedInner(dates,true),i,'sk')).join('');
 
-  // Auto-open current month or first month
   const now=new Date();
   const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
   let opened=false;
@@ -910,14 +851,12 @@ function saveScore(gid){
 }
 
 function weatherCancel(gid){
-  // Rule 8.0: cancelled game = 7-7 tie
   G.scores[gid]={h:7,a:7,weather:true};
   saveData();
   const sh=document.getElementById('sh_'+gid);
   const sa=document.getElementById('sa_'+gid);
   if(sh)sh.value=7;
   if(sa)sa.value=7;
-  // Mark the row visually
   const btn=document.getElementById('wb_'+gid);
   if(btn){btn.style.background='#fef3c7';btn.style.borderColor='#f59e0b';btn.title='Weather cancellation (7–7) — click to clear';}
   renderSched();
