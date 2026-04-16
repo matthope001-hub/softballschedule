@@ -1,6 +1,5 @@
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
 
-// ── JSONBIN CONFIG ────────────────────────────────────────────────────────────
 const JSONBIN_BIN_ID    = '69d7a4c036566621a894eed9';
 const JSONBIN_WRITE_KEY = '$2a$10$0Hbc5Bc9ABqnRlT3.dmE6OURp.z8twcL0yy4bSGoCACQOTb7Z5fJu';
 const JSONBIN_READ_KEY  = '$2a$10$C92oSSIavphdJdlHmYlu4usOllGAQJgkZ5y59MF7NXuDb3pf3Br6m';
@@ -29,14 +28,18 @@ let _saveDebounceTimer = null;
 
 function saveData(){
   const payload = {
-    teams:    G.teams,
-    diamonds: G.diamonds,
-    sched:    G.sched,
-    scores:   G.scores,
-    playoffs: G.playoffs,
-    days:     getSelectedDays(),
-    ss:       document.getElementById('ss')?.value||'',
-    se:       document.getElementById('se')?.value||''
+    teams:         G.teams,
+    diamonds:      G.diamonds,
+    sched:         G.sched,
+    scores:        G.scores,
+    playoffs:      G.playoffs,
+    days:          getSelectedDays(),
+    ss:            document.getElementById('ss')?.value||'',
+    se:            document.getElementById('se')?.value||'',
+    // ── Multi-season fields ───────────────────────────────────────────────────
+    currentSeason: G.currentSeason||2026,
+    champions:     G.champions||null,
+    seasonArchive: G.seasonArchive||{}
   };
 
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }catch(e){}
@@ -50,7 +53,6 @@ async function _flushToCloud(payload){
     showToast('✓ Saved locally');
     return;
   }
-
   showToast('⏳ Saving...');
   try{
     const res = await fetch(JSONBIN_URL(), {
@@ -116,8 +118,14 @@ function applyData(d){
   if(d.scores)   G.scores   = d.scores;
   if(d.playoffs) G.playoffs = d.playoffs;
   if(d.ss){ const el=document.getElementById('ss'); if(el) el.value=d.ss; }
-  // FIX #7: removed hardcoded 2026-09-15 migration hack — no longer needed
   if(d.se){ const el=document.getElementById('se'); if(el) el.value=d.se; }
+  // ── Multi-season fields ───────────────────────────────────────────────────
+  if(d.currentSeason) G.currentSeason = d.currentSeason;
+  // champions: use cloud value if present, else seed from hardcoded CHAMPIONS_SEED
+  G.champions = d.champions || null;
+  if(d.seasonArchive) G.seasonArchive = d.seasonArchive;
+  // Update header to reflect loaded season year
+  try{ updateSeasonHeader(); }catch(e){}
 }
 
 function showToast(msg, duration=2500){
@@ -136,8 +144,18 @@ function showToast(msg, duration=2500){
 
 function clearData(){
   if(!checkAdmin()) return;
-  if(!confirm('Clear ALL shared data — teams, schedule and scores? This cannot be undone.')) return;
-  G.sched=[]; G.scores={}; G.teams=['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers','One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'];
+  if(!confirm('Clear schedule & scores for the current season? Champions history and season archives are preserved.\n\nThis cannot be undone.')) return;
+  // Preserve multi-season data
+  const champions    = G.champions;
+  const seasonArchive= G.seasonArchive;
+  const currentSeason= G.currentSeason;
+  G.sched=[];
+  G.scores={};
+  G.playoffs={seeded:false,podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
+  G.teams=['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers','One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'];
+  G.champions    = champions;
+  G.seasonArchive= seasonArchive;
+  G.currentSeason= currentSeason;
   localStorage.removeItem(STORAGE_KEY);
   saveData();
   location.reload();
@@ -157,6 +175,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   try{ renderDiamonds(); }catch(e){}
   try{ initDayChecks(); }catch(e){}
   try{ updateGptNotice(); }catch(e){}
+  try{ renderChampionAdminUI(); }catch(e){}
   try{
     if(G.sched.length){
       renderSched();
