@@ -14,7 +14,7 @@ function renderStandings(){
   const stats={};
   for(const t of leagueTeams)stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
   for(const g of G.sched){
-    if(g.playoff) continue; // playoff games excluded from standings
+    if(g.playoff) continue;
     const sc=G.scores[g.id];if(!sc)continue;
     const{ch,ca}=capRuns(sc.h,sc.a);
     if(stats[g.home]!==undefined){
@@ -31,13 +31,7 @@ function renderStandings(){
     }
   }
 
-  // ── Rule 10: Tiebreaker logic ─────────────────────────────────────────────
-  // a) Head-to-head points among tied teams
-  // b) Winner of last regular-season matchup between tied teams (walk back if tie)
-  // c) Coin toss (random, stable within this render)
-
-  // Build h2h stats and chronological game log between league teams
-  const h2hStats={};  // h2hStats[a][b] = {pts, games:[{date,result}]}
+  const h2hStats={};
   for(const t of leagueTeams){
     h2hStats[t]={};
     for(const u of leagueTeams) h2hStats[t][u]={pts:0,games:[]};
@@ -54,11 +48,9 @@ function renderStandings(){
     else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
   }
 
-  // Stable coin toss seed (hash of team names so it's consistent per render)
   function stableRand(a,b){let h=0;for(const c of (a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
 
   function tiebreak(group){
-    // a) H2H points among group
     const h2hPts={};
     for(const t of group){
       h2hPts[t]=0;
@@ -68,8 +60,6 @@ function renderStandings(){
     const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
     if(afterH2H.length===1) return afterH2H[0];
 
-    // b) Walk back through most recent matchups among still-tied teams
-    // Collect all games between the remaining tied teams, newest first
     const allGames=[];
     for(let i=0;i<afterH2H.length;i++){
       for(let j=i+1;j<afterH2H.length;j++){
@@ -83,19 +73,15 @@ function renderStandings(){
     for(const g of allGames){
       if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
     }
-
-    // c) Coin toss (stable random)
     return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
   }
 
-  // Sort: pts desc, then tiebreak groups
   const sorted=leagueTeams.slice().sort((a,b)=>{
     const pdiff=stats[b].pts-stats[a].pts;
     if(pdiff!==0) return pdiff;
-    return 0; // same pts: will be resolved by tiebreak below
+    return 0;
   });
 
-  // Assign final rank resolving ties
   const ranked=[];
   let i=0;
   while(i<sorted.length){
@@ -105,7 +91,6 @@ function renderStandings(){
     if(group.length===1){
       ranked.push({team:group[0],tied:false});
     } else {
-      // Recursively rank the tied group
       const rankGroup=(g)=>{
         if(g.length===0) return [];
         const winner=tiebreak(g);
@@ -118,24 +103,20 @@ function renderStandings(){
 
   const gp=Object.values(G.scores).length;
 
-  // ── Extra stats: Home/Away records, Last 10, Streak ──────────────────────
   const homeStats={},awayStats={};
   for(const t of leagueTeams){ homeStats[t]={w:0,l:0,tie:0}; awayStats[t]={w:0,l:0,tie:0}; }
 
-  // Chronological list of results per team for Last10 and Streak
-  const teamResults={}; // teamResults[t] = [{res:'W'|'L'|'T'}, ...] chronological
+  const teamResults={};
   for(const t of leagueTeams) teamResults[t]=[];
 
   const chronoGames=[...G.sched].filter(g=>G.scores[g.id]).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   for(const g of chronoGames){
     const sc=G.scores[g.id];
-    // Home record
     if(homeStats[g.home]!==undefined){
       if(sc.h>sc.a){homeStats[g.home].w++;teamResults[g.home].push('W');}
       else if(sc.a>sc.h){homeStats[g.home].l++;teamResults[g.home].push('L');}
       else{homeStats[g.home].tie++;teamResults[g.home].push('T');}
     }
-    // Away record
     if(awayStats[g.away]!==undefined){
       if(sc.a>sc.h){awayStats[g.away].w++;teamResults[g.away].push('W');}
       else if(sc.h>sc.a){awayStats[g.away].l++;teamResults[g.away].push('L');}
@@ -143,7 +124,6 @@ function renderStandings(){
     }
   }
 
-  // Compute Last 10 and Streak for each team
   function last10(t){ const r=teamResults[t].slice(-10); const w=r.filter(x=>x==='W').length,l=r.filter(x=>x==='L').length; return r.length?`${w}-${l}`:'—'; }
   function streak(t){
     const r=teamResults[t];if(!r.length)return{s:'—',cls:''};
@@ -152,7 +132,6 @@ function renderStandings(){
     return{s:`${last}${cnt}`,cls:last==='W'?'w':last==='L'?'l':'t'};
   }
 
-  // GB: games behind leader (based on pts; formula = (leaderW - teamW + teamL - leaderL)/2)
   const leader=ranked[0]?.team;
   function gb(t){
     if(t===leader)return'—';
@@ -161,7 +140,6 @@ function renderStandings(){
     return gbVal<=0?'—':gbVal%1===0?String(gbVal):`${gbVal}`;
   }
 
-  // Win %
   function winPct(t){
     const s=stats[t];if(s.gp===0)return'—';
     return((s.pts/(s.gp*2))).toFixed(3).replace(/^0/,'');
@@ -177,19 +155,19 @@ function renderStandings(){
   <div class="notice">W=2 · T=1 · L=0 · Tiebreakers: a) H2H points · b) Last matchup · c) Coin toss · RF/RA capped at +7</div>
   <div class="st-wrap"><table class="st">
     <colgroup>
-      <col style="width:28px"><!-- # -->
-      <col><!-- Team -->
-      <col style="width:58px"><!-- Record -->
-      <col style="width:46px"><!-- Win% -->
-      <col style="width:36px"><!-- GB -->
-      <col style="width:50px"><!-- Home -->
-      <col style="width:50px"><!-- Away -->
-      <col style="width:34px"><!-- RF -->
-      <col style="width:34px"><!-- RA -->
-      <col style="width:42px"><!-- DIFF -->
-      <col style="width:42px"><!-- Last 10 -->
-      <col style="width:40px"><!-- Streak -->
-      <col style="width:24px"><!-- TB -->
+      <col style="width:28px">
+      <col>
+      <col style="width:58px">
+      <col style="width:46px">
+      <col style="width:36px">
+      <col style="width:50px">
+      <col style="width:50px">
+      <col style="width:34px">
+      <col style="width:34px">
+      <col style="width:42px">
+      <col style="width:42px">
+      <col style="width:40px">
+      <col style="width:24px">
     </colgroup>
     <thead><tr>
       <th>#</th><th>Team</th><th>Record</th><th>Win%</th><th>GB</th>
@@ -227,34 +205,37 @@ function renderStandings(){
 function renderStats(){
   const el=document.getElementById('sta');
   if(!el) return;
-  // Only fully render if the Stats tab is active; otherwise mark as stale
   const tabActive=document.getElementById('tab-stats')?.classList.contains('active');
   if(!tabActive){ el.dataset.stale='1'; return; }
   el.dataset.stale='0';
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to view stats</div>';return;}
 
-  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER); // for standings/h2h
-  const allTeams=G.teams; // for game count table
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+  const allTeams=G.teams;
+
+  // ── FIX: derive diamond IDs from schedule, not getDiamondIds() ──────────
+  // This ensures fields are initialized and rendered for every diamond
+  // actually used in the schedule, regardless of current active config.
+  const schedDiamondIds=[...new Set(G.sched.map(g=>g.diamond))].sort((a,b)=>a-b);
+
   const ts={};
   for(const t of allTeams){
     ts[t]={total:0,home:0,away:0,dh:0,fields:{}};
-    getDiamondIds().forEach(d=>ts[t].fields[d]=0);
+    schedDiamondIds.forEach(d=>ts[t].fields[d]=0);
   }
   const h2h={};
-  const coGames={};  // coGames[t] = number of games vs CrossOver
+  const coGames={};
   for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]=0;coGames[t]=0;}
-  const dTotal={};getDiamondIds().forEach(d=>dTotal[d]=0);
+  const dTotal={};schedDiamondIds.forEach(d=>dTotal[d]=0);
   const nightCount={};
 
   for(const g of G.sched){
     dTotal[g.diamond]=(dTotal[g.diamond]||0)+1;
     if(ts[g.home]){ts[g.home].total++;ts[g.home].home++;ts[g.home].fields[g.diamond]++;}
     if(ts[g.away]){ts[g.away].total++;ts[g.away].away++;ts[g.away].fields[g.diamond]++;}
-    // h2h between league teams only
     if(ts[g.home]&&ts[g.away]&&g.home!==CROSSOVER&&g.away!==CROSSOVER){
       h2h[g.home][g.away]++;h2h[g.away][g.home]++;
     }
-    // CO game tracking
     if(g.home===CROSSOVER&&coGames[g.away]!==undefined) coGames[g.away]++;
     if(g.away===CROSSOVER&&coGames[g.home]!==undefined) coGames[g.home]++;
     if(g.home!==CROSSOVER) nightCount[g.date+'|'+g.home]=(nightCount[g.date+'|'+g.home]||0)+1;
@@ -270,12 +251,10 @@ function renderStats(){
   const remainingGames=G.sched.length-scoredGames.length;
   const leagueScoredGames=scoredGames.filter(g=>g.home!==CROSSOVER&&g.away!==CROSSOVER);
 
-  // Fun stats computation
   const teamRF={},teamRA={},teamW={},teamL={},teamTie={};
   for(const t of leagueTeams){teamRF[t]=0;teamRA[t]=0;teamW[t]=0;teamL[t]=0;teamTie[t]=0;}
   let biggestWinMargin=0,biggestWinGame=null,highestScore=0,highestScoreGame=null;
   let totalRunsScored=0,shutouts=0;
-  const blowouts=[];
   for(const g of leagueScoredGames){
     const sc=G.scores[g.id];
     const margin=Math.abs(sc.h-sc.a);
@@ -381,18 +360,19 @@ function renderStats(){
   <div class="card">
     <div class="card-title">Diamond Usage — Overall</div>
     <table class="games-table"><thead><tr><th>Diamond</th><th>Lights</th><th>Total Games</th></tr></thead>
-    <tbody>${getDiamondIds().map(d=>`<tr><td>${getDiamondName(d)}</td><td>${isDiamondLit(d)?'Yes':'No'}</td><td class="gold">${dTotal[d]||0}</td></tr>`).join('')}</tbody></table>
+    <tbody>${schedDiamondIds.map(d=>`<tr><td>${getDiamondName(d)}</td><td>${isDiamondLit(d)?'Yes':'No'}</td><td class="gold">${dTotal[d]||0}</td></tr>`).join('')}</tbody></table>
   </div>
   <div class="card">
     <div class="card-title">Diamond Usage — Per Team</div>
     <div class="notice">Amber = Spread &gt; 2 between most and least used diamond</div>
     <div class="matrix-wrap"><table class="matrix">
-      <thead><tr><th class="row-label">Team</th>${getDiamondIds().map(d=>`<th title="${getDiamondName(d)}">D${d}</th>`).join('')}</tr></thead>
+      <thead><tr><th class="row-label">Team</th>${schedDiamondIds.map(d=>`<th title="${getDiamondName(d)}">D${d}</th>`).join('')}</tr></thead>
       <tbody>${sorted.map(t=>{
-        const vals=getDiamondIds().map(d=>ts[t].fields[d]);
-        const imb=Math.max(...vals)-Math.min(...vals)>2;
+        const vals=schedDiamondIds.map(d=>ts[t].fields[d]||0);
+        const nonZero=vals.filter(v=>v>0);
+        const imb=nonZero.length>1&&Math.max(...nonZero)-Math.min(...nonZero)>2;
         const mx=Math.max(...vals);
-        return`<tr><th class="row-label">${esc(t)}</th>${getDiamondIds().map((d,i)=>`<td class="${vals[i]===mx?'played':''} ${imb?'warn':''}">${vals[i]}</td>`).join('')}</tr>`;
+        return`<tr><th class="row-label">${esc(t)}</th>${schedDiamondIds.map((d,i)=>`<td class="${vals[i]>0&&vals[i]===mx?'played':''} ${imb?'warn':''}">${vals[i]}</td>`).join('')}</tr>`;
       }).join('')}
       </tbody>
     </table></div>
@@ -410,12 +390,10 @@ function renderStats(){
     <div id="standings-history-chart"></div>
   </div>`;
 
-  // Render the chart after the DOM is updated
   setTimeout(renderStandingsHistoryChart, 0);
 }
-// ── STANDINGS HISTORY CHART ───────────────────────────────────────────────────
 
-// 9 visually distinct colours for the 9 league teams
+// ── STANDINGS HISTORY CHART ───────────────────────────────────────────────────
 const TEAM_COLOURS = [
   '#e63946','#2a9d8f','#e9c46a','#264653','#f4a261',
   '#6a4c93','#1982c4','#8ac926','#ff595e'
@@ -425,7 +403,6 @@ function buildStandingsHistory() {
   const leagueTeams = G.teams.filter(t => t !== CROSSOVER);
   if (!leagueTeams.length) return { dates: [], positions: {} };
 
-  // Get all unique scored game nights, sorted chronologically
   const scoredDates = [...new Set(
     G.sched
       .filter(g => !g.playoff && G.scores[g.id])
@@ -434,12 +411,10 @@ function buildStandingsHistory() {
 
   if (!scoredDates.length) return { dates: [], positions: {} };
 
-  // For each cumulative snapshot, calculate standings position
   const positions = {};
   for (const t of leagueTeams) positions[t] = [];
 
   for (const snapshotDate of scoredDates) {
-    // Build stats using all non-playoff games on or before this date
     const stats = {};
     for (const t of leagueTeams) stats[t] = { pts: 0, rf: 0, ra: 0, gp: 0, w: 0, l: 0, tie: 0 };
 
@@ -467,7 +442,6 @@ function buildStandingsHistory() {
       }
     }
 
-    // Rank teams at this snapshot
     const ranked = leagueTeams.slice().sort((a, b) =>
       stats[b].pts - stats[a].pts ||
       (stats[b].rf - stats[b].ra) - (stats[a].rf - stats[a].ra) ||
@@ -494,50 +468,42 @@ function renderStandingsHistoryChart() {
     return;
   }
 
-  const n = leagueTeams.length; // number of teams
+  const n = leagueTeams.length;
   const W = container.clientWidth || 700;
   const H = 340;
   const PAD = { top: 20, right: 20, bottom: 56, left: 36 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top - PAD.bottom;
 
-  // Map date index → x, position → y
   const xStep = dates.length > 1 ? chartW / (dates.length - 1) : chartW;
   const yStep = chartH / (n - 1 || 1);
 
   function xOf(i) { return PAD.left + (dates.length > 1 ? i * xStep : chartW / 2); }
   function yOf(pos) { return PAD.top + (pos - 1) * yStep; }
 
-  // Build SVG
   let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${H}px;display:block;overflow:visible">`;
 
-  // Grid lines (horizontal — one per position)
   for (let p = 1; p <= n; p++) {
     const y = yOf(p);
     svg += `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
     svg += `<text x="${PAD.left - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="#94a3b8" font-family="ui-monospace,monospace">${p}</text>`;
   }
 
-  // Vertical date markers
   dates.forEach((d, i) => {
     const x = xOf(i);
     svg += `<line x1="${x}" y1="${PAD.top}" x2="${x}" y2="${H - PAD.bottom}" stroke="#f1f5f9" stroke-width="1"/>`;
-    // Date label — show month+day, rotate for space
     const label = new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
     svg += `<text x="${x}" y="${H - PAD.bottom + 14}" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="ui-sans-serif,Arial">${label}</text>`;
   });
 
-  // Lines + dots per team
   leagueTeams.forEach((team, ti) => {
     const colour = TEAM_COLOURS[ti % TEAM_COLOURS.length];
     const pts = positions[team] || [];
     if (!pts.length) return;
 
-    // Line path
     const pathD = pts.map((pos, i) => `${i === 0 ? 'M' : 'L'} ${xOf(i)} ${yOf(pos)}`).join(' ');
     svg += `<path d="${pathD}" fill="none" stroke="${colour}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>`;
 
-    // Dots
     pts.forEach((pos, i) => {
       const x = xOf(i); const y = yOf(pos);
       svg += `<circle cx="${x}" cy="${y}" r="4" fill="${colour}" stroke="white" stroke-width="1.5">
@@ -545,10 +511,8 @@ function renderStandingsHistoryChart() {
       </circle>`;
     });
 
-    // End label (last known position)
     const lastX = xOf(pts.length - 1);
     const lastY = yOf(pts[pts.length - 1]);
-    // Only show label if we have room (not too crowded at the right edge)
     if (dates.length > 1) {
       svg += `<text x="${lastX + 7}" y="${lastY + 4}" font-size="10" font-weight="600" fill="${colour}" font-family="ui-sans-serif,Arial">${pts[pts.length - 1]}</text>`;
     }
@@ -556,7 +520,6 @@ function renderStandingsHistoryChart() {
 
   svg += `</svg>`;
 
-  // Legend
   const legendItems = leagueTeams.map((team, ti) => {
     const colour = TEAM_COLOURS[ti % TEAM_COLOURS.length];
     const lastPos = (positions[team] || []).slice(-1)[0];
