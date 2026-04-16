@@ -1,5 +1,4 @@
 // ── SCHEDULE RENDER ───────────────────────────────────────────────────────────
-let schedFilterTeam=null;
 
 function toggleAcc(id){
   const body=document.getElementById(id);
@@ -50,9 +49,13 @@ function renderFilterChips(){
   const el=document.getElementById('team-filter-chips');
   if(!el) return;
   const filterBar=document.getElementById('team-filter-bar');
-  if(!G.sched.length){if(filterBar)filterBar.classList.remove('vis');return;}
-  if(filterBar) filterBar.classList.add('vis');
   const exportBar=document.getElementById('export-bar');
+  if(!G.sched.length){
+    if(filterBar) filterBar.classList.remove('vis');
+    if(exportBar) exportBar.classList.remove('vis');
+    return;
+  }
+  if(filterBar) filterBar.classList.add('vis');
   if(exportBar) exportBar.classList.add('vis');
   el.innerHTML=`<button onclick="setSchedFilter(null,this)" class="fc fc-all${schedFilterTeam===null?' active':''}">All</button>`
     +G.teams.map(t=>`<button onclick="setSchedFilter('${esc(t)}',this)" class="fc fc-team${schedFilterTeam===t?' active':''}">${esc(t)}</button>`).join('');
@@ -86,40 +89,43 @@ function renderSched(){
 
   let html='';
   monthOrder.forEach((month,mi)=>{
-    let inner='<table class="gt"><tbody>';
+    let inner='';
     let lastDate='';
+    let tableOpen=false;
     for(const g of monthMap[month]){
       if(g.date!==lastDate){
-        inner+=`</tbody></table><div class="day-head">${fmtDate(g.date)}${sunsetBadge(g.date)}</div><table class="gt"><tbody>`;
+        if(tableOpen) inner+='</tbody></table>';
+        inner+=`<div class="day-head">${fmtDate(g.date)}${sunsetBadge(g.date)}</div><table class="gt"><tbody>`;
+        tableOpen=true;
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
       const isCO=g.crossover,isPly=g.playoff;
-      const trClass=(isPly?'g-playoff':(isCO?'g-co':''));
+      const trClass=isPly?'g-playoff':isCO?'g-co':'';
       const badge=isPly?'<span class="gbadge gbadge-ply">🏆 PLY</span>':
                   isCO?'<span class="gbadge gbadge-co">CO</span>':'';
-      let scHtml='<span class="g-vs-lbl">vs</span>';
+      let midHtml='<span class="g-vs-lbl">vs</span>';
       if(sc){
         const hW=sc.h>sc.a,aW=sc.a>sc.h;
-        scHtml=`<span class="gscore${hW?' gscore-w':aW?' gscore-l':''}">${sc.h}</span>`
-              +`<span class="gscore-sep">–</span>`
-              +`<span class="gscore${aW?' gscore-w':hW?' gscore-l':''}">${sc.a}</span>`;
+        midHtml=`<span class="gscore${hW?' gscore-w':aW?' gscore-l':''}">${sc.h}</span>`
+               +`<span class="gscore-sep">–</span>`
+               +`<span class="gscore${aW?' gscore-w':hW?' gscore-l':''}">${sc.a}</span>`;
       }
       inner+=`<tr class="${trClass}">
         <td class="g-num"><span class="gnum">#${g.id}</span></td>
-        <td class="g-time"><span class="time-lbl${g.time===T2||g.time==='8:15 PM'?' late':''}">${g.time||'TBD'}</span></td>
+        <td class="g-time"><span class="time-lbl${g.time==='8:15 PM'?' late':''}">${g.time||'TBD'}</span></td>
         <td class="g-home">${esc(g.home)}${badge}</td>
-        <td class="g-vs">${scHtml}</td>
+        <td class="g-vs">${midHtml}</td>
         <td class="g-away">${esc(g.away)}</td>
-        <td class="g-dm"><span class="dbadge${getDiamondHasLights(g.diamond)?'':' nl'}">${getDiamondName(g.diamond)}</span></td>
+        <td class="g-dm"><span class="dbadge${isDiamondLit(g.diamond)?'':' nl'}">${getDiamondName(g.diamond)}</span></td>
       </tr>`;
     }
-    inner+='</tbody></table>';
+    if(tableOpen) inner+='</tbody></table>';
     html+=monthAccordion(month,inner,mi,'so',0);
   });
   el.innerHTML=html;
 
-  // Auto-open current/soonest month
+  // Auto-open current or soonest upcoming month
   const now=toDateStr(new Date());
   const curMonth=monthLabel(now);
   let opened=false;
@@ -153,11 +159,14 @@ function renderScores(){
 
   let html='';
   monthOrder.forEach((month,mi)=>{
-    let inner='<table class="gt"><tbody>';
+    let inner='';
     let lastDate='';
+    let tableOpen=false;
     for(const g of monthMap[month]){
       if(g.date!==lastDate){
-        inner+=`</tbody></table><div class="day-head">${fmtDate(g.date)}</div><table class="gt"><tbody>`;
+        if(tableOpen) inner+='</tbody></table>';
+        inner+=`<div class="day-head">${fmtDate(g.date)}</div><table class="gt"><tbody>`;
+        tableOpen=true;
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
@@ -166,7 +175,7 @@ function renderScores(){
       const wxd=G.wxDates&&G.wxDates[g.id];
       inner+=`<tr class="${isCO?'g-co':''}${wxd?' wx-row':''}">
         <td class="g-num"><span class="gnum">#${g.id}</span></td>
-        <td class="g-time"><span class="time-lbl${g.time===T2||g.time==='8:15 PM'?' late':''}">${g.time||'TBD'}</span></td>
+        <td class="g-time"><span class="time-lbl${g.time==='8:15 PM'?' late':''}">${g.time||'TBD'}</span></td>
         <td class="g-home">${esc(g.home)}</td>
         <td class="g-si"><input class="si" type="number" min="0" max="99" value="${hVal}" placeholder="–"
           onchange="saveScore('${g.id}',this.value,document.getElementById('a_${g.id}')?.value)"
@@ -176,13 +185,13 @@ function renderScores(){
           onchange="saveScore('${g.id}',document.getElementById('h_${g.id}')?.value,this.value)"
           id="a_${g.id}"/></td>
         <td class="g-away">${esc(g.away)}</td>
-        <td class="g-dm"><span class="dbadge${getDiamondHasLights(g.diamond)?'':' nl'}">${getDiamondName(g.diamond)}</span></td>
+        <td class="g-dm"><span class="dbadge${isDiamondLit(g.diamond)?'':' nl'}">${getDiamondName(g.diamond)}</span></td>
         <td class="g-wx"><button class="wx-btn" title="Weather cancellation (7–7 tie)" onclick="applyWeatherResult('${g.id}')">🌧</button></td>
       </tr>`;
     }
-    inner+='</tbody></table>';
-    const scored=monthMap[month].filter(g=>G.scores[g.id]).length;
-    html+=monthAccordion(month,inner,mi,'sco',scored);
+    if(tableOpen) inner+='</tbody></table>';
+    const scoredCount=monthMap[month].filter(g=>G.scores[g.id]).length;
+    html+=monthAccordion(month,inner,mi,'sco',scoredCount);
   });
   el.innerHTML=html;
 }
