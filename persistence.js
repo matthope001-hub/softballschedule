@@ -118,4 +118,44 @@ function showToast(msg,duration=2500){
 function clearData(){
   if(!checkAdmin())return;
   if(!confirm('Clear schedule & scores for the current season? Champions history and season archives are preserved.\n\nThis cannot be undone.'))return;
-  const champions
+  const champions    =G.champions;
+  const seasonArchive=G.seasonArchive;
+  const currentSeason=G.currentSeason;
+  G.sched=[];G.scores={};
+  G.playoffs={seeded:false,podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
+  G.teams=['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers','One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'];
+  G.champions    =champions;
+  G.seasonArchive=seasonArchive;
+  G.currentSeason=currentSeason;
+  localStorage.removeItem(STORAGE_KEY);
+  saveData();
+  location.reload();
+}
+
+document.addEventListener('DOMContentLoaded',async function(){
+  try{renderTeams();}catch(e){console.error('renderTeams failed:',e);}
+  try{renderDiamonds();}catch(e){console.error('renderDiamonds failed:',e);}
+  try{initDayChecks();}catch(e){console.error('initDayChecks failed:',e);}
+  try{updateGptNotice();}catch(e){console.error('updateGptNotice failed:',e);}
+
+  let restored=false;
+  try{restored=await loadData();}catch(e){console.error('loadData failed:',e);}
+
+  try{renderTeams();}catch(e){}
+  try{renderDiamonds();}catch(e){}
+  try{initDayChecks();}catch(e){}
+  try{updateGptNotice();}catch(e){}
+  try{renderChampionAdminUI();}catch(e){}
+  try{
+    if(G.sched.length){
+      renderSched();
+      renderStandings();
+      renderStats();
+      if(restored)setTimeout(()=>showToast(`✓ Loaded — ${G.sched.length} games, ${Object.keys(G.scores).length} scores`),300);
+    }
+  }catch(e){console.error('renderSched failed:',e);}
+});
+
+window.addEventListener('resize',()=>{
+  try{renderStandingsHistoryChart();}catch(e){}
+});
