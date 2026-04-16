@@ -59,6 +59,7 @@ async function _flushToCloud(payload){
 }
 
 async function loadData(){
+  // ── Try JSONBin first (source of truth) ───────────────────────────────────
   if(JSONBIN_BIN_ID&&(JSONBIN_READ_KEY||JSONBIN_WRITE_KEY)){
     try{
       showToast('⏳ Loading...');
@@ -67,17 +68,35 @@ async function loadData(){
         const json=await res.json();
         const d=json.record;
         applyData(d);
+        // Re-save under new key so future loads are instant
         try{localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch(e){}
         return true;
       }
     }catch(e){console.warn('JSONBin load failed, falling back to localStorage:',e);}
   }
+
+  // ── Try new localStorage key ───────────────────────────────────────────────
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
-    if(!raw)return false;
-    applyData(JSON.parse(raw));
-    return true;
-  }catch(e){console.warn('localStorage load failed:',e);return false;}
+    if(raw){applyData(JSON.parse(raw));return true;}
+  }catch(e){console.warn('localStorage (new key) failed:',e);}
+
+  // ── Migrate from old localStorage key 'hccsl_2026' ────────────────────────
+  try{
+    const OLD_KEY='hccsl_2026';
+    const old=localStorage.getItem(OLD_KEY);
+    if(old){
+      const d=JSON.parse(old);
+      applyData(d);
+      // Persist under new key and clean up old
+      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch(e){}
+      try{localStorage.removeItem(OLD_KEY);}catch(e){}
+      showToast('✓ Migrated from previous season data');
+      return true;
+    }
+  }catch(e){console.warn('localStorage migration failed:',e);}
+
+  return false;
 }
 
 function applyData(d){
