@@ -6,31 +6,24 @@ function renderEdit(){
   const ssEl=document.getElementById('ss');
   const seEl=document.getElementById('se');
   let days=getSelectedDays();
-  if(!days.length) days=[2]; // default Tuesday
+  if(!days.length) days=[2];
 
   const ssVal=ssEl?.value||'2026-05-19';
   const seVal=seEl?.value||'2026-09-29';
 
-  // All nights in the season window
   const windowNights=getGameNights(ssVal, seVal, days);
-
-  // Also include any scheduled game dates that fall outside the window
   const schedDates=new Set(G.sched.map(g=>g.date));
   const extraDates=[...schedDates].filter(d=>!windowNights.includes(d)).sort();
-
-  // Merge and deduplicate, sorted
   const allNights=[...new Set([...windowNights,...extraDates])].sort();
 
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
 
-  // All diamond IDs — active ones plus any referenced in existing games
   const allDiamondIds=[...new Set([
     ...getDiamondIds(),
     ...G.sched.map(g=>g.diamond)
   ])].sort((a,b)=>a-b);
 
-  // Group all nights by month
   const monthMap={};const monthOrder=[];
   for(const dateStr of allNights){
     const ml=monthLabel(dateStr);
@@ -59,10 +52,11 @@ function renderEdit(){
       const openAt2=G.diamonds.filter(d=>d.lights).map(d=>d.id).filter(d=>!usedAt2.has(d));
       monthOpenSlots+=openAt1.length+openAt2.length;
 
-      // Scheduled games
       for(const g of nightGames){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const isLate=g.time===T2;
+        // FIX #5: editGame requires admin — show lock icon if not admin
+        const editAttr=`onchange="editGame('${g.id}','HOME_OR_AWAY',this.value)"`;
         inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
           <span class="time-lbl${isLate?' late':''}" style="width:54px;flex-shrink:0">${g.time}</span>
           <span class="gnum" style="flex-shrink:0;margin-right:4px">#${g.id}</span>
@@ -84,7 +78,6 @@ function renderEdit(){
         </div>`;
       }
 
-      // Open slots at T1
       for(const dmId of openAt1){
         const dm=G.diamonds.find(d=>d.id===dmId);
         const badge=dm?.lights?`💡 ${getDiamondName(dmId)}`:`🌙 ${getDiamondName(dmId)}`;
@@ -100,7 +93,6 @@ function renderEdit(){
         </div>`;
       }
 
-      // Open slots at T2 (lit diamonds only)
       for(const dmId of openAt2){
         const dm=G.diamonds.find(d=>d.id===dmId);
         const badge=`💡 ${getDiamondName(dmId)}`;
@@ -120,7 +112,6 @@ function renderEdit(){
   });
   el.innerHTML=html;
 
-  // Auto-open: preserve currently open month if any, else open current month
   const now=new Date();
   const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
   const lastOpenMonth=el.dataset.openMonth||currentMonth;
@@ -135,9 +126,16 @@ function renderEdit(){
   el.dataset.openMonth=lastOpenMonth;
 }
 
+// FIX #5: gate on isAdmin (silent — no re-prompt on every dropdown change)
+// Also FIX #11: validate home !== away
 function editGame(id,field,value){
+  if(!isAdmin){showToast('🔒 Admin PIN required to edit games');return;}
   const g=G.sched.find(x=>x.id===id);
   if(!g)return;
+  // Validate home !== away after change
+  const newHome=field==='home'?value:g.home;
+  const newAway=field==='away'?value:g.away;
+  if(newHome===newAway){showToast('⚠ Home and Away teams must be different');return;}
   if(field==='diamond'){g.diamond=parseInt(value);g.lights=isDiamondLit(g.diamond);}
   else if(field==='home') g.home=value;
   else if(field==='away') g.away=value;
@@ -170,6 +168,16 @@ function removeGame(id){
   showToast(`🗑 Game #${id} removed — slot is open`);
 }
 
+// FIX #3: safe ID generation — no collision after deletions
+function nextGameId(dateStr){
+  const YEAR=new Date(dateStr+'T12:00:00').getFullYear().toString().slice(-2);
+  const maxSeq=G.sched.reduce((max,g)=>{
+    if(!g.id.startsWith(YEAR)) return max;
+    return Math.max(max, parseInt(g.id.slice(2))||0);
+  },0);
+  return `${YEAR}${String(maxSeq+1).padStart(3,'0')}`;
+}
+
 function addSlotGame(slotId, dateStr, time, dmId, lights){
   if(!checkAdmin()) return;
   const home=document.getElementById(slotId+'_h')?.value;
@@ -177,11 +185,10 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   if(!home){alert('Please select a Home team.');return;}
   if(!away){alert('Please select an Away team.');return;}
   if(home===away){alert('Home and Away teams must be different.');return;}
-  const YEAR=new Date(dateStr+'T12:00:00').getFullYear().toString().slice(-2);
-  const newId=`${YEAR}${String(G.sched.length+1).padStart(3,'0')}`;
+  const newId=nextGameId(dateStr); // FIX #3
   const newGame={
-    id: newId, date: dateStr, time: time, diamond: dmId, lights: lights,
-    home: home, away: away, bye: '', crossover: home===CROSSOVER||away===CROSSOVER
+    id:newId, date:dateStr, time:time, diamond:dmId, lights:lights,
+    home:home, away:away, bye:'', crossover:home===CROSSOVER||away===CROSSOVER
   };
   G.sched.push(newGame);
   G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
@@ -207,7 +214,12 @@ function clearScheduleOnly(){
   if(!confirm(`Final confirmation — delete all ${gameCount} games?`)) return;
   G.sched=[];
   G.scores={};
-  G.playoffs={seeded:false,podA:[],podB:[],games:{},finals:{}};
+  // FIX #6: include semis in reset to prevent renderPlayoffs crash
+  G.playoffs={
+    seeded:false,podA:[],podB:[],games:{},
+    semis:{podA:{},podB:{}},
+    finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}
+  };
   saveData();
   renderEdit();
   renderSched();
@@ -222,8 +234,6 @@ function showAddGameForm(){
   if(!checkAdmin()) return;
   const form=document.getElementById('add-game-form');
   if(!form) return;
-
-  // Toggle: if already open, close it
   if(form.style.display!=='none'){ form.style.display='none'; return; }
 
   const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
@@ -297,8 +307,7 @@ function submitAddGame(){
   if(isNaN(dmId)){alert('Please select a diamond.');return;}
 
   const dm=G.diamonds.find(d=>d.id===dmId);
-  const yr=new Date(date+'T12:00:00').getFullYear().toString().slice(-2);
-  const newId=`${yr}${String(G.sched.length+1).padStart(3,'0')}`;
+  const newId=nextGameId(date); // FIX #3
 
   const newGame={
     id:newId, date, time,
