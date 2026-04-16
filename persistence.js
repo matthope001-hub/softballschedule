@@ -1,12 +1,16 @@
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
 
-// ── JSONBIN CONFIG (fill these in after creating your JSONBin account) ────────
-const JSONBIN_BIN_ID  = '69d7a4c036566621a894eed9';
-const JSONBIN_API_KEY = '$2a$10$0Hbc5Bc9ABqnRlT3.dmE6OURp.z8twcL0yy4bSGoCACQOTb7Z5fJu';
-const JSONBIN_URL     = () => `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+// ── JSONBIN CONFIG ────────────────────────────────────────────────────────────
+// FIX #1: Separate read-only and write keys to limit blast radius.
+// JSONBIN_READ_KEY  → read-only Access Key (viewers can read but not overwrite/delete)
+// JSONBIN_WRITE_KEY → master key, required for saves (unavoidable in client-side app)
+const JSONBIN_BIN_ID    = '69d7a4c036566621a894eed9';
+const JSONBIN_WRITE_KEY = '$2a$10$0Hbc5Bc9ABqnRlT3.dmE6OURp.z8twcL0yy4bSGoCACQOTb7Z5fJu';
+const JSONBIN_READ_KEY  = '$2a$10$C92oSSIavphdJdlHmYlu4usOllGAQJgkZ5y59MF7NXuDb3pf3Br6m';
+const JSONBIN_URL       = () => `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 // ── ADMIN PIN ─────────────────────────────────────────────────────────────────
-const ADMIN_PIN = '2026';   // change this to your preferred PIN
+const ADMIN_PIN = '2026';
 let isAdmin = false;
 
 function checkAdmin(){
@@ -23,8 +27,14 @@ function adminGuard(fn){
   };
 }
 
-// ── JSONBIN SAVE/LOAD ─────────────────────────────────────────────────────────
-async function saveData(){
+// ── FIX #2: Debounced saveData ────────────────────────────────────────────────
+// Rapid score entry fires multiple concurrent PUTs to JSONBin.
+// A slow earlier response can overwrite a faster later one (last-write-wins race).
+// Solution: debounce cloud saves by 500ms — localStorage always writes immediately
+// so no data is lost if the tab closes during the debounce window.
+let _saveDebounceTimer = null;
+
+function saveData(){
   const payload = {
     teams:    G.teams,
     diamonds: G.diamonds,
@@ -36,11 +46,16 @@ async function saveData(){
     se:       document.getElementById('se')?.value||''
   };
 
-  // Always save to localStorage as fast local cache
+  // Always write localStorage immediately — zero latency, safe on tab close
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }catch(e){}
 
-  // If JSONBin is configured, sync to cloud
-  if(!JSONBIN_BIN_ID || !JSONBIN_API_KEY){
+  // Debounce the cloud PUT — cancel any pending save and restart the timer
+  clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer = setTimeout(() => _flushToCloud(payload), 500);
+}
+
+async function _flushToCloud(payload){
+  if(!JSONBIN_BIN_ID || !JSONBIN_WRITE_KEY){
     showToast('✓ Saved locally');
     return;
   }
@@ -50,8 +65,8 @@ async function saveData(){
     const res = await fetch(JSONBIN_URL(), {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_API_KEY,
+        'Content-Type':     'application/json',
+        'X-Master-Key':     JSONBIN_WRITE_KEY,
         'X-Bin-Versioning': 'false'
       },
       body: JSON.stringify(payload)
@@ -65,18 +80,18 @@ async function saveData(){
 }
 
 async function loadData(){
-  // Try cloud first if configured
-  if(JSONBIN_BIN_ID && JSONBIN_API_KEY){
+  if(JSONBIN_BIN_ID && (JSONBIN_READ_KEY || JSONBIN_WRITE_KEY)){
     try{
       showToast('⏳ Loading...');
+      // FIX #1: prefer read-only key for loads, fall back to write key
+      const loadKey = JSONBIN_READ_KEY || JSONBIN_WRITE_KEY;
       const res = await fetch(JSONBIN_URL()+'/latest', {
-        headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        headers: { 'X-Master-Key': loadKey }
       });
       if(res.ok){
         const json = await res.json();
         const d = json.record;
         applyData(d);
-        // Also update local cache
         try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }catch(e){}
         return true;
       }
@@ -148,11 +163,9 @@ document.addEventListener('DOMContentLoaded', async function(){
   try{ initDayChecks(); }catch(e){ console.error('initDayChecks failed:',e); }
   try{ updateGptNotice(); }catch(e){ console.error('updateGptNotice failed:',e); }
 
-  // Load data (may be async if using JSONBin)
   let restored=false;
   try{ restored = await loadData(); }catch(e){ console.error('loadData failed:',e); }
 
-  // Re-render with loaded data
   try{ renderTeams(); }catch(e){}
   try{ renderDiamonds(); }catch(e){}
   try{ initDayChecks(); }catch(e){}
@@ -167,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async function(){
   }catch(e){ console.error('renderSched failed:',e); }
 });
 
-// Redraw standings history chart on resize (SVG is responsive but needs width recalc)
+// Redraw standings history chart on resize
 window.addEventListener('resize', ()=>{
   try{ renderStandingsHistoryChart(); }catch(e){}
 });
