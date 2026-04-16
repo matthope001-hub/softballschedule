@@ -213,9 +213,8 @@ function renderStats(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const allTeams=G.teams;
 
-  // ── FIX: derive diamond IDs from schedule, not getDiamondIds() ──────────
-  // This ensures fields are initialized and rendered for every diamond
-  // actually used in the schedule, regardless of current active config.
+  // Derive diamond IDs from schedule — not getDiamondIds() — ensures all
+  // diamonds that actually appear in games are accounted for
   const schedDiamondIds=[...new Set(G.sched.map(g=>g.diamond))].sort((a,b)=>a-b);
 
   const ts={};
@@ -227,6 +226,8 @@ function renderStats(){
   const coGames={};
   for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]=0;coGames[t]=0;}
   const dTotal={};schedDiamondIds.forEach(d=>dTotal[d]=0);
+
+  // FIX #8: use § as delimiter — safe against any realistic team name
   const nightCount={};
 
   for(const g of G.sched){
@@ -238,11 +239,12 @@ function renderStats(){
     }
     if(g.home===CROSSOVER&&coGames[g.away]!==undefined) coGames[g.away]++;
     if(g.away===CROSSOVER&&coGames[g.home]!==undefined) coGames[g.home]++;
-    if(g.home!==CROSSOVER) nightCount[g.date+'|'+g.home]=(nightCount[g.date+'|'+g.home]||0)+1;
-    if(g.away!==CROSSOVER) nightCount[g.date+'|'+g.away]=(nightCount[g.date+'|'+g.away]||0)+1;
+    // FIX #8: § delimiter — cannot appear in team names
+    if(g.home!==CROSSOVER) nightCount[g.date+'§'+g.home]=(nightCount[g.date+'§'+g.home]||0)+1;
+    if(g.away!==CROSSOVER) nightCount[g.date+'§'+g.away]=(nightCount[g.date+'§'+g.away]||0)+1;
   }
   for(const[key,cnt] of Object.entries(nightCount)){
-    if(cnt>=2){const t=key.split('|').slice(1).join('|');if(ts[t])ts[t].dh++;}
+    if(cnt>=2){const t=key.split('§')[1];if(ts[t])ts[t].dh++;}
   }
 
   const totalNights=new Set(G.sched.map(g=>g.date)).size;
