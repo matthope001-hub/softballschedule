@@ -223,12 +223,10 @@
 
         <div class="card">
           <div class="card-title">Scheduler Rules</div>
-
           <div style="margin-bottom:1.1rem">
             <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏟 Diamonds</div>
             <div id="rules-diamonds" style="display:grid;gap:6px"></div>
           </div>
-
           <div style="margin-bottom:1.1rem">
             <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏆 Standings</div>
             <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
@@ -238,7 +236,6 @@
               <div>Ranked by points (W=2, T=1, L=0), tiebroken by run differential.</div>
             </div>
           </div>
-
           <div>
             <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">📍 Venue</div>
             <div style="font-size:13px;color:var(--text)">Turner Park, Hamilton · Tuesday nights</div>
@@ -440,9 +437,13 @@
 </div>
 
 <script src="data.js"></script>
+<script src="champions.js"></script>
 <script src="persistence.js"></script>
-<script src="schedule.js"></script>
+<script src="schedule-gen.js"></script>
+<script src="schedule-render.js"></script>
+<script src="exports.js"></script>
 <script src="standings.js"></script>
+<script src="stats.js"></script>
 <script src="edit.js"></script>
 <script src="playoffs.js"></script>
 <script>
@@ -453,9 +454,8 @@ function unlockAdmin(){
   if(checkAdmin()){
     document.getElementById('admin-locked').style.display='none';
     document.getElementById('admin-unlocked').style.display='block';
-    // Pre-fill champion year with current season
     const cy=document.getElementById('champ-year');
-    if(cy && !cy.value) cy.value=G.currentSeason||2026;
+    if(cy&&!cy.value) cy.value=G.currentSeason||2026;
     refreshActiveAdminTab();
     try{ renderChampionAdminUI(); }catch(e){}
   }
