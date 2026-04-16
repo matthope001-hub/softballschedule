@@ -55,8 +55,6 @@ function renderEdit(){
       for(const g of nightGames){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const isLate=g.time===T2;
-        // FIX #5: editGame requires admin — show lock icon if not admin
-        const editAttr=`onchange="editGame('${g.id}','HOME_OR_AWAY',this.value)"`;
         inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
           <span class="time-lbl${isLate?' late':''}" style="width:54px;flex-shrink:0">${g.time}</span>
           <span class="gnum" style="flex-shrink:0;margin-right:4px">#${g.id}</span>
@@ -126,13 +124,11 @@ function renderEdit(){
   el.dataset.openMonth=lastOpenMonth;
 }
 
-// FIX #5: gate on isAdmin (silent — no re-prompt on every dropdown change)
-// Also FIX #11: validate home !== away
+// FIX #5: gate on isAdmin, FIX #11: validate home !== away
 function editGame(id,field,value){
   if(!isAdmin){showToast('🔒 Admin PIN required to edit games');return;}
   const g=G.sched.find(x=>x.id===id);
   if(!g)return;
-  // Validate home !== away after change
   const newHome=field==='home'?value:g.home;
   const newAway=field==='away'?value:g.away;
   if(newHome===newAway){showToast('⚠ Home and Away teams must be different');return;}
@@ -145,7 +141,7 @@ function editGame(id,field,value){
   renderSched();
   renderScores();
   renderStandings();
-  renderStats();
+  // FIX #9: skip renderStats on inline edits — expensive and unnecessary
 }
 
 function removeGame(id){
@@ -185,7 +181,7 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   if(!home){alert('Please select a Home team.');return;}
   if(!away){alert('Please select an Away team.');return;}
   if(home===away){alert('Home and Away teams must be different.');return;}
-  const newId=nextGameId(dateStr); // FIX #3
+  const newId=nextGameId(dateStr);
   const newGame={
     id:newId, date:dateStr, time:time, diamond:dmId, lights:lights,
     home:home, away:away, bye:'', crossover:home===CROSSOVER||away===CROSSOVER
@@ -214,7 +210,7 @@ function clearScheduleOnly(){
   if(!confirm(`Final confirmation — delete all ${gameCount} games?`)) return;
   G.sched=[];
   G.scores={};
-  // FIX #6: include semis in reset to prevent renderPlayoffs crash
+  // FIX #6: full semis structure prevents renderPlayoffs crash
   G.playoffs={
     seeded:false,podA:[],podB:[],games:{},
     semis:{podA:{},podB:{}},
@@ -307,7 +303,7 @@ function submitAddGame(){
   if(isNaN(dmId)){alert('Please select a diamond.');return;}
 
   const dm=G.diamonds.find(d=>d.id===dmId);
-  const newId=nextGameId(date); // FIX #3
+  const newId=nextGameId(date);
 
   const newGame={
     id:newId, date, time,
