@@ -1,64 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hamilton Classic Co-Ed Softball League</title>
-<link rel="stylesheet" href="style.css">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HCCSL — Schedule & Standings</title>
+<link rel="stylesheet" href="style.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  /* ── Admin Sub-Tabs ───────────────────────────────────────────────────── */
-  .admin-subtabs {
-    display: flex;
-    gap: 0;
-    background: var(--gray1, #f7f6f3);
-    border: 1.5px solid var(--border, #e2e0dc);
-    border-radius: var(--r, 10px);
-    padding: 4px;
-    margin-bottom: 16px;
-  }
-  .admin-subtab {
-    flex: 1;
-    padding: 9px 16px;
-    border: none;
-    border-radius: calc(var(--r, 10px) - 2px);
-    background: transparent;
-    color: var(--muted, #8c8a85);
-    font-size: 13px;
-    font-weight: 700;
-    font-family: var(--font, inherit);
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
-  }
-  .admin-subtab:hover {
-    color: var(--text, #111);
-    background: rgba(0,0,0,0.04);
-  }
-  .admin-subtab.active {
-    background: var(--navy, #1a2744);
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  }
-  .admin-panel { display: none; }
-  .admin-panel.active { display: block; }
-
-  /* ── Logo Watermark Background ────────────────────────────────────── */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url('logo.png');
-    background-repeat: repeat;
-    background-size: 180px 180px;
-    background-position: center center;
-    opacity: 0.03;
-    pointer-events: none;
-    z-index: 0;
-  }
   body > * {
     position: relative;
     z-index: 1;
@@ -198,6 +146,55 @@
           <button class="btn" onclick="clearData()" style="color:var(--red);border-color:var(--red);margin-left:8px">🗑 Clear All Data</button>
         </div>
 
+        <!-- ── RECORD CHAMPIONS ──────────────────────────────────────────── -->
+        <div class="card">
+          <div class="card-title">🏆 Record Season Champions</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Enter champions after playoffs complete. Saved to the cloud — appears in the Champions tab instantly.</div>
+          <div class="row">
+            <div class="field">
+              <label>Season Year</label>
+              <input type="number" id="champ-year" min="2000" max="2100" style="width:100%" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label>POD A Champion <span style="color:var(--red)">*</span></label>
+              <input type="text" id="champ-poda" placeholder="e.g. Kibosh" />
+            </div>
+            <div class="field">
+              <label>POD B Champion <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
+              <input type="text" id="champ-podb" placeholder="e.g. JAFT" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="recordChampions()" style="margin-top:4px">💾 Save Champions</button>
+          <div id="champ-admin-list" style="margin-top:12px;display:grid;gap:6px"></div>
+        </div>
+
+        <!-- ── START NEW SEASON ──────────────────────────────────────────── -->
+        <div class="card" style="border:2px solid var(--red)">
+          <div class="card-title" style="color:var(--red)">🔄 Start New Season</div>
+          <div class="notice" style="margin-bottom:12px">Archives the current season permanently, then resets schedule &amp; scores for the new year. Champions history is never deleted.</div>
+          <div class="row">
+            <div class="field">
+              <label>New Season Year <span style="color:var(--red)">*</span></label>
+              <input type="number" id="new-season-year" min="2000" max="2100" placeholder="e.g. 2027" />
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Optionally record outgoing season champions at the same time:</div>
+          <div class="row">
+            <div class="field">
+              <label>Outgoing POD A Champion</label>
+              <input type="text" id="new-season-champ-poda" placeholder="e.g. Kibosh" />
+            </div>
+            <div class="field">
+              <label>Outgoing POD B Champion</label>
+              <input type="text" id="new-season-champ-podb" placeholder="e.g. JAFT" />
+            </div>
+          </div>
+          <button class="btn" onclick="startNewSeason()" style="background:var(--red);color:#fff;border-color:var(--red);margin-top:4px">🔄 Archive &amp; Start New Season</button>
+        </div>
+
+        <!-- ── END OF SEASON CHECKLIST ───────────────────────────────────── -->
         <div class="card" style="border-left:4px solid var(--navy)">
           <div class="card-title">📋 End of Season Checklist</div>
           <div style="display:grid;gap:10px;font-size:13px">
@@ -207,17 +204,11 @@
             </div>
             <div style="display:flex;gap:10px;align-items:flex-start">
               <span style="font-size:16px;flex-shrink:0">2️⃣</span>
-              <div><strong>Update the Champions list</strong> in <code style="background:var(--gray1);padding:1px 5px;border-radius:4px;font-size:12px">data.js</code> — find the <code style="background:var(--gray1);padding:1px 5px;border-radius:4px;font-size:12px">CHAMPIONS</code> array and update the current year entry:<br>
-                <div style="margin-top:6px;padding:8px 10px;background:var(--gray1);border-radius:6px;font-family:var(--mono);font-size:12px;color:var(--navy)">
-                  Change: <span style="color:var(--muted)">{ year:2026, podA:null, podB:null, note:'Season in progress' }</span><br>
-                  To: <span style="color:#16a34a">{ year:2026, podA:'POD A Winner', podB:'POD B Winner' }</span><br>
-                  Then add: <span style="color:#16a34a">{ year:2027, podA:null, podB:null, note:'Season in progress' }</span>
-                </div>
-              </div>
+              <div><strong>Record the champions</strong> using the 🏆 Record Season Champions card above. Enter the POD A and POD B winners and click Save Champions.</div>
             </div>
             <div style="display:flex;gap:10px;align-items:flex-start">
               <span style="font-size:16px;flex-shrink:0">3️⃣</span>
-              <div><strong>Clear all data</strong> using the 🗑 Clear All Data button above to reset the schedule and scores for the new season. The Champions list is preserved — it lives in the code, not in the cloud.</div>
+              <div><strong>Start the new season</strong> using the 🔄 Start New Season card above. Enter the new year, optionally the outgoing champions, and click Archive &amp; Start. The current season is preserved forever in the archive.</div>
             </div>
             <div style="display:flex;gap:10px;align-items:flex-start">
               <span style="font-size:16px;flex-shrink:0">4️⃣</span>
@@ -462,7 +453,11 @@ function unlockAdmin(){
   if(checkAdmin()){
     document.getElementById('admin-locked').style.display='none';
     document.getElementById('admin-unlocked').style.display='block';
+    // Pre-fill champion year with current season
+    const cy=document.getElementById('champ-year');
+    if(cy && !cy.value) cy.value=G.currentSeason||2026;
     refreshActiveAdminTab();
+    try{ renderChampionAdminUI(); }catch(e){}
   }
 }
 
@@ -482,6 +477,7 @@ function refreshActiveAdminTab(){
     try{ renderTeams(); }catch(e){}
     try{ renderDiamonds(); }catch(e){}
     try{ updateGptNotice(); }catch(e){}
+    try{ renderChampionAdminUI(); }catch(e){}
   }
 }
 </script>
@@ -492,7 +488,6 @@ function refreshActiveAdminTab(){
   var _origShowTab = showTab;
   showTab = function(t, btn) {
     _origShowTab(t, btn);
-    // Auto-unlock admin panel if already authenticated
     if (t === 'admin' && isAdmin) {
       document.getElementById('admin-locked').style.display='none';
       document.getElementById('admin-unlocked').style.display='block';
