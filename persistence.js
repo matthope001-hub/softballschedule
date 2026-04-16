@@ -1,9 +1,6 @@
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
 
 // ── JSONBIN CONFIG ────────────────────────────────────────────────────────────
-// FIX #1: Separate read-only and write keys to limit blast radius.
-// JSONBIN_READ_KEY  → read-only Access Key (viewers can read but not overwrite/delete)
-// JSONBIN_WRITE_KEY → master key, required for saves (unavoidable in client-side app)
 const JSONBIN_BIN_ID    = '69d7a4c036566621a894eed9';
 const JSONBIN_WRITE_KEY = '$2a$10$0Hbc5Bc9ABqnRlT3.dmE6OURp.z8twcL0yy4bSGoCACQOTb7Z5fJu';
 const JSONBIN_READ_KEY  = '$2a$10$C92oSSIavphdJdlHmYlu4usOllGAQJgkZ5y59MF7NXuDb3pf3Br6m';
@@ -27,11 +24,7 @@ function adminGuard(fn){
   };
 }
 
-// ── FIX #2: Debounced saveData ────────────────────────────────────────────────
-// Rapid score entry fires multiple concurrent PUTs to JSONBin.
-// A slow earlier response can overwrite a faster later one (last-write-wins race).
-// Solution: debounce cloud saves by 500ms — localStorage always writes immediately
-// so no data is lost if the tab closes during the debounce window.
+// ── Debounced saveData ────────────────────────────────────────────────────────
 let _saveDebounceTimer = null;
 
 function saveData(){
@@ -46,10 +39,8 @@ function saveData(){
     se:       document.getElementById('se')?.value||''
   };
 
-  // Always write localStorage immediately — zero latency, safe on tab close
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }catch(e){}
 
-  // Debounce the cloud PUT — cancel any pending save and restart the timer
   clearTimeout(_saveDebounceTimer);
   _saveDebounceTimer = setTimeout(() => _flushToCloud(payload), 500);
 }
@@ -83,7 +74,6 @@ async function loadData(){
   if(JSONBIN_BIN_ID && (JSONBIN_READ_KEY || JSONBIN_WRITE_KEY)){
     try{
       showToast('⏳ Loading...');
-      // FIX #1: prefer read-only key for loads, fall back to write key
       const loadKey = JSONBIN_READ_KEY || JSONBIN_WRITE_KEY;
       const res = await fetch(JSONBIN_URL()+'/latest', {
         headers: { 'X-Master-Key': loadKey }
@@ -100,7 +90,6 @@ async function loadData(){
     }
   }
 
-  // Fall back to localStorage
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return false;
@@ -127,10 +116,8 @@ function applyData(d){
   if(d.scores)   G.scores   = d.scores;
   if(d.playoffs) G.playoffs = d.playoffs;
   if(d.ss){ const el=document.getElementById('ss'); if(el) el.value=d.ss; }
-  if(d.se){
-    const el=document.getElementById('se');
-    if(el){ el.value=(d.se==='2026-09-15')?'2026-09-29':d.se; }
-  }
+  // FIX #7: removed hardcoded 2026-09-15 migration hack — no longer needed
+  if(d.se){ const el=document.getElementById('se'); if(el) el.value=d.se; }
 }
 
 function showToast(msg, duration=2500){
@@ -180,7 +167,6 @@ document.addEventListener('DOMContentLoaded', async function(){
   }catch(e){ console.error('renderSched failed:',e); }
 });
 
-// Redraw standings history chart on resize
 window.addEventListener('resize', ()=>{
   try{ renderStandingsHistoryChart(); }catch(e){}
 });
