@@ -324,10 +324,10 @@ function updateGptNotice(){
   let statusHtml,statusBg;
   if(!nightsMatch){
     const diff=requiredNights-nights;
-    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — ${tfaced}× times faced needs exactly <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. ${diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`}`;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — ${tfaced}× times faced needs at least <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. ${diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`}`;
     statusBg='#fff0f0';
   }else{
-    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${displayedGpt} games/team target, every pair plays ${tfaced}×</span>`;
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${displayedGpt} games/team target, every pair plays ≥${tfaced}×</span>`;
     statusBg='#edf7f0';
   }
 
@@ -364,7 +364,7 @@ function updateGptNotice(){
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Opponent Matchups</div>
       <div style="display:grid;gap:2px;font-size:12px">
         <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × ${tfaced}× each</span><strong>${lgGamesFromFaced} league games</strong></div>
-        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
+        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Min nights for ${tfaced}× floor</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
       </div>
     </div>
     ${gptWarning}
