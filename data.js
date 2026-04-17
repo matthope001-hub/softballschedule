@@ -188,16 +188,21 @@ function renderDiamonds(){
   let html='';
   if(active.length){
     html+=`<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--navy);margin-bottom:6px;margin-top:4px">✅ Active Diamonds (${active.length})</div>`;
-    html+=active.map(renderRow).join('');
+    html+=`<div style="display:flex;flex-direction:column;gap:6px">${active.map(renderRow).join('')}</div>`;
   }
   if(inactive.length){
-    html+=`<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);margin-bottom:6px;margin-top:14px">⬜ Inactive Diamonds (${inactive.length}) — not used in scheduling</div>`;
-    html+=inactive.map(renderRow).join('');
+    html+=`<div style="margin-top:14px">
+      <button onclick="(function(btn){var body=document.getElementById('inactive-dm-body');var open=body.style.display==='none';body.style.display=open?'flex':'none';btn.querySelector('.dm-arr').textContent=open?'▲':'▼';})(this)"
+        style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:4px 0;cursor:pointer;text-align:left">
+        <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted)">⬜ Inactive Diamonds (${inactive.length}) — not used in scheduling</span>
+        <span class="dm-arr" style="font-size:10px;color:var(--muted)">▼</span>
+      </button>
+      <div id="inactive-dm-body" style="display:none;flex-direction:column;gap:6px;margin-top:6px">
+        ${inactive.map(renderRow).join('')}
+      </div>
+    </div>`;
   }
   el.innerHTML=html;
-  renderRulesDiamonds();
-  updateGptNotice();
-}
 
 // ── DAYS OF WEEK ──────────────────────────────────────────────────────────────
 const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
