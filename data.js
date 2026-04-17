@@ -31,7 +31,7 @@ let G={
 
 const CROSSOVER='CrossOver';
 let hc={};
-let schedFilterTeam=null;
+// NOTE: schedFilterTeam and schedFilterDiamond are declared in schedule-render.js
 
 // ── DIAMOND HELPERS ───────────────────────────────────────────────────────────
 function getDiamonds(){ return G.diamonds; }
@@ -287,22 +287,18 @@ function updateGptNotice(){
   const tfacedEl=document.getElementById('tfaced');
   const tfaced=tfacedEl?parseInt(tfacedEl.value)||2:2;
 
-  // Read user-set GPT — league teams only
   const gptEl=document.getElementById('gpt');
   const gptVal=gptEl?parseInt(gptEl.value)||null:null;
 
   const uniquePairs=leagueN*(leagueN-1)/2;
   const lgPairSlotsPerNight=dhCount+singleCount;
 
-  // Required nights based on tfaced
-  const requiredNights=lgPairSlotsPerNight>0?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight):0;
+  // Correct formula: each team faces every other team tfaced times
+  const gamesPerTeamAlgo=(leagueN-1)*tfaced;
 
-  // Games/team the algorithm naturally produces
-  const gamesPerTeamAlgo=lgPairSlotsPerNight>0
-    ? Math.round((requiredNights*(dhCount*2+singleCount))/leagueN)
-    : 0;
+  // Required nights to schedule all matchups given available slots per night
+  const requiredNights=lgPairSlotsPerNight>0?Math.ceil(uniquePairs*tfaced/lgPairSlotsPerNight):0;
 
-  // Displayed games/team = user input if set, else algorithm result
   const displayedGpt=gptVal||gamesPerTeamAlgo;
 
   const nightsMatch=nights===requiredNights&&requiredNights>0;
@@ -317,12 +313,11 @@ function updateGptNotice(){
   const t1=`${lgPairSlotsPerNight} league slot${lgPairSlotsPerNight!==1?'s':''}/night`;
   const t2=d9?'1 CrossOver DH':'no D9';
 
-  // Amber warning if user GPT diverges from algorithm output
   let gptWarning='';
   if(gptVal&&gptVal!==gamesPerTeamAlgo){
     gptWarning=`<div style="padding:6px 12px;background:#fff8e6;border-top:1px solid var(--border);font-size:12px;color:#b45309">
       ⚠ Algorithm produces <strong>${gamesPerTeamAlgo} games/team</strong> from current settings.
-      GPT set to <strong>${gptVal}</strong> — schedule generator will cap each league team at ${gptVal} games.
+      GPT set to <strong>${gptVal}</strong> — generator will cap each league team at ${gptVal} games.
     </div>`;
   }
 
