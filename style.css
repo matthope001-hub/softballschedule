@@ -568,3 +568,237 @@ input.si:focus { border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgb
   .stat-grid-3 { grid-template-columns: 1fr; }
   .champ-summary-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK MODE — @media (prefers-color-scheme: dark)
+   Overrides surface/text/border tokens only.
+   Brand colors (navy, red, gold) stay consistent.
+   Header + tab bar already dark — no changes needed there.
+═══════════════════════════════════════════════════════════════ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Surfaces — dark layered grays */
+    --bg:       #0a0f1a;
+    --surface:  #111827;
+    --surface2: #1a2235;
+    --surface3: #1f2940;
+    --white:    #111827;
+
+    /* Text */
+    --text:     #e8edf5;
+    --text2:    #b8c4d4;
+    --text3:    #8a9bb0;
+    --muted:    #6b7d94;
+    --subtle:   #445566;
+
+    /* Borders */
+    --border:   #1e2d42;
+    --border2:  #243350;
+
+    /* Semantic backgrounds — darkened versions */
+    --green-bg: #0d2918;
+    --green-bd: #1a4d2e;
+    --blue-bg:  #0d1f35;
+    --blue-bd:  #1a3a5c;
+
+    /* Shadows — stronger in dark mode */
+    --shadow-xs: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-sm: 0 1px 4px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.25);
+    --shadow:    0 2px 8px rgba(0,0,0,0.4),  0 8px 24px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.5), 0 16px 40px rgba(0,0,0,0.4);
+  }
+
+  /* Header gets a slightly richer dark gradient in dark mode */
+  .header {
+    background: linear-gradient(135deg, #060d18 0%, var(--navy) 100%);
+    box-shadow: 0 2px 0 rgba(255,255,255,0.03), 0 4px 24px rgba(0,0,0,0.6);
+  }
+
+  /* Tab bar — slightly darker than header */
+  .tabs {
+    background: #0d1525;
+    border-bottom-color: rgba(255,255,255,0.05);
+  }
+
+  /* Cards — dark surface, visible border */
+  .card {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  /* Accordion body background */
+  .acc-body, .accordion-body { background: var(--surface); }
+
+  /* Day headers inside accordions */
+  .day-head  { background: var(--surface2); color: var(--muted); border-bottom-color: var(--border); }
+  .slot-head { background: var(--surface);  color: var(--subtle); border-bottom-color: var(--border); }
+
+  /* Game / score rows */
+  .game-row         { background: var(--surface); border-bottom-color: var(--border); }
+  .game-row:hover   { background: var(--surface2); }
+  .game-row.co      { background: var(--green-bg); }
+  .game-row.co:hover{ background: #0f3320; }
+  .game-row.playoff { background: #1a1500; }
+  .game-row.playoff:hover { background: #221c00; }
+
+  .score-row        { background: var(--surface); border-bottom-color: var(--border); }
+  .score-row:hover  { background: var(--surface2); }
+  .score-row.co     { background: var(--green-bg); }
+
+  /* Standings table */
+  .st-wrap          { border-color: var(--border); }
+  .st               { background: var(--surface); }
+  .st tbody tr:hover td { background: var(--surface2); }
+  .st td            { border-bottom-color: var(--border); }
+  .st td.pts        { color: #7eb8ff; }
+  .st tr.st-leader td:nth-child(2) { color: #69db7c; }
+
+  /* Metric cards */
+  .metric           { background: var(--surface); border-color: var(--border); }
+  .metric-value     { color: #7eb8ff; }
+
+  /* Playoff pods / format */
+  .ply-seed-pod     { background: var(--surface2); border-color: var(--border); }
+  .ply-format-pod   { background: var(--surface2); border-color: var(--border); }
+  .ply-seed-pod-title,
+  .ply-format-pod-title { color: #7eb8ff; }
+  .ply-seed-rec strong  { color: #7eb8ff; }
+
+  /* Edit rows */
+  .edit-row         { background: var(--surface); border-bottom-color: var(--border); }
+  .edit-row:hover   { background: var(--surface2); }
+  .edit-row.late    { background: #131c35; }
+  .edit-row select,
+  .edit-row .edit-time {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  /* Form inputs */
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  select.sel {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--border);
+    color-scheme: dark;
+  }
+  input[type="text"]:focus,
+  input[type="date"]:focus,
+  input[type="number"]:focus,
+  select.sel:focus {
+    background: var(--surface);
+    border-color: #4dabf7;
+    box-shadow: 0 0 0 3px rgba(77,171,247,0.15);
+  }
+
+  /* Score inputs */
+  input.si {
+    background: var(--surface2) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+    color-scheme: dark !important;
+  }
+  input.si:focus {
+    background: var(--surface) !important;
+    border-color: #4dabf7 !important;
+    box-shadow: 0 0 0 3px rgba(77,171,247,0.15) !important;
+  }
+
+  /* Buttons */
+  .btn-outline {
+    background: var(--surface2);
+    color: var(--text2);
+    border-color: var(--border2);
+  }
+  .btn-outline:hover {
+    background: var(--surface3);
+    border-color: #4dabf7;
+    color: #4dabf7;
+  }
+
+  /* Filter chips */
+  .chip-filter {
+    background: var(--surface2);
+    border-color: var(--border2);
+    color: var(--muted);
+  }
+  .chip-filter:hover  { color: var(--text2); border-color: var(--border); }
+  .chip-filter.active { background: #1971c2; border-color: #1971c2; color: #fff; }
+
+  /* Team chips */
+  .chip { background: var(--blue-bg); border-color: var(--blue-bd); color: #74c0fc; }
+  .chip-del { color: #74c0fc; }
+
+  /* Notice box */
+  .notice { background: var(--blue-bg); border-color: var(--blue-bd); color: var(--text2); }
+
+  /* Season banner — already dark, just ensure border contrast */
+  .sb-wrap { border-left-color: var(--red); }
+
+  /* Result cards */
+  .result-card   { background: var(--surface2); border-color: var(--border); }
+  .result-row.win { color: #7eb8ff; }
+
+  /* Games table */
+  .games-table th { background: var(--surface2); border-bottom-color: var(--border); }
+  .games-table td { border-bottom-color: var(--border); }
+  .games-table tr:hover td { background: var(--surface2); }
+  .games-table td.gold { color: #7eb8ff; }
+
+  /* Rules */
+  .rule-item   { border-bottom-color: var(--border); }
+  .rule-text strong { color: #7eb8ff; }
+  .rule-highlight { background: var(--blue-bg); }
+
+  /* Admin subtabs */
+  .admin-subtabs { border-bottom-color: var(--border); }
+  .admin-subtab.active { color: #7eb8ff; border-bottom-color: var(--red); }
+
+  /* Calc box */
+  .calc-box { border-color: var(--border); }
+  .calc-row { border-bottom-color: var(--border); }
+  .calc-num { color: #7eb8ff; }
+
+  /* Highlight / stat cards */
+  .highlight-card { background: var(--surface2); border-color: var(--border); }
+
+  /* GT table (playoffs) */
+  .gt           { background: var(--surface); }
+  .gt td        { border-bottom-color: var(--border); color: var(--text2); }
+  .gt tr:hover td { background: var(--surface2); }
+  .gt tr.g-late td { background: #131c35; }
+  .gt tr.wx-row td { background: #1a1400 !important; }
+  .gt td.g-sc   { color: #7eb8ff; }
+  .gt td.scored { color: #69db7c; }
+
+  /* Champions */
+  .champ-lb-row       { border-bottom-color: var(--border); }
+  .champ-lb-row:hover { background: var(--surface2); }
+  .champ-lb-row.is-current { background: var(--blue-bg); }
+
+  /* Badges */
+  .dbadge       { background: var(--surface3); border-color: var(--border); }
+  .dbadge-lit   { background: #2a1f00; color: #ffd43b; border-color: #5a4000; }
+  .htag         { background: var(--blue-bg);  color: #74c0fc; border-color: var(--blue-bd); }
+  .cobadge      { background: var(--green-bg); color: #69db7c; border-color: var(--green-bd); }
+  .gbadge-ply   { background: #2a1f00; color: #ffd43b; }
+  .gbadge-co    { background: var(--green-bg); color: #69db7c; }
+  .tag-current  { background: var(--blue-bg);  color: #74c0fc; border-color: var(--blue-bd); }
+
+  /* sb-prog bar track */
+  .sb-prog { background: var(--surface3); }
+
+  /* wx-btn */
+  .wx-btn { background: var(--surface2); border-color: var(--border); }
+  .wx-btn:hover { background: var(--surface3); }
+
+  /* Toast */
+  #_toast { background: #1a2235; border-left-color: var(--red); }
+
+  /* Leaflet map tiles — invert for dark bg */
+  .leaflet-tile { filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7); }
+  .leaflet-container { background: var(--surface2); }
+}
