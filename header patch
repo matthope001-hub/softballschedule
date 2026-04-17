@@ -1,0 +1,21 @@
+<!-- REPLACE the existing .header div and .tabs div in index.html with this -->
+
+<div class="header">
+  <img src="logo.png" alt="HCCSL Logo" class="header-logo" />
+  <div class="header-text">
+    <div class="header-title">Hamilton Classic Co-Ed Softball</div>
+    <div class="header-sub">Turner Park · Tuesday Nights</div>
+  </div>
+  <div class="header-season-badge">2026 Season</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('schedule',this)">📅 Schedule</button>
+  <button class="tab" onclick="showTab('standings',this)">📊 Standings</button>
+  <button class="tab" onclick="showTab('playoffs',this)">🏆 Playoffs</button>
+  <button class="tab" onclick="showTab('champions',this)">🥇 Champions</button>
+  <button class="tab" onclick="showTab('stats',this)">📈 Stats</button>
+  <button class="tab" onclick="showTab('parkmap',this)">🗺️ Map</button>
+  <button class="tab" onclick="showTab('rules',this)">📖 Rules</button>
+  <button class="tab" onclick="showTab('admin',this)">🔒 Admin</button>
+</div>
