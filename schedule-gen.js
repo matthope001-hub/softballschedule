@@ -6,7 +6,7 @@ function genSched(){
   const T1=document.getElementById('time1')?.value||'6:30 PM';
   const T2=document.getElementById('time2')?.value||'8:15 PM';
   const tfaced=parseInt(document.getElementById('tfaced')?.value)||2;
-  const cobyes=parseInt(document.getElementById('cobyes')?.value)||0;
+  const cobyes=Math.max(0,parseInt(document.getElementById('cobyes')?.value)||0);
 
   if(!ss||!se){alert('Set season start and end dates first.');return;}
 
@@ -24,6 +24,24 @@ function genSched(){
   const nights=getGameNights(ss,se,days);
   if(!nights.length){alert('No game nights in selected date range.');return;}
 
+  // ── FIX: build set of bye-night indices for CrossOver (D9)
+  // Evenly distribute cobyes across the season nights
+  const coByeSet=new Set();
+  if(d9&&cobyes>0){
+    const clampedByes=Math.min(cobyes,nights.length);
+    // Space byes evenly: pick indices at intervals across the season
+    for(let b=0;b<clampedByes;b++){
+      const idx=Math.round((b/(clampedByes))*nights.length);
+      // Avoid duplicate indices by searching nearby
+      let placed=false;
+      for(let offset=0;offset<nights.length;offset++){
+        const candidate=(idx+offset)%nights.length;
+        if(!coByeSet.has(candidate)){coByeSet.add(candidate);placed=true;break;}
+      }
+      if(!placed) break;
+    }
+  }
+
   // Build all required league pairs (tfaced times each)
   const allPairs=[];
   for(let i=0;i<leagueTeams.length;i++)
@@ -39,10 +57,9 @@ function genSched(){
 
   const sched=[];
   let pairIdx=0;
-  const usedPairCounts={};
   const gameSeq={};
 
-  // CrossOver rotation
+  // CrossOver rotation — only schedule on non-bye nights
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
@@ -51,8 +68,9 @@ function genSched(){
     const yr=date.slice(2,4);
     if(!gameSeq[yr]) gameSeq[yr]=0;
 
-    // CrossOver games on D9
-    if(d9&&coIdx<coOpponents.length){
+    // CrossOver games on D9 — skip if this night is a CO bye
+    const isCOBye=coByeSet.has(ni);
+    if(d9&&!isCOBye){
       const opp=coOpponents[coIdx%coOpponents.length];
       coIdx++;
       // 6:30 — CrossOver home
@@ -93,6 +111,7 @@ function genSched(){
     if(!confirm(`Warning: ${remaining} league matchup(s) could not be scheduled — not enough game nights.\n\nProceed with partial schedule?`)) return;
   }
 
+  const coNights=nights.length-coByeSet.size;
   G.sched=sched;
   G.scores={};
   G.playoffs={seeded:false,podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
@@ -102,5 +121,6 @@ function genSched(){
   renderStandings();
   renderStats();
   renderEdit();
-  showToast(`✓ Schedule generated — ${sched.length} games across ${nights.length} nights`);
+  const byeNote=cobyes>0?` · CrossOver plays ${coNights}/${nights.length} nights`:'';
+  showToast(`✓ Schedule generated — ${sched.length} games across ${nights.length} nights${byeNote}`);
 }
