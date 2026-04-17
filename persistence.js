@@ -68,27 +68,25 @@ async function loadData(){
         const json=await res.json();
         const d=json.record;
         applyData(d);
-        // Re-save under new key so future loads are instant
         try{localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch(e){}
         return true;
       }
     }catch(e){console.warn('JSONBin load failed, falling back to localStorage:',e);}
   }
 
-  // ── Try new localStorage key ───────────────────────────────────────────────
+  // ── Try localStorage ───────────────────────────────────────────────────────
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
     if(raw){applyData(JSON.parse(raw));return true;}
   }catch(e){console.warn('localStorage (new key) failed:',e);}
 
-  // ── Migrate from old localStorage key 'hccsl_2026' ────────────────────────
+  // ── Migrate from old key 'hccsl_2026' ─────────────────────────────────────
   try{
     const OLD_KEY='hccsl_2026';
     const old=localStorage.getItem(OLD_KEY);
     if(old){
       const d=JSON.parse(old);
       applyData(d);
-      // Persist under new key and clean up old
       try{localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch(e){}
       try{localStorage.removeItem(OLD_KEY);}catch(e){}
       showToast('✓ Migrated from previous season data');
@@ -99,9 +97,32 @@ async function loadData(){
   return false;
 }
 
+// ── FIX: restores day checkboxes from any data source (cloud or localStorage)
+function applyDays(days){
+  if(!days||!days.length) return;
+  const checks=document.querySelectorAll('#day-checks input[type=checkbox]');
+  checks.forEach(cb=>{
+    const dayIdx=parseInt(cb.value);
+    const shouldCheck=days.includes(dayIdx);
+    cb.checked=shouldCheck;
+    const lbl=document.getElementById('daylabel-'+dayIdx);
+    if(lbl){
+      if(shouldCheck){
+        lbl.style.borderColor='var(--navy)';
+        lbl.style.background='var(--navy)';
+        lbl.style.color='#fff';
+      } else {
+        lbl.style.borderColor='var(--border)';
+        lbl.style.background='var(--white)';
+        lbl.style.color='var(--text)';
+      }
+    }
+  });
+}
+
 function applyData(d){
   if(!d)return;
-  if(d.teams)G.teams=d.teams;
+  if(d.teams)   G.teams   =d.teams;
   if(d.diamonds){
     const defaults={5:{lightsCapable:true},9:{lightsCapable:true},12:{lightsCapable:true},13:{lightsCapable:false},14:{lightsCapable:false}};
     G.diamonds=d.diamonds.map(dm=>({
@@ -115,6 +136,8 @@ function applyData(d){
   if(d.playoffs)G.playoffs=d.playoffs;
   if(d.ss){const el=document.getElementById('ss');if(el)el.value=d.ss;}
   if(d.se){const el=document.getElementById('se');if(el)el.value=d.se;}
+  // FIX: restore day checkboxes from cloud payload
+  if(d.days&&d.days.length) applyDays(d.days);
   if(d.currentSeason)G.currentSeason=d.currentSeason;
   G.champions   =d.champions||null;
   if(d.seasonArchive)G.seasonArchive=d.seasonArchive;
@@ -162,7 +185,11 @@ document.addEventListener('DOMContentLoaded',async function(){
 
   try{renderTeams();}catch(e){}
   try{renderDiamonds();}catch(e){}
-  try{initDayChecks();}catch(e){}
+  // FIX: re-apply days after loadData in case cloud payload arrived after initDayChecks ran
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){const d=JSON.parse(raw);if(d.days)applyDays(d.days);}
+  }catch(e){}
   try{updateGptNotice();}catch(e){}
   try{renderChampionAdminUI();}catch(e){}
   try{
@@ -175,6 +202,11 @@ document.addEventListener('DOMContentLoaded',async function(){
   }catch(e){console.error('renderSched failed:',e);}
 });
 
+// FIX: guard resize so chart only redraws when Stats tab is actually active
 window.addEventListener('resize',()=>{
-  try{renderStandingsHistoryChart();}catch(e){}
+  try{
+    if(document.getElementById('tab-stats')?.classList.contains('active')){
+      renderStandingsHistoryChart();
+    }
+  }catch(e){}
 });
