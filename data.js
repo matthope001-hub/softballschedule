@@ -203,7 +203,7 @@ function renderDiamonds(){
     </div>`;
   }
   el.innerHTML=html;
-} // ← MISSING BRACE RESTORED
+}
 
 // ── DAYS OF WEEK ──────────────────────────────────────────────────────────────
 const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -287,25 +287,44 @@ function updateGptNotice(){
   const tfacedEl=document.getElementById('tfaced');
   const tfaced=tfacedEl?parseInt(tfacedEl.value)||2:2;
 
-  const uniquePairs=leagueN*(leagueN-1)/2;
-  const lgGamesFromFaced=uniquePairs*tfaced;
-  const lgPairSlotsPerNight=dhCount+singleCount;
-  const requiredNights=lgPairSlotsPerNight>0?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight):0;
-  const nightsMatch=nights===requiredNights&&requiredNights>0;
+  // Read user-set GPT — league teams only
+  const gptEl=document.getElementById('gpt');
+  const gptVal=gptEl?parseInt(gptEl.value)||null:null;
 
-  const coEach=requiredNights>0?requiredNights/leagueN:tfaced;
-  const dhBonus=coEach*dhCount;
-  const league630=requiredNights-coEach;
-  const gamesPerTeam=Math.round(coEach+coEach+dhBonus+league630);
+  const uniquePairs=leagueN*(leagueN-1)/2;
+  const lgPairSlotsPerNight=dhCount+singleCount;
+
+  // Required nights based on tfaced
+  const requiredNights=lgPairSlotsPerNight>0?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight):0;
+
+  // Games/team the algorithm naturally produces
+  const gamesPerTeamAlgo=lgPairSlotsPerNight>0
+    ? Math.round((requiredNights*(dhCount*2+singleCount))/leagueN)
+    : 0;
+
+  // Displayed games/team = user input if set, else algorithm result
+  const displayedGpt=gptVal||gamesPerTeamAlgo;
+
+  const nightsMatch=nights===requiredNights&&requiredNights>0;
+  const lgGamesFromFaced=uniquePairs*tfaced;
 
   const lgGamesPerNight=dhCount*2+singleCount;
-  const totalGamesPerNight=lgGamesPerNight+2;
+  const totalGamesPerNight=lgGamesPerNight+(d9?2:0);
   const totalGames=totalGamesPerNight*(nightsMatch?requiredNights:nights);
-  const coTotalGames=2*(nightsMatch?requiredNights:nights);
+  const coTotalGames=d9?2*(nightsMatch?requiredNights:nights):0;
   const lgTotalGames=totalGames-coTotalGames;
 
   const t1=`${lgPairSlotsPerNight} league slot${lgPairSlotsPerNight!==1?'s':''}/night`;
   const t2=d9?'1 CrossOver DH':'no D9';
+
+  // Amber warning if user GPT diverges from algorithm output
+  let gptWarning='';
+  if(gptVal&&gptVal!==gamesPerTeamAlgo){
+    gptWarning=`<div style="padding:6px 12px;background:#fff8e6;border-top:1px solid var(--border);font-size:12px;color:#b45309">
+      ⚠ Algorithm produces <strong>${gamesPerTeamAlgo} games/team</strong> from current settings.
+      GPT set to <strong>${gptVal}</strong> — schedule generator will cap each league team at ${gptVal} games.
+    </div>`;
+  }
 
   let statusHtml,statusBg;
   if(!nightsMatch){
@@ -313,7 +332,7 @@ function updateGptNotice(){
     statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — ${tfaced}× times faced needs exactly <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. ${diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`}`;
     statusBg='#fff0f0';
   }else{
-    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${gamesPerTeam} games per team, every pair plays ${tfaced}×</span>`;
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${displayedGpt} games/team target, every pair plays ${tfaced}×</span>`;
     statusBg='#edf7f0';
   }
 
@@ -328,19 +347,19 @@ function updateGptNotice(){
       </div>
       <div style="padding:8px 12px;border-right:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Games/Team</div>
-        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${gamesPerTeam}</div>
-        <div style="font-size:11px;color:var(--muted)">${tfaced}× each opponent</div>
+        <div style="font-size:22px;font-weight:800;color:${gptVal&&gptVal!==gamesPerTeamAlgo?'#b45309':'var(--navy)'};line-height:1.2">${displayedGpt}</div>
+        <div style="font-size:11px;color:var(--muted)">${gptVal&&gptVal!==gamesPerTeamAlgo?`cap set · algo: ${gamesPerTeamAlgo}`:`${tfaced}× each opponent`}</div>
       </div>
       <div style="padding:8px 12px">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
         <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
-        <div style="font-size:11px;color:var(--muted)">${nightsMatch?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
+        <div style="font-size:11px;color:var(--muted)">${nightsMatch&&d9?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
       </div>
     </div>
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Night · ${t1} / ${t2} · ${activeDiamonds.length} active diamonds</div>
       <div style="display:grid;gap:3px">
-        <div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH</span><strong>2 games</strong></div>
+        ${d9?`<div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH</span><strong>2 games</strong></div>`:''}
         ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>D${d.id} — ${esc(d.name)} — 💡 Doubleheader</span><strong>2 games</strong></div>`).join('')}
         ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>D${d.id} — ${esc(d.name)} — 🌙 Single only</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
         <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalGamesPerNight} games</span></div>
@@ -353,6 +372,7 @@ function updateGptNotice(){
         <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
       </div>
     </div>
+    ${gptWarning}
     <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
   </div>`;
 }
