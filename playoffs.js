@@ -1,28 +1,120 @@
 // ── PLAYOFFS ──────────────────────────────────────────────────────────────────
 
+// ── BUG FIX #1: filter g.playoff so playoff scores don't pollute regular season stats
+// ── BUG FIX #2: use full 3-tier tiebreaker (H2H → last matchup → coin toss)
+//               matching standings.js exactly, so seeds match the displayed table
 function getRegularSeasonRanking(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
   for(const t of leagueTeams) stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
-  for(const g of G.sched){
-    const sc=G.scores[g.id];if(!sc)continue;
+
+  // Build H2H tracking (same structure as standings.js)
+  const h2hStats={};
+  for(const t of leagueTeams){
+    h2hStats[t]={};
+    for(const u of leagueTeams) h2hStats[t][u]={pts:0,games:[]};
+  }
+
+  const scoredGames=[...G.sched].filter(g=>
+    !g.playoff&&  // FIX #1: exclude playoff games
+    G.scores[g.id]&&
+    stats[g.home]!==undefined&&
+    stats[g.away]!==undefined&&
+    g.home!==CROSSOVER&&g.away!==CROSSOVER
+  );
+  scoredGames.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+
+  for(const g of scoredGames){
+    const sc=G.scores[g.id];
     const{ch,ca}=capRuns(sc.h,sc.a);
-    if(stats[g.home]!==undefined){
-      stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
-      if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
-      else if(sc.a>sc.h)stats[g.home].l++;
-      else{stats[g.home].tie++;stats[g.home].pts++;}
-    }
-    if(stats[g.away]!==undefined){
-      stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
-      if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
-      else if(sc.h>sc.a)stats[g.away].l++;
-      else{stats[g.away].tie++;stats[g.away].pts++;}
+    // Regular stats
+    stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
+    if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
+    else if(sc.a>sc.h)stats[g.home].l++;
+    else{stats[g.home].tie++;stats[g.home].pts++;}
+
+    stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
+    if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
+    else if(sc.h>sc.a)stats[g.away].l++;
+    else{stats[g.away].tie++;stats[g.away].pts++;}
+
+    // H2H tracking
+    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
+    h2hStats[g.home][g.away].games.push({date:g.date,homePts:hw?2:tie?1:0});
+    h2hStats[g.away][g.home].games.push({date:g.date,homePts:aw?2:tie?1:0});
+    if(hw)h2hStats[g.home][g.away].pts+=2;
+    else if(aw)h2hStats[g.away][g.home].pts+=2;
+    else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
+  }
+
+  // Also accumulate CrossOver games in regular stats (non-H2H)
+  for(const g of G.sched){
+    if(g.playoff||!G.scores[g.id]) continue;
+    if(g.home===CROSSOVER||g.away===CROSSOVER){
+      const sc=G.scores[g.id];
+      const{ch,ca}=capRuns(sc.h,sc.a);
+      if(stats[g.home]!==undefined){
+        stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
+        if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
+        else if(sc.a>sc.h)stats[g.home].l++;
+        else{stats[g.home].tie++;stats[g.home].pts++;}
+      }
+      if(stats[g.away]!==undefined){
+        stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
+        if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
+        else if(sc.h>sc.a)stats[g.away].l++;
+        else{stats[g.away].tie++;stats[g.away].pts++;}
+      }
     }
   }
-  return leagueTeams.slice().sort((a,b)=>
-    stats[b].pts-stats[a].pts||(stats[b].rf-stats[b].ra)-(stats[a].rf-stats[a].ra)||a.localeCompare(b)
-  ).map((t,i)=>({team:t,seed:i+1,...stats[t]}));
+
+  // FIX #2: Full 3-tier tiebreaker — mirrors standings.js exactly
+  function stableRand(a,b){let h=0;for(const c of (a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
+
+  function tiebreak(group){
+    const h2hPts={};
+    for(const t of group){
+      h2hPts[t]=0;
+      for(const u of group) if(u!==t) h2hPts[t]+=h2hStats[t][u]?.pts||0;
+    }
+    const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
+    const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
+    if(afterH2H.length===1) return afterH2H[0];
+    // Tiebreaker b: winner of most recent matchup
+    const allGames=[];
+    for(let i=0;i<afterH2H.length;i++)
+      for(let j=i+1;j<afterH2H.length;j++){
+        const a=afterH2H[i],b=afterH2H[j];
+        for(const g of(h2hStats[a][b]?.games||[]))
+          allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
+      }
+    allGames.sort((a,b)=>b.date.localeCompare(a.date));
+    for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
+    // Tiebreaker c: stable coin toss
+    return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
+  }
+
+  const sorted=leagueTeams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
+  const ranked=[];
+  let i=0;
+  while(i<sorted.length){
+    let j=i+1;
+    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
+    const group=sorted.slice(i,j);
+    if(group.length===1){
+      ranked.push({team:group[0],tied:false});
+    } else {
+      const rankGroup=(g)=>{
+        if(!g.length) return[];
+        const winner=tiebreak(g);
+        return[{team:winner,tied:g.length>1},...rankGroup(g.filter(t=>t!==winner))];
+      };
+      ranked.push(...rankGroup(group).map((r,idx)=>({...r,tied:idx>0||group.length>1})));
+    }
+    i=j;
+  }
+
+  return ranked.map((r,i)=>({...r,seed:i+1,...stats[r.team]}));
 }
 
 function seedPlayoffs(){
@@ -34,7 +126,6 @@ function seedPlayoffs(){
   function recStr(r){const t=r.tie?`-${r.tie}`:'';return `(${r.w}-${r.l}${t}) ${r.pts}pts`;}
   const msg=`Seed playoffs from current standings?\n\nPOD A (Top 5):\n${ranked.slice(0,5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}\n\nPOD B (Bottom ${podB.length}):\n${ranked.slice(5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}\n\nThis will reset any existing playoff data.`;
   if(!confirm(msg)) return;
-  // Generate round robin games
   function rrGames(teams,pfx){
     const games={};let n=1;
     for(let i=0;i<teams.length;i++)
@@ -60,39 +151,56 @@ function resetPlayoffs(){
   saveData();renderPlayoffs();showToast('Playoffs reset');
 }
 
+// ── BUG FIX #3: clamp scores to >= 0 in all save functions
+function _clampScore(val){
+  const n=parseInt(val);
+  return isNaN(n)?null:Math.max(0,n);
+}
+
 function savePlayoffScore(gameId){
   if(!checkAdmin()) return;
-  const h=document.getElementById('ph_'+gameId)?.value;
-  const a=document.getElementById('pa_'+gameId)?.value;
+  const hRaw=document.getElementById('ph_'+gameId)?.value;
+  const aRaw=document.getElementById('pa_'+gameId)?.value;
   const g=G.playoffs.games[gameId];
   if(!g) return;
-  if(h===''||a==='') g.score=null;
-  else g.score={h:parseInt(h),a:parseInt(a)};
+  if(hRaw===''||aRaw==='') g.score=null;
+  else{
+    const h=_clampScore(hRaw),a=_clampScore(aRaw);
+    if(h===null||a===null) return;
+    g.score={h,a};
+  }
   saveData();renderPlayoffs();
 }
 
 function saveSemiScore(pod,key){
   if(!checkAdmin()) return;
-  const h=document.getElementById(`psh_${pod}_${key}`)?.value;
-  const a=document.getElementById(`psa_${pod}_${key}`)?.value;
+  const hRaw=document.getElementById(`psh_${pod}_${key}`)?.value;
+  const aRaw=document.getElementById(`psa_${pod}_${key}`)?.value;
   if(!G.playoffs.semis[pod][key]) G.playoffs.semis[pod][key]={home:null,away:null,score:null};
-  if(h===''||a==='') G.playoffs.semis[pod][key].score=null;
-  else G.playoffs.semis[pod][key].score={h:parseInt(h),a:parseInt(a)};
+  if(hRaw===''||aRaw==='') G.playoffs.semis[pod][key].score=null;
+  else{
+    const h=_clampScore(hRaw),a=_clampScore(aRaw);
+    if(h===null||a===null) return;
+    G.playoffs.semis[pod][key].score={h,a};
+  }
   saveData();renderPlayoffs();
 }
 
 function saveFinalScore(pod){
   if(!checkAdmin()) return;
-  const h=document.getElementById('pfh_'+pod)?.value;
-  const a=document.getElementById('pfa_'+pod)?.value;
-  if(h===''||a==='') G.playoffs.finals[pod].score=null;
-  else G.playoffs.finals[pod].score={h:parseInt(h),a:parseInt(a)};
+  const hRaw=document.getElementById('pfh_'+pod)?.value;
+  const aRaw=document.getElementById('pfa_'+pod)?.value;
+  if(hRaw===''||aRaw==='') G.playoffs.finals[pod].score=null;
+  else{
+    const h=_clampScore(hRaw),a=_clampScore(aRaw);
+    if(h===null||a===null) return;
+    G.playoffs.finals[pod].score={h,a};
+  }
   saveData();renderPlayoffs();
 }
 
 function schedulePlayoffGame(plyId, home, away){
   if(!checkAdmin()) return;
-  // Show inline scheduling form via a modal-style prompt
   const date=prompt(`Schedule playoff game: ${home} vs ${away}\n\nEnter date (YYYY-MM-DD), e.g. 2026-10-06:`,'2026-10-06');
   if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){if(date!==null)alert('Invalid date format. Use YYYY-MM-DD.');return;}
   const time=prompt('Enter start time:','6:30 PM');
@@ -103,33 +211,27 @@ function schedulePlayoffGame(plyId, home, away){
   const dmIndex=parseInt(dmChoice)-1;
   if(isNaN(dmIndex)||dmIndex<0||dmIndex>=G.diamonds.length){alert('Invalid diamond choice.');return;}
   const dm=G.diamonds[dmIndex];
-
-  // Remove any existing sched entry for this playoff game
+  // Remove any existing schedule entry for this plyId
   G.sched=G.sched.filter(g=>g.plyId!==plyId);
-
-  // Generate ID
-  const yr=new Date(date+'T12:00:00').getFullYear().toString().slice(-2);
-  const newId=`${yr}P${String(Date.now()).slice(-4)}`;
-
+  const yr=date.slice(2,4);
+  const existingIds=G.sched.map(g=>g.id).filter(id=>id.startsWith(yr));
+  let maxSeq=0;
+  for(const id of existingIds){const n=parseInt(id.slice(2));if(!isNaN(n)&&n>maxSeq)maxSeq=n;}
+  const newId=`${yr}${String(maxSeq+1).padStart(3,'0')}`;
   G.sched.push({
-    id:newId, date, time,
-    diamond:dm.id, lights:dm.lights,
-    home, away, bye:'',
-    crossover:false,
-    playoff:true,
-    plyId  // link back to the playoff game entry
+    id:newId,date,time,diamond:dm.id,lights:dm.lights,
+    home,away,bye:'',crossover:false,playoff:true,plyId
   });
   G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   saveData();
   renderPlayoffs();
   renderSched();
   renderScores();
-  showToast(`✓ Playoff game scheduled — ${date} · ${time} · ${dm.name}`);
+  showToast(`📅 Playoff game scheduled — ${home} vs ${away}`);
 }
 
 function removePlayoffSchedule(plyId){
   if(!checkAdmin()) return;
-  if(!confirm('Remove the scheduled date/time/diamond for this playoff game?\n\nThe game result will be kept.')) return;
   G.sched=G.sched.filter(g=>g.plyId!==plyId);
   saveData();
   renderPlayoffs();
@@ -142,21 +244,67 @@ function getPlayoffSchedEntry(plyId){
   return G.sched.find(g=>g.plyId===plyId)||null;
 }
 
+// ── BUG FIX #2 (cont): podRRStandings with H2H tiebreaker for correct semi seeding
 function podRRStandings(teams,pfx){
   const stats={};
   for(const t of teams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
+  const h2h={};
+  for(const t of teams){h2h[t]={};for(const u of teams)h2h[t][u]={pts:0,games:[]};}
+
   const games=Object.values(G.playoffs.games).filter(g=>g.id.startsWith(pfx+'RR'));
-  for(const g of games){
+  const sortedGames=[...games].sort((a,b)=>a.id.localeCompare(b.id));
+  for(const g of sortedGames){
     if(!g.score) continue;
     const{h,a}=g.score;const{ch,ca}=capRuns(h,a);
     stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
     stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
-    if(h>a){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
-    else if(a>h){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
-    else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
+    const hw=h>a,aw=a>h,tie=h===a;
+    if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;h2h[g.home][g.away].pts+=2;}
+    else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;h2h[g.away][g.home].pts+=2;}
+    else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;h2h[g.home][g.away].pts++;h2h[g.away][g.home].pts++;}
+    h2h[g.home][g.away].games.push({id:g.id,winner:hw?g.home:aw?g.away:null});
+    h2h[g.away][g.home].games.push({id:g.id,winner:aw?g.away:hw?g.home:null});
   }
-  return teams.slice().sort((a,b)=>stats[b].pts-stats[a].pts||(stats[b].rf-stats[b].ra)-(stats[a].rf-stats[a].ra)||a.localeCompare(b))
-    .map((t,i)=>({team:t,rank:i+1,...stats[t]}));
+
+  function stableRand(a,b){let h=0;for(const c of (a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
+
+  function tiebreak(group){
+    const h2hPts={};
+    for(const t of group){h2hPts[t]=0;for(const u of group)if(u!==t)h2hPts[t]+=h2h[t][u]?.pts||0;}
+    const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
+    const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
+    if(afterH2H.length===1) return afterH2H[0];
+    const allGames=[];
+    for(let i=0;i<afterH2H.length;i++)
+      for(let j=i+1;j<afterH2H.length;j++){
+        const a=afterH2H[i],b=afterH2H[j];
+        for(const g of(h2h[a][b]?.games||[]))
+          allGames.push({id:g.id,winner:g.winner});
+      }
+    allGames.sort((a,b)=>b.id.localeCompare(a.id));
+    for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
+    return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
+  }
+
+  const sorted=teams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
+  const ranked=[];
+  let i=0;
+  while(i<sorted.length){
+    let j=i+1;
+    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
+    const group=sorted.slice(i,j);
+    if(group.length===1){ranked.push({team:group[0]});}
+    else{
+      const rankGroup=(g)=>{
+        if(!g.length) return[];
+        const winner=tiebreak(g);
+        return[{team:winner},...rankGroup(g.filter(t=>t!==winner))];
+      };
+      ranked.push(...rankGroup(group));
+    }
+    i=j;
+  }
+  return ranked.map((r,i)=>({rank:i+1,...stats[r.team],team:r.team}));
 }
 
 function scoreInput(idH,idA,valH,valA,onChange){
@@ -179,7 +327,7 @@ function winnerOf(sc,home,away){
   if(!sc) return null;
   if(sc.h>sc.a) return home;
   if(sc.a>sc.h) return away;
-  return null; // tie — force replay or decide manually
+  return null;
 }
 
 function renderPod(podLabel,pfx,podKey,seeds){
@@ -191,50 +339,64 @@ function renderPod(podLabel,pfx,podKey,seeds){
   const semis=G.playoffs.semis[podKey];
   const fin=G.playoffs.finals[podKey];
 
-  // Determine seeds after RR
   const s1=standing[0]?.team,s2=standing[1]?.team,s3=standing[2]?.team,s4=standing[3]?.team;
   const isPodA=pfx==='PA';
-  // POD A: top 4 advance (seed 5 eliminated), semis: 1v4, 2v3
-  // POD B: all 4 advance, semis: 1v4, 2v3
-  const elimNote=isPodA?`<div class="notice" style="background:#fff0f0;border-color:var(--red)">⛔ ${standing[4]?.team||'5th place'} is eliminated after round robin — top 4 advance</div>`:'';
+  const elimNote=isPodA?`<div class="notice" style="background:#fff0f0;border-color:var(--red)">⛔ ${esc(standing[4]?.team||'5th')} is eliminated after the round robin.</div>`:'';
 
-  // Semi setup
+  // Auto-populate semis from RR standings when RR is done
+  let stateChanged=false;
   if(rrDone&&s1&&s2&&s3&&s4){
-    if(!semis.s1){semis.s1={home:s1,away:s4,score:null};saveData();}
-    if(!semis.s2){semis.s2={home:s2,away:s3,score:null};saveData();}
+    if(!semis.s1||semis.s1.home!==s1||semis.s1.away!==s4){
+      G.playoffs.semis[podKey].s1={home:s1,away:s4,score:semis.s1?.score||null};
+      stateChanged=true;
+    }
+    if(!semis.s2||semis.s2.home!==s2||semis.s2.away!==s3){
+      G.playoffs.semis[podKey].s2={home:s2,away:s3,score:semis.s2?.score||null};
+      stateChanged=true;
+    }
   }
-  const sm1=semis.s1||{};const sm2=semis.s2||{};
+
+  const sm1=G.playoffs.semis[podKey].s1||{home:s1||'TBD',away:s4||'TBD',score:null};
+  const sm2=G.playoffs.semis[podKey].s2||{home:s2||'TBD',away:s3||'TBD',score:null};
   const semi1winner=winnerOf(sm1.score,sm1.home,sm1.away);
   const semi2winner=winnerOf(sm2.score,sm2.home,sm2.away);
 
-  // Final setup
-  if(semi1winner&&semi2winner&&!fin.home){
-    fin.home=semi1winner;fin.away=semi2winner;saveData();
+  // Auto-populate final
+  if(semi1winner&&semi2winner){
+    if(!fin.home||fin.home!==semi1winner||fin.away!==semi2winner){
+      G.playoffs.finals[podKey].home=semi1winner;
+      G.playoffs.finals[podKey].away=semi2winner;
+      stateChanged=true;
+    }
   }
+  if(stateChanged) saveData();
+
   const champion=winnerOf(fin.score,fin.home,fin.away);
 
-  let h=`<div class="card">`;
-  h+=`<div class="card-title">${podLabel} <span style="font-size:11px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0">${rrPlayed}/${rrTotal} RR games</span></div>`;
+  let h=`<div class="card">
+  <div class="card-title">${esc(podLabel)}</div>
+  <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${rrPlayed}/${rrTotal} round robin games played</div>`;
 
-  // Seeding / RR standings
-  h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Round Robin Standings</div>`;
-  h+=`<div class="st-wrap" style="margin-bottom:12px"><table class="st">
-    <colgroup><col style="width:22px"><col><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:28px"><col style="width:38px"><col style="width:32px"><col style="width:32px"><col style="width:38px"><col style="width:60px"></colgroup>
-    <thead><tr><th>#</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>T</th><th>PTS</th><th>RF</th><th>RA</th><th>DIFF</th><th>Status</th></tr></thead>
-    <tbody>${standing.map(({team:t,rank,gp,w,l,tie,pts,rf,ra},i)=>{
-      const diff=rf-ra;const ds=gp===0?'—':(diff>0?'+'+diff:''+diff);
-      let status='',rowStyle='';
-      if(rrDone){
-        if(isPodA&&i===4){status='<span style="color:var(--red);font-size:10px;font-weight:700">ELIM</span>';rowStyle='opacity:0.5';}
-        else if(i<2) status='<span style="color:var(--green);font-size:10px;font-weight:700">SEMI ✓</span>';
-        else status='<span style="color:var(--orange);font-size:10px;font-weight:700">SEMI</span>';
-      }
-      return`<tr style="${rowStyle}"><td class="rank">${rank}</td><td style="font-weight:600">${esc(t)}</td><td class="mono">${gp}</td><td class="mono">${w}</td><td class="mono">${l}</td><td class="mono">${tie}</td><td class="pts">${pts}</td><td class="mono">${rf}</td><td class="mono">${ra}</td><td class="mono">${ds}</td><td>${status}</td></tr>`;
-    }).join('')}</tbody></table></div>`;
+  // RR standings table
+  h+=`<table class="st" style="margin-bottom:12px"><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>RF</th><th>RA</th><th>Diff</th></tr></thead><tbody>`;
+  h+=standing.map((s,i)=>{
+    const diff=s.rf-s.ra;
+    const elim=isPodA&&i===4&&rrDone;
+    return`<tr style="${elim?'opacity:0.45;text-decoration:line-through':''}${i===0?';background:#f0f9ff':''}">
+      <td class="rank">${i+1}</td>
+      <td style="font-weight:600">${esc(s.team)}</td>
+      <td class="rec">${s.w}-${s.l}${s.tie?'-'+s.tie:''}</td>
+      <td class="mono" style="font-weight:700;color:var(--navy)">${s.pts}</td>
+      <td class="mono">${s.rf}</td>
+      <td class="mono">${s.ra}</td>
+      <td class="mono">${(diff>0?'+':'')+diff}</td>
+    </tr>`;
+  }).join('');
+  h+=`</tbody></table>`;
 
-  // Round Robin games
-  h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Round Robin Games</div>`;
-  h+=`<table class="gt" style="margin-bottom:14px">`;
+  // RR games
+  h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Round Robin Games</div>`;
+  h+=`<table class="gt" style="margin-bottom:12px">`;
   for(const g of games){
     const sc=g.score;
     const winner=winnerOf(sc,g.home,g.away);
@@ -256,7 +418,6 @@ function renderPod(podLabel,pfx,podKey,seeds){
     h+=`<div class="notice">Complete all round robin games to unlock the bracket.</div>`;
   } else {
     if(isPodA) h+=elimNote;
-    // Semis
     h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Semi-Finals</div>`;
     h+=`<table class="gt" style="margin-bottom:10px">`;
     [{key:'s1',g:sm1,label:`1 vs 4`},{key:'s2',g:sm2,label:`2 vs 3`}].forEach(({key,g,label})=>{
@@ -273,7 +434,6 @@ function renderPod(podLabel,pfx,podKey,seeds){
       </tr>`;
     });
     h+=`</table>`;
-    // Final
     h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">${podLabel} Final</div>`;
     if(!semi1winner||!semi2winner){
       h+=`<div class="notice">Complete both semi-finals to determine the finalists.</div>`;
@@ -316,11 +476,11 @@ function renderPlayoffs(){
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD A — Top 5</div>
-            ${ranked.slice(0,5).map(r=>{const t=r.tie?`-${r.tie}`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${t}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
+            ${ranked.slice(0,5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
           </div>
           <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD B — Bottom 4</div>
-            ${ranked.slice(5).map(r=>{const t=r.tie?`-${r.tie}`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${t}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
+            ${ranked.slice(5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
           </div>
         </div>`:''}
         <button class="btn btn-primary" onclick="seedPlayoffs()">🏆 Seed Playoffs from Standings</button>
