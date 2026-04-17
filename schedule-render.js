@@ -36,8 +36,8 @@ function renderSeasonBanner(){
   const el=document.getElementById('season-banner');
   if(!el)return;
   if(!G.sched.length){el.innerHTML='';return;}
-  const total=G.sched.filter(g=>!g.playoff).length;
-  const scored=G.sched.filter(g=>!g.playoff&&G.scores[g.id]).length;
+  const total=G.sched.filter(g=>!g.playoff&&!g.open).length;
+  const scored=G.sched.filter(g=>!g.playoff&&!g.open&&G.scores[g.id]).length;
   const pct=total?Math.round(scored/total*100):0;
   const ss=document.getElementById('ss')?.value||'';
   const se=document.getElementById('se')?.value||'';
@@ -177,7 +177,7 @@ function _renderSchedGames(){
     return;
   }
 
-  let filtered=G.sched;
+  let filtered=G.sched.filter(g=>!g.open);
   if(schedFilterTeam)    filtered=filtered.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
   if(schedFilterDiamond) filtered=filtered.filter(g=>g.diamond===schedFilterDiamond);
 
@@ -210,6 +210,17 @@ function _renderSchedGames(){
       const sc=G.scores[g.id];
       const isCO=g.crossover;
       const isPly=g.playoff;
+      const isOpen=g.open;
+
+      if(isOpen){
+        inner+=`<div class="game-row open-slot">
+          <span class="game-id"></span>
+          <span class="game-time">${g.time||'TBD'}</span>
+          <span class="game-diamond">${getDiamondName(g.diamond)}</span>
+          <span class="game-teams" style="color:var(--muted);font-style:italic">— Open Slot —</span>
+        </div>`;
+        continue;
+      }
       const badge=isPly
         ?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>'
         :isCO
