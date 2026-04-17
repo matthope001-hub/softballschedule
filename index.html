@@ -7,12 +7,6 @@
 <title>HCCSL — Schedule & Standings</title>
 <link rel="stylesheet" href="style.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-  body > * {
-    position: relative;
-    z-index: 1;
-  }
-</style>
 </head>
 <body>
 
@@ -20,30 +14,167 @@
   <img src="logo.png" alt="HCCSL Logo" class="header-logo" />
   <div class="header-text">
     <div class="header-title">Hamilton Classic Co-Ed Softball</div>
-    <div class="header-sub">Turner Park · Tuesday Nights · 2026 Season</div>
+    <div class="header-sub">Turner Park · Tuesday Nights · Hamilton, ON</div>
   </div>
+  <div class="header-badge">2026 Season</div>
 </div>
 
 <div class="tabs">
-  <button class="tab active" onclick="showTab('schedule',this)">Schedule</button>
-  <button class="tab" onclick="showTab('standings',this)">Standings</button>
+  <button class="tab active" onclick="showTab('schedule',this)">📅 Schedule</button>
+  <button class="tab" onclick="showTab('standings',this)">📊 Standings</button>
   <button class="tab" onclick="showTab('playoffs',this)">🏆 Playoffs</button>
-  <button class="tab" onclick="showTab('champions',this)">🏆 Champions</button>
-  <button class="tab" onclick="showTab('stats',this)">Stats</button>
-  <button class="tab" onclick="showTab('parkmap',this)">🗺 Park Map</button>
-  <button class="tab" onclick="showTab('rules',this)">Rules</button>
+  <button class="tab" onclick="showTab('champions',this)">🥇 Champions</button>
+  <button class="tab" onclick="showTab('stats',this)">📈 Stats</button>
+  <button class="tab" onclick="showTab('parkmap',this)">🗺 Map</button>
+  <button class="tab" onclick="showTab('rules',this)">📖 Rules</button>
   <button class="tab" onclick="showTab('admin',this)">🔒 Admin</button>
 </div>
 
 <div class="main">
 
+  <!-- ─── SCHEDULE TAB ──────────────────────────────────────────────────────── -->
+  <div id="tab-schedule" class="section active">
+    <div id="season-banner"></div>
+    <div id="last-results"></div>
+    <div id="export-bar" class="export-bar">
+      <span class="export-label">Export:</span>
+      <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-outline btn-sm" onclick="exportPrint()">🖨 Print</button>
+      <button class="btn btn-outline btn-sm" onclick="exportICal()">📅 iCal</button>
+    </div>
+    <div id="team-filter-bar" class="filter-bar">
+      <div class="filter-label">Filter by Team</div>
+      <div id="team-filter-chips" class="filter-chips"></div>
+    </div>
+    <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
+  </div>
+
+  <!-- ─── STANDINGS TAB ─────────────────────────────────────────────────────── -->
+  <div id="tab-standings" class="section">
+    <div id="sto"><div class="empty">Enter scores to see standings</div></div>
+  </div>
+
+  <!-- ─── STATS TAB ─────────────────────────────────────────────────────────── -->
+  <div id="tab-stats" class="section">
+    <div id="sta"><div class="empty">Generate a schedule to view stats</div></div>
+  </div>
+
+  <!-- ─── PLAYOFFS TAB ──────────────────────────────────────────────────────── -->
+  <div id="tab-playoffs" class="section">
+    <div id="ply"><div class="empty">Loading playoffs…</div></div>
+  </div>
+
+  <!-- ─── CHAMPIONS TAB ─────────────────────────────────────────────────────── -->
+  <div id="tab-champions" class="section">
+    <div id="champ-content"></div>
+  </div>
+
+  <!-- ─── PARK MAP TAB ──────────────────────────────────────────────────────── -->
+  <div id="tab-parkmap" class="section">
+    <div class="card">
+      <div class="card-title">🗺 Turner Park — Diamond Map</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        All diamonds at Turner Park, 344 Rymal Rd E, Hamilton.
+        <strong style="color:var(--navy)">D5–D12</strong> enter from Rymal Rd (north) ·
+        <strong style="color:var(--navy)">D13–D14</strong> enter from Twenty Rd E (west).
+      </div>
+      <div id="park-map" style="height:380px;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--border)"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Diamond Legend</div>
+      <div id="map-legend" style="display:grid;gap:6px"></div>
+    </div>
+  </div>
+
+  <!-- ─── RULES TAB ─────────────────────────────────────────────────────────── -->
+  <div id="tab-rules" class="section">
+
+    <div class="card">
+      <div class="card-title">Game Rules <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 1.0–11.0)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">1.0</span><span class="rule-text">All games governed by <strong>SPN rules</strong> except where HCCSL rules specifically override.</span></div>
+        <div class="rule-item"><span class="rule-num">2.0</span><span class="rule-text">Teams must have a minimum of <strong>8 players</strong> (including at least 3 women) to start a game. Fewer than 8 = forfeit.</span></div>
+        <div class="rule-item"><span class="rule-num">2.1</span><span class="rule-text">Maximum of <strong>10 players</strong> on the field. Batting order may include up to <strong>16 players</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">3.0</span><span class="rule-text"><strong>Gender ratio:</strong> At least 3 women in the field at all times. If a team cannot field 3 women, an out is recorded each time the missing spot comes to bat.</span></div>
+        <div class="rule-item"><span class="rule-num">4.0</span><span class="rule-text">All players must be registered with SPN and listed on the team's official roster before playing.</span></div>
+        <div class="rule-item"><span class="rule-num">5.0</span><span class="rule-text"><strong>Pitching arc:</strong> Minimum 6 feet, maximum 12 feet from the ground.</span></div>
+        <div class="rule-item"><span class="rule-num">6.0</span><span class="rule-text">Home run limit: <strong>3 over-the-fence HR per team per game</strong>. Additional over-fence hits count as a single.</span></div>
+        <div class="rule-item"><span class="rule-num">7.0</span><span class="rule-text"><strong>Mercy rule:</strong> 15 runs after 3 innings, 12 runs after 5 innings.</span></div>
+        <div class="rule-item"><span class="rule-num">8.0</span><span class="rule-text"><strong>Weather cancellation:</strong> Game suspended due to weather before becoming official = rescheduled. If official = result stands. Suspended official game = <strong>7–7 tie</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">9.0</span><span class="rule-text">A regulation game is <strong>7 innings</strong>. Tied games after 7 innings in the regular season end as a tie.</span></div>
+        <div class="rule-item"><span class="rule-num">10.0</span><span class="rule-text"><strong>Courtesy runner:</strong> Each team may use one courtesy runner per inning. Runner must be the last recorded out.</span></div>
+        <div class="rule-item"><span class="rule-num">11.0</span><span class="rule-text">No new inning shall start after <strong>1 hour 45 minutes</strong> from the official start time (curfew). Existing inning completes.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Standings <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 10.0)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">10.0</span><span class="rule-text">Points: <strong>Win = 2 pts</strong>, <strong>Tie = 1 pt</strong>, <strong>Loss = 0 pts</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">10.1</span><span class="rule-text">Tiebreaker order: (a) head-to-head points, (b) winner of most recent matchup, (c) coin toss.</span></div>
+        <div class="rule-item"><span class="rule-num">10.2</span><span class="rule-text">Run differential <strong>capped at +7</strong> per game for standings purposes.</span></div>
+        <div class="rule-item"><span class="rule-num">10.3</span><span class="rule-text"><strong>CrossOver</strong> is a guest team — excluded from standings. Results vs CrossOver count toward league teams' records.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Curfew & Official Games <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 11.0–12.1)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">11.0</span><span class="rule-text">Curfew: no new inning after <strong>1h 45m</strong>. 15-min grace period if both teams and umpire agree (counts toward 1h 45m total). Game reverts to last complete inning if time expires.</span></div>
+        <div class="rule-item"><span class="rule-num">12.1</span><span class="rule-text">Official game = <strong>3½ innings</strong> (home team leading) or <strong>4 complete innings</strong>.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Playoffs <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 13.0–13.4)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">13.0</span><span class="rule-text">Two PODs — <strong>POD A</strong> (top 5) and <strong>POD B</strong> (bottom 4).</span></div>
+        <div class="rule-item"><span class="rule-num">13.2</span><span class="rule-text">All playoff games: <strong>single game, 7 innings</strong>, 12-run mercy after 5 innings.</span></div>
+        <div class="rule-item"><span class="rule-num">13.3</span><span class="rule-text">Playoff tie after 7 innings → <strong>international tiebreaker</strong> extra innings.</span></div>
+        <div class="rule-item"><span class="rule-num">13.4</span><span class="rule-text">Playoff eligibility: <strong>40% attendance</strong> (8 of 20 games). Roster submitted by Aug 27.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Batting Order &amp; Substitutions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 15–16)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">15.0</span><span class="rule-text">Provide lineup to opposing team before each game. Attendance sheets to league within <strong>48 hours</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">16.0</span><span class="rule-text">Late-arriving players must be added to the <strong>bottom of the batting order</strong> or sit out.</span></div>
+        <div class="rule-item"><span class="rule-num">16.2</span><span class="rule-text">Substitute players declared at game start. Late arrivals only added if order has not been completed once.</span></div>
+        <div class="rule-item"><span class="rule-num">16.4</span><span class="rule-text">Mid-game substitutions must be <strong>gender-for-gender</strong> unless batting order allows otherwise.</span></div>
+        <div class="rule-item"><span class="rule-num">16.5</span><span class="rule-text"><strong>Pinch runners:</strong> max 3 per game.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Conduct &amp; Ejections <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 17–19)</span></div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">17.0</span><span class="rule-text">Zero tolerance for <strong>harassment, discrimination, or abusive language</strong>. Immediate ejection. Repeat = suspension.</span></div>
+        <div class="rule-item"><span class="rule-num">17.1</span><span class="rule-text">Ejected player must leave the field and surrounding area. Team plays short.</span></div>
+        <div class="rule-item"><span class="rule-num">18.0</span><span class="rule-text"><strong>Alcohol</strong> on the diamond or dugout = ejection. Permitted in designated areas only.</span></div>
+        <div class="rule-item"><span class="rule-num">18.1</span><span class="rule-text">Coaches responsible for spectator conduct. Failure to control spectators can result in ejection or forfeit.</span></div>
+        <div class="rule-item"><span class="rule-num">19.0</span><span class="rule-text">Games must be officiated by at least <strong>1 umpire</strong>. No umpire = game cancelled.</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Prize Breakdown</div>
+      <div class="rules-grid">
+        <div class="rule-item"><span class="rule-num">POD A</span><span class="rule-text">1st — <strong>$500</strong> &nbsp;·&nbsp; 2nd — <strong>$300</strong> &nbsp;·&nbsp; 3rd — <strong>$200</strong></span></div>
+        <div class="rule-item"><span class="rule-num">POD B</span><span class="rule-text">1st — <strong>$400</strong> &nbsp;·&nbsp; 2nd — <strong>$250</strong></span></div>
+        <div class="rule-item"><span class="rule-num">Total</span><span class="rule-text"><strong>$1,650</strong> year-end tournament prize pool</span></div>
+      </div>
+    </div>
+
+  </div><!-- /tab-rules -->
+
   <!-- ─── ADMIN TAB ─────────────────────────────────────────────────────────── -->
   <div id="tab-admin" class="section">
-    <div id="admin-locked" style="text-align:center;padding:3rem 1rem">
-      <div style="font-size:40px;margin-bottom:12px">🔒</div>
-      <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:6px">Admin Area</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Enter PIN to access scores, game editing, and settings.</div>
-      <button class="btn btn-primary" onclick="unlockAdmin()" style="font-size:14px;padding:10px 28px">Unlock Admin</button>
+    <div id="admin-locked" style="text-align:center;padding:4rem 1rem">
+      <div style="font-size:48px;margin-bottom:16px;opacity:0.7">🔒</div>
+      <div style="font-family:var(--font-cd);font-size:22px;font-weight:800;color:var(--navy);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">Admin Area</div>
+      <div style="font-size:14px;color:var(--muted);margin-bottom:24px">Enter PIN to access scores, game editing, and settings.</div>
+      <button class="btn btn-primary" onclick="unlockAdmin()" style="font-size:14px;padding:11px 32px">Unlock Admin</button>
     </div>
     <div id="admin-unlocked" style="display:none">
       <div class="admin-subtabs">
@@ -52,17 +183,14 @@
         <button class="admin-subtab" onclick="showAdminTab('settings',this)">Settings</button>
       </div>
 
-      <!-- ── SCORES SUB-TAB ───────────────────────────────────────────────── -->
       <div id="admin-scores" class="admin-panel active">
         <div id="sco"><div class="empty">Generate a schedule to enter scores</div></div>
       </div>
 
-      <!-- ── EDIT GAMES SUB-TAB ───────────────────────────────────────────── -->
       <div id="admin-edit" class="admin-panel">
         <div id="edi"><div class="empty">Generate a schedule to edit games</div></div>
       </div>
 
-      <!-- ── SETTINGS SUB-TAB ─────────────────────────────────────────────── -->
       <div id="admin-settings" class="admin-panel">
 
         <div class="card">
@@ -70,7 +198,7 @@
           <div class="row">
             <div class="field">
               <label>Team Name</label>
-              <input type="text" id="ti" placeholder="Enter team name..." />
+              <input type="text" id="ti" placeholder="Enter team name…" />
             </div>
             <div style="display:flex;align-items:flex-end">
               <button class="btn btn-primary" onclick="addTeam()">+ Add</button>
@@ -81,9 +209,9 @@
 
         <div class="card">
           <div class="card-title">Manage Diamonds</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Add, rename, or remove diamonds. Toggle lights on/off. Changes affect the schedule generator.</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Toggle active/inactive and lights. D13/D14 have no lights infrastructure.</div>
           <div id="diamond-list" style="display:grid;gap:8px;margin-bottom:12px"></div>
-          <button class="btn" onclick="addDiamond()" style="font-size:13px">+ Add Diamond</button>
+          <button class="btn btn-outline btn-sm" onclick="addDiamond()">+ Add Diamond</button>
         </div>
 
         <div class="card">
@@ -134,23 +262,24 @@
             <div class="field">
               <label>Times Each Team Faces Each Opponent</label>
               <select id="tfaced" class="sel" onchange="updateGptNotice()">
-                <option value="1">1× — every team plays each opponent once</option>
-                <option value="2" selected>2× — every team plays each opponent twice</option>
-                <option value="3">3× — every team plays each opponent three times</option>
-                <option value="4">4× — every team plays each opponent four times</option>
-                <option value="5">5× — every team plays each opponent five times</option>
+                <option value="1">1× — once each</option>
+                <option value="2" selected>2× — twice each</option>
+                <option value="3">3× — three times each</option>
+                <option value="4">4× — four times each</option>
+                <option value="5">5× — five times each</option>
               </select>
             </div>
           </div>
           <div id="gpt-notice" style="margin-bottom:1rem"></div>
-          <button class="btn btn-primary" onclick="adminGuard(genSched)()">⚾ Generate Schedule</button>
-          <button class="btn" onclick="clearData()" style="color:var(--red);border-color:var(--red);margin-left:8px">🗑 Clear All Data</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="adminGuard(genSched)()">⚾ Generate Schedule</button>
+            <button class="btn btn-outline" onclick="clearData()" style="color:var(--red);border-color:var(--red)">🗑 Clear All Data</button>
+          </div>
         </div>
 
-        <!-- ── RECORD CHAMPIONS ──────────────────────────────────────────── -->
         <div class="card">
           <div class="card-title">🏆 Record Season Champions</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Enter champions after playoffs complete. Saved to the cloud — appears in the Champions tab instantly.</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Enter champions after playoffs complete. Saved to the cloud — appears in the Champions tab instantly.</div>
           <div class="row">
             <div class="field">
               <label>Season Year</label>
@@ -171,7 +300,6 @@
           <div id="champ-admin-list" style="margin-top:12px;display:grid;gap:6px"></div>
         </div>
 
-        <!-- ── START NEW SEASON ──────────────────────────────────────────── -->
         <div class="card" style="border:2px solid var(--red)">
           <div class="card-title" style="color:var(--red)">🔄 Start New Season</div>
           <div class="notice" style="margin-bottom:12px">Archives the current season permanently, then resets schedule &amp; scores for the new year. Champions history is never deleted.</div>
@@ -181,7 +309,7 @@
               <input type="number" id="new-season-year" min="2000" max="2100" placeholder="e.g. 2027" />
             </div>
           </div>
-          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Optionally record outgoing season champions at the same time:</div>
+          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-cd)">Optionally record outgoing season champions:</div>
           <div class="row">
             <div class="field">
               <label>Outgoing POD A Champion</label>
@@ -192,54 +320,25 @@
               <input type="text" id="new-season-champ-podb" placeholder="e.g. JAFT" />
             </div>
           </div>
-          <button class="btn" onclick="startNewSeason()" style="background:var(--red);color:#fff;border-color:var(--red);margin-top:4px">🔄 Archive &amp; Start New Season</button>
-        </div>
-
-        <!-- ── END OF SEASON CHECKLIST ───────────────────────────────────── -->
-        <div class="card" style="border-left:4px solid var(--navy)">
-          <div class="card-title">📋 End of Season Checklist</div>
-          <div style="display:grid;gap:10px;font-size:13px">
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              <span style="font-size:16px;flex-shrink:0">1️⃣</span>
-              <div><strong>Enter all playoff scores</strong> in the Playoffs tab — round robin, semis, and finals for both POD A and POD B.</div>
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              <span style="font-size:16px;flex-shrink:0">2️⃣</span>
-              <div><strong>Record the champions</strong> using the 🏆 Record Season Champions card above. Enter the POD A and POD B winners and click Save Champions.</div>
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              <span style="font-size:16px;flex-shrink:0">3️⃣</span>
-              <div><strong>Start the new season</strong> using the 🔄 Start New Season card above. Enter the new year, optionally the outgoing champions, and click Archive &amp; Start. The current season is preserved forever in the archive.</div>
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              <span style="font-size:16px;flex-shrink:0">4️⃣</span>
-              <div><strong>Update season dates</strong> in Season Settings above for the new year, then generate a fresh schedule.</div>
-            </div>
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              <span style="font-size:16px;flex-shrink:0">5️⃣</span>
-              <div><strong>Update the README</strong> in your GitHub repo to reflect the new season year if needed.</div>
-            </div>
-          </div>
+          <button class="btn btn-danger" onclick="startNewSeason()">🔄 Archive &amp; Start New Season</button>
         </div>
 
         <div class="card">
-          <div class="card-title">Scheduler Rules</div>
-          <div style="margin-bottom:1.1rem">
-            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏟 Diamonds</div>
-            <div id="rules-diamonds" style="display:grid;gap:6px"></div>
-          </div>
-          <div style="margin-bottom:1.1rem">
-            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">🏆 Standings</div>
-            <div style="font-size:13px;color:var(--text);display:grid;gap:5px">
-              <div>CrossOver is <strong>excluded from standings</strong> — guest team only.</div>
-              <div>Results vs CrossOver <strong>count</strong> for league teams' W/L/T records.</div>
-              <div>Run differential <strong>capped at +7</strong> per game.</div>
-              <div>Ranked by points (W=2, T=1, L=0), tiebroken by run differential.</div>
+          <div class="card-title">League Quick Reference</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:13px">
+            <div>
+              <div style="font-family:var(--font-cd);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid var(--border)">📊 Standings</div>
+              <div style="color:var(--text2);display:grid;gap:5px">
+                <div>CrossOver is <strong>excluded from standings</strong> — guest team only.</div>
+                <div>Results vs CrossOver <strong>count</strong> for league teams' W/L/T records.</div>
+                <div>Run differential <strong>capped at +7</strong> per game.</div>
+                <div>Ranked by points (W=2, T=1, L=0), tiebroken by run differential.</div>
+              </div>
             </div>
-          </div>
-          <div>
-            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid var(--border)">📍 Venue</div>
-            <div style="font-size:13px;color:var(--text)">Turner Park, Hamilton · Tuesday nights</div>
+            <div>
+              <div style="font-family:var(--font-cd);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid var(--border)">📍 Venue</div>
+              <div style="color:var(--text2)">Turner Park, Hamilton · Tuesday nights</div>
+            </div>
           </div>
         </div>
 
@@ -247,195 +346,9 @@
     </div><!-- /admin-unlocked -->
   </div><!-- /tab-admin -->
 
-  <div id="tab-schedule" class="section active">
-    <div id="season-banner"></div>
-    <div id="last-results"></div>
-    <div id="export-bar" class="export-bar">
-      <span class="export-label">Export:</span>
-      <button class="btn" onclick="exportCSV()" style="font-size:12px;padding:6px 14px">⬇ CSV / Excel</button>
-      <button class="btn" onclick="exportPrint()" style="font-size:12px;padding:6px 14px">🖨 Print / PDF</button>
-      <button class="btn" onclick="exportICal()" style="font-size:12px;padding:6px 14px">📅 iCal (.ics)</button>
-    </div>
-    <div id="team-filter-bar" class="filter-bar">
-      <div class="filter-label">Filter by Team</div>
-      <div id="team-filter-chips" class="filter-chips"></div>
-    </div>
-    <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
-  </div>
+</div><!-- /main -->
 
-  <div id="tab-standings" class="section">
-    <div id="sto"><div class="empty">// ENTER SCORES TO SEE STANDINGS //</div></div>
-  </div>
-
-  <div id="tab-stats" class="section">
-    <div id="sta"><div class="empty">Generate a schedule to view stats</div></div>
-  </div>
-
-  <div id="tab-playoffs" class="section">
-    <div id="ply"><div class="empty">Loading playoffs...</div></div>
-  </div>
-
-  <div id="tab-champions" class="section">
-    <div id="champ-content"></div>
-  </div>
-
-  <div id="tab-parkmap" class="section">
-    <div class="card">
-      <div class="card-title">🗺 Turner Park — Diamond Map</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
-        All 13 diamonds at Turner Park, 344 Rymal Rd E, Hamilton. Hover or tap any marker for details.
-        <strong style="color:var(--navy)">D2–D12</strong> enter from Rymal Rd (north) ·
-        <strong style="color:var(--navy)">D13–D14</strong> enter from Twenty Rd E (west).
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:12px;font-size:12px;color:var(--muted)">
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:#0c2a45;flex-shrink:0"></div><span>Active — lights on (D9, D12)</span></div>
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:#1a6bbf;flex-shrink:0"></div><span>Active — no lights used (D5)</span></div>
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:#166534;flex-shrink:0"></div><span>Active — no lights infra (D13, D14)</span></div>
-        <div style="display:flex;align-items:center;gap:6px"><div style="width:12px;height:12px;border-radius:50%;background:#6b7280;flex-shrink:0"></div><span>Inactive</span></div>
-      </div>
-      <div id="park-map" style="height:520px;border-radius:var(--r);overflow:hidden;border:1.5px solid var(--border);"></div>
-    </div>
-  </div>
-
-  <div id="tab-rules" class="section">
-
-    <div class="card">
-      <div class="card-title">Membership &amp; Eligibility</div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">1.0</span><span class="rule-text">Membership is open to Adult Baseball teams whose players are <strong>21+</strong> (exception: 18+ with majority captain vote if a parent/guardian is on the team). All new members serve a 1-year probation. Teams must confirm entry by <strong>April 1</strong> each year.</span></div>
-        <div class="rule-item"><span class="rule-num">1.1</span><span class="rule-text">SPN Rules allow pregnant players to continue. If disclosed, both player and coach must sign a <strong>Pregnancy Waiver</strong> removing league liability.</span></div>
-        <div class="rule-item"><span class="rule-num">3.0</span><span class="rule-text">Maximum <strong>20 players</strong> on a roster, all aged 21+ as of December 31 of the calendar year (18+ exception applies).</span></div>
-        <div class="rule-item"><span class="rule-num">4.0</span><span class="rule-text">No team may dress more than <strong>20 players</strong>. Using an ineligible player = game forfeiture + manager suspended for next <strong>3</strong> league or playoff games.</span></div>
-        <div class="rule-item"><span class="rule-num">5.0</span><span class="rule-text">Playing rosters must be submitted to the Tier Convener by the start of the season. Players may be <strong>added but not removed</strong>. Maximum 20.</span></div>
-        <div class="rule-item"><span class="rule-num">5.1</span><span class="rule-text">Rosters <strong>freeze after August 27, 2025</strong>. Frozen roster = playoff roster. Max 20 players.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Game Eligibility &amp; Fielding</div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">6.0</span><span class="rule-text">Minimum <strong>9 players</strong> required to play. No automatic out if fielding 4F+5M or 4M+5F.</span></div>
-        <div class="rule-item"><span class="rule-num">6.1</span><span class="rule-text">League-sanctioned games permitted with a minimum of <strong>3 females</strong> (regular season only).</span></div>
-        <div class="rule-item"><span class="rule-num">6.2</span><span class="rule-text">Team with only 3 females receives an <strong>automatic out</strong> in the 4th female batting spot. Females cannot be rotated within the batting lineup.</span></div>
-        <div class="rule-item"><span class="rule-num">6.3</span><span class="rule-text">Fielding team with 3 females plays max <strong>6 males</strong> in the field — cannot field 7 males + 3 females.</span></div>
-        <div class="rule-item"><span class="rule-num">6.4</span><span class="rule-text">If a team drops below <strong>8 players</strong> mid-game due to injury/ejection, the game is a forfeit at that point.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Reporting, Rescheduling &amp; Forfeits</div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">7.0</span><span class="rule-text">Game results (scores, ejections, cancellations) must be reported to the Tier Convener within <strong>48 hours</strong> by the winning team.</span></div>
-        <div class="rule-item"><span class="rule-num">7.1</span><span class="rule-text">All ejections must be reported by <strong>both coaches</strong> to the Tier Convener and Disciplinary Committee within 48 hours.</span></div>
-        <div class="rule-item"><span class="rule-num">8.0</span><span class="rule-text">Games cancelled due to weather are recorded as a <strong>7–7 tie</strong>. No rain-out weeks or makeup games. Diamond rental/umpire savings are held as a rebate for returning teams.</span></div>
-        <div class="rule-item"><span class="rule-num">8.1</span><span class="rule-text">Forfeiture with <strong>less than 24 hours</strong> notice = <strong>$35 league fine</strong> (covers umpire fees). 24+ hours notice = no fine.</span></div>
-        <div class="rule-item"><span class="rule-num">23.0</span><span class="rule-text">A team that forfeits <strong>5 or more</strong> regular-season games is ineligible for playoffs.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Standings &amp; Tiebreakers <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 10.0)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">PTS</span><span class="rule-text"><strong>Win = 2 pts · Tie = 1 pt · Loss = 0 pts</strong></span></div>
-        <div class="rule-item rule-highlight"><span class="rule-num">a)</span><span class="rule-text"><strong>Head-to-head record</strong> among all tied teams.</span></div>
-        <div class="rule-item rule-highlight"><span class="rule-num">b)</span><span class="rule-text"><strong>Winner of last regular-season matchup</strong> between the tied teams. If that game was a tie, walk back to the next most recent result between them.</span></div>
-        <div class="rule-item rule-highlight"><span class="rule-num">c)</span><span class="rule-text"><strong>Coin toss.</strong></span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Game Rules <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 11 — HCCSL Specific)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">a)</span><span class="rule-text">Pitchers may pitch from <strong>6 feet to unlimited</strong> distance.</span></div>
-        <div class="rule-item"><span class="rule-num">b)</span><span class="rule-text">Pitcher's mound zone: <strong>2 feet left/right</strong>, max <strong>5 feet behind</strong> the pitcher's box.</span></div>
-        <div class="rule-item"><span class="rule-num">c)</span><span class="rule-text"><strong>5-run max per inning</strong> except the final inning, which is unlimited.</span></div>
-        <div class="rule-item"><span class="rule-num">d)</span><span class="rule-text"><strong>No leading off</strong> — runners cannot leave the base until bat contacts ball.</span></div>
-        <div class="rule-item"><span class="rule-num">e)</span><span class="rule-text"><strong>No direct throws</strong> from outfield to 1st base. Relay throws (outfield → infield → 1st) are allowed.</span></div>
-        <div class="rule-item"><span class="rule-num">f)</span><span class="rule-text"><strong>Mercy rule:</strong> 12 runs after 5 complete innings.</span></div>
-        <div class="rule-item"><span class="rule-num">g)</span><span class="rule-text">Tagging a runner from home to 1st base is <strong>permitted</strong>.</span></div>
-        <div class="rule-item"><span class="rule-num">h)</span><span class="rule-text">Tagging is <strong>not permitted</strong> between the commitment line and home plate — runner is ruled safe.</span></div>
-        <div class="rule-item"><span class="rule-num">i)</span><span class="rule-text"><strong>150-foot rule:</strong> Outfielders must stay behind the 150-ft pylon line until the ball is struck. Violation = batter awarded 1 base.</span></div>
-        <div class="rule-item"><span class="rule-num">j)</span><span class="rule-text"><strong>2-base walk:</strong> If a male batter is walked and a female follows in the order, the male advances to 2nd. (Exception: declared 1st-base-only male goes to 1st only.)</span></div>
-        <div class="rule-item"><span class="rule-num">k)</span><span class="rule-text">A male batter <strong>cannot be intentionally walked</strong> to force an Auto-Out (female) to end the inning — he must hit or strike/foul out.</span></div>
-        <div class="rule-item"><span class="rule-num">l)</span><span class="rule-text">Male or female declared 1st-only hitting a <strong>home run over the fence</strong> is awarded 1st base only; all other runners score.</span></div>
-        <div class="rule-item"><span class="rule-num">m)</span><span class="rule-text">Official ball is the <strong>"Hot Dot"</strong> — no other grade permitted in regular season or playoffs.</span></div>
-        <div class="rule-item"><span class="rule-num">n)</span><span class="rule-text">A <strong>5-person infield</strong> is prohibited.</span></div>
-        <div class="rule-item"><span class="rule-num">o)</span><span class="rule-text">Rotating a fielder to another position must be done for <strong>all pitches</strong> to that batter.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Game Format</div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">12.0</span><span class="rule-text"><strong>7 innings.</strong> No new inning after <strong>1h 30m</strong> from first pitch. 15-min grace period if both teams and umpire agree (counts toward 1h 45m total). Game reverts to last complete inning if time expires (regular season).</span></div>
-        <div class="rule-item"><span class="rule-num">12.1</span><span class="rule-text">Official game = <strong>3½ innings</strong> (home team leading) or <strong>4 complete innings</strong>.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Playoffs <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 13.0–13.4)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">13.0</span><span class="rule-text">Two PODs for round robin — <strong>POD A &amp; POD B</strong>, 5 teams each.</span></div>
-        <div class="rule-item"><span class="rule-num">13.2</span><span class="rule-text">All playoff games are <strong>single game, 7 innings</strong>, subject to 12-run mercy rule after 5 innings.</span></div>
-        <div class="rule-item"><span class="rule-num">13.3</span><span class="rule-text">Playoff tie after 7 innings → <strong>international tiebreaker</strong> extra innings. Weather-interrupted games suspended/rescheduled at Tier Convener's discretion.</span></div>
-        <div class="rule-item"><span class="rule-num">13.4</span><span class="rule-text">Playoff eligibility requires <strong>40% attendance</strong> (8 of 20 games). Playoff roster must be submitted by <strong>August 27, 2025</strong>.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Batting Order &amp; Substitutions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 15–16)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">15.0</span><span class="rule-text">Each team must provide a complete lineup to the opposing team before each game. Attendance sheets submitted to league website within <strong>48 hours</strong>.</span></div>
-        <div class="rule-item"><span class="rule-num">16.0</span><span class="rule-text">Late-arriving players (10 or fewer in order) must be added to the <strong>bottom of the batting order</strong> or sit out.</span></div>
-        <div class="rule-item"><span class="rule-num">16.2</span><span class="rule-text">Substitute players must be declared at game start. Late arrivals can only be added if the order has not been completed once.</span></div>
-        <div class="rule-item"><span class="rule-num">16.4</span><span class="rule-text">Mid-game substitutions must be <strong>gender-for-gender</strong> (male for male, female for female) unless the batting order allows otherwise.</span></div>
-        <div class="rule-item"><span class="rule-num">16.5</span><span class="rule-text"><strong>Pinch runners:</strong> max <strong>3 per game</strong>. Male for male, female for female.</span></div>
-        <div class="rule-item"><span class="rule-num">16.6</span><span class="rule-text"><strong>Declared injured players</strong> must be declared before game start. Allowed unlimited runners but only at <strong>1st base</strong> — cannot advance further (except on overthrow or male walk with female behind them).</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Ejections &amp; Suspensions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 20–21)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">Class I</span><span class="rule-text"><strong>Verbal:</strong> 1st ejection = that game + 1 auto suspension. 2nd = min 3-game suspension. 3rd = indefinite + disciplinary hearing + $50 team fine + team captain suspended.</span></div>
-        <div class="rule-item"><span class="rule-num">Class II</span><span class="rule-text"><strong>Physical/contact:</strong> 1st occurrence = ejection + immediate indefinite suspension pending disciplinary hearing. Must sit out until hearing regardless.</span></div>
-        <div class="rule-item"><span class="rule-num">29.0</span><span class="rule-text">Any ejection = automatic <strong>1-game suspension</strong> for next league or playoff game.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Equipment</div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">26.0</span><span class="rule-text"><strong>No metal cleats.</strong></span></div>
-        <div class="rule-item"><span class="rule-num">26.1</span><span class="rule-text">Altered or tampered bats = batter out + ejection + possible additional penalties.</span></div>
-        <div class="rule-item"><span class="rule-num">26.3</span><span class="rule-text">Jewelry: stud earrings/nose piercings permitted. <strong>No hoop earrings/piercings. No necklaces.</strong> Violation during at-bat = out.</span></div>
-        <div class="rule-item"><span class="rule-num">26.4</span><span class="rule-text">Each team is responsible for carrying a fully stocked <strong>first aid kit</strong> to every game.</span></div>
-        <div class="rule-item"><span class="rule-num">31.0</span><span class="rule-text">Only bats on the current <strong>SPN Approved Bat List</strong> are permitted.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Conduct &amp; General</div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">17.0</span><span class="rule-text"><strong>Blood/cut rule:</strong> Any player bleeding must leave the field until properly treated and wound covered. All blood-contaminated equipment must be removed.</span></div>
-        <div class="rule-item"><span class="rule-num">27.0</span><span class="rule-text"><strong>Zero tolerance</strong> for smoking, alcohol, violence, and abusive behavior at all facilities.</span></div>
-        <div class="rule-item"><span class="rule-num">28.0</span><span class="rule-text">Coaches are responsible for their spectators' behavior. Failure to control spectators can result in coach ejection or game forfeiture.</span></div>
-        <div class="rule-item"><span class="rule-num">19.0</span><span class="rule-text">Games must be officiated by at least <strong>1 umpire</strong>. No umpire = game cancelled. Semis/Finals may use 2 umpires.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Prize Breakdown</div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">POD A</span><span class="rule-text">1st — <strong>$500</strong> &nbsp;·&nbsp; 2nd — <strong>$300</strong> &nbsp;·&nbsp; 3rd — <strong>$200</strong></span></div>
-        <div class="rule-item"><span class="rule-num">POD B</span><span class="rule-text">1st — <strong>$400</strong> &nbsp;·&nbsp; 2nd — <strong>$250</strong></span></div>
-        <div class="rule-item"><span class="rule-num">Total</span><span class="rule-text"><strong>$1,650</strong> year-end tournament prize pool</span></div>
-      </div>
-    </div>
-
-  </div>
-
-</div>
+<div id="_toast"></div>
 
 <script src="data.js"></script>
 <script src="champions.js"></script>
@@ -448,7 +361,6 @@
 <script src="edit.js"></script>
 <script src="playoffs.js"></script>
 <script>
-// ── ADMIN MENU ────────────────────────────────────────────────────────────────
 var activeAdminTab = 'scores';
 
 function unlockAdmin(){
@@ -497,52 +409,41 @@ function refreshActiveAdminTab(){
     if (t === 'parkmap' && !mapInitialized) {
       mapInitialized = true;
       var diamonds = [
-        {id:2,  lat:43.1961481, lng:-79.87783,   status:'inactive',       note:'Inactive · no lights infrastructure · near Rymal Rd'},
-        {id:3,  lat:43.1955013, lng:-79.8782437, status:'inactive',       note:'Inactive · no lights infrastructure · near Rymal Rd'},
-        {id:4,  lat:43.1940919, lng:-79.8795775, status:'inactive',       note:'Inactive · no lights infrastructure'},
-        {id:5,  lat:43.1917341, lng:-79.8807409, status:'active-nolit',   note:'Active · lights capable · 6:30 PM only'},
-        {id:6,  lat:43.1919615, lng:-79.880245,  status:'inactive',       note:'Inactive · lights capable'},
-        {id:7,  lat:43.1915298, lng:-79.8799815, status:'inactive',       note:'Inactive · lights capable'},
-        {id:8,  lat:43.1913438, lng:-79.8805102, status:'inactive',       note:'Inactive · lights capable'},
-        {id:9,  lat:43.1897541, lng:-79.8817034, status:'lights-on',      note:'Active · lights ON · CrossOver doubleheader'},
-        {id:10, lat:43.1899998, lng:-79.8811429, status:'inactive',       note:'Inactive · lights capable'},
-        {id:11, lat:43.18938,   lng:-79.88085,   status:'inactive',       note:'Inactive · lights capable'},
-        {id:12, lat:43.1893525, lng:-79.8814094, status:'lights-on',      note:'Active · lights ON · doubleheader capable'},
-        {id:13, lat:43.18762,   lng:-79.88235,   status:'active-noinfra', note:'Active · no lights infrastructure · Twenty Rd entrance'},
-        {id:14, lat:43.18832,   lng:-79.88310,   status:'active-noinfra', note:'Active · no lights infrastructure · Twenty Rd entrance'},
+        {id:2,  lat:43.1961481, lng:-79.87783,   status:'inactive',     note:'Inactive · no lights · near Rymal Rd'},
+        {id:3,  lat:43.1955013, lng:-79.8782437, status:'inactive',     note:'Inactive · no lights · near Rymal Rd'},
+        {id:4,  lat:43.1940919, lng:-79.8795775, status:'inactive',     note:'Inactive · no lights'},
+        {id:5,  lat:43.1917341, lng:-79.8807409, status:'active-nolit', note:'Active · lights capable · 6:30 PM only'},
+        {id:6,  lat:43.1904,    lng:-79.8814,    status:'inactive',     note:'Inactive'},
+        {id:7,  lat:43.1892,    lng:-79.8820,    status:'inactive',     note:'Inactive'},
+        {id:8,  lat:43.1882,    lng:-79.8826,    status:'inactive',     note:'Inactive'},
+        {id:9,  lat:43.1872,    lng:-79.8832,    status:'active-lit',   note:'Active · lights ON · CrossOver DH 6:30 + 8:15'},
+        {id:10, lat:43.1862,    lng:-79.8838,    status:'inactive',     note:'Inactive'},
+        {id:11, lat:43.1852,    lng:-79.8844,    status:'inactive',     note:'Inactive'},
+        {id:12, lat:43.1842,    lng:-79.8850,    status:'active-lit',   note:'Active · lights ON · League DH 6:30 + 8:15'},
+        {id:13, lat:43.1780,    lng:-79.8900,    status:'active-nolit', note:'Active · NO lights infrastructure · 6:30 PM only'},
+        {id:14, lat:43.1770,    lng:-79.8910,    status:'active-nolit', note:'Active · NO lights infrastructure · 6:30 PM only'}
       ];
-      var colors = {
-        'lights-on':       '#0c2a45',
-        'active-nolit':    '#1a6bbf',
-        'active-noinfra':  '#166534',
-        'inactive':        '#6b7280',
-      };
-      var map = L.map('park-map', {center:[43.1925, -79.8808], zoom:16});
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution:'Imagery &copy; Esri',
-        maxZoom:20
-      }).addTo(map);
+      var colors = {'active-lit':'#2f9e44','active-nolit':'#1971c2','inactive':'#9aacbf'};
+      var map = L.map('park-map').setView([43.1872, -79.8832], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
       diamonds.forEach(function(d){
-        var color = colors[d.status];
-        var isActive = d.status !== 'inactive';
-        var size = isActive ? 36 : 30;
+        var col = colors[d.status]||'#9aacbf';
         var icon = L.divIcon({
-          className:'',
-          html:'<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+color+';border:'+(isActive?'2.5px':'1.5px')+' solid rgba(255,255,255,'+(isActive?'0.9':'0.55')+');display:flex;align-items:center;justify-content:center;font-size:'+(size>32?11:10)+'px;font-weight:600;color:#fff;font-family:sans-serif;box-shadow:0 2px 6px rgba(0,0,0,0.55);cursor:pointer;">D'+d.id+'</div>',
-          iconSize:[size,size],
-          iconAnchor:[size/2,size/2],
-          popupAnchor:[0,-(size/2+4)]
+          html: '<div style="background:'+col+';color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-family:\'Barlow Condensed\',sans-serif">'+d.id+'</div>',
+          className:'',iconSize:[28,28],iconAnchor:[14,14]
         });
-        var popup = L.popup({closeButton:false,offset:[0,0]}).setContent(
-          '<div style="font-family:sans-serif;font-size:12px;min-width:160px;">'
-          +'<div style="font-weight:600;font-size:13px;margin-bottom:3px;color:#111;">Diamond '+d.id+'</div>'
-          +'<div style="color:#555;">'+d.note+'</div></div>'
-        );
-        L.marker([d.lat,d.lng],{icon:icon}).addTo(map)
-          .bindPopup(popup)
-          .on('mouseover',function(){this.openPopup();})
-          .on('mouseout',function(){this.closePopup();});
+        L.marker([d.lat,d.lng],{icon:icon}).addTo(map).bindPopup('<strong>Diamond '+d.id+'</strong><br>'+d.note);
       });
+      var legend = document.getElementById('map-legend');
+      if(legend){
+        legend.innerHTML = [
+          {col:'#2f9e44',label:'Active — Lights ON'},
+          {col:'#1971c2',label:'Active — No Lights / Lights Capable'},
+          {col:'#9aacbf',label:'Inactive'}
+        ].map(function(e){
+          return '<div style="display:flex;align-items:center;gap:10px;font-size:13px"><div style="width:14px;height:14px;border-radius:50%;background:'+e.col+';flex-shrink:0"></div>'+e.label+'</div>';
+        }).join('');
+      }
     }
   };
 })();
