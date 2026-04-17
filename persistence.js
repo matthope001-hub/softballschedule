@@ -83,7 +83,10 @@ async function loadData() {
   showToast('⏳ Loading from cloud…');
   try {
     const res=await fetch(JSONBIN_URL()+'/latest',{
-      headers:{'X-Master-Key':JSONBIN_READ_KEY||JSONBIN_WRITE_KEY}
+      headers:{
+        'X-Master-Key': JSONBIN_WRITE_KEY,  // FIX: use write/master key for reads too
+        'X-Access-Key': JSONBIN_READ_KEY    // FIX: also send read key in correct header
+      }
     });
     if(!res.ok){ console.warn(`JSONBin load: HTTP ${res.status}`); showToast(`⚠ Could not load data (${res.status})`); return false; }
     const json=await res.json();
