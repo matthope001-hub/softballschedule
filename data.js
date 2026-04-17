@@ -68,12 +68,12 @@ function showTab(t,btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   if(btn)btn.classList.add('active');
   document.getElementById('tab-'+t).classList.add('active');
-  if(t==='schedule')renderSched();
-  if(t==='standings')renderStandings();
-  if(t==='stats')renderStats();
-  if(t==='playoffs')renderPlayoffs();
-  if(t==='champions')renderChampions();
-  if(t==='admin'&&typeof refreshActiveAdminTab==='function')refreshActiveAdminTab();
+  if(t==='schedule'   &&typeof renderSched==='function')    renderSched();
+  if(t==='standings'  &&typeof renderStandings==='function') renderStandings();
+  if(t==='stats'      &&typeof renderStats==='function')     renderStats();
+  if(t==='playoffs'   &&typeof renderPlayoffs==='function')  renderPlayoffs();
+  if(t==='champions'  &&typeof renderChampions==='function') renderChampions();
+  if(t==='admin'      &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
