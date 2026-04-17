@@ -22,7 +22,6 @@ function adminGuard(fn) {
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
-// Single source of truth for toast — works whether #_toast is in HTML or not
 function showToast(msg, duration = 2800) {
   let t = document.getElementById('_toast');
   if (!t) {
@@ -58,7 +57,7 @@ function saveData() {
     seasonArchive: G.seasonArchive || {}
   };
 
-  // Always write localStorage immediately — instant local persistence
+  // Write localStorage immediately — instant local persistence
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch(e) {
     console.warn('localStorage write failed:', e);
   }
@@ -69,109 +68,137 @@ function saveData() {
 }
 
 async function _flushToCloud(payload) {
-  // Guard: need both bin ID and a write key
   if (!JSONBIN_BIN_ID || !JSONBIN_WRITE_KEY) {
     showToast('✓ Saved locally (no cloud key)');
     return;
   }
-
   showToast('⏳ Syncing to cloud…');
-
   try {
     const res = await fetch(JSONBIN_URL(), {
       method: 'PUT',
       headers: {
-        'Content-Type':    'application/json',
-        'X-Master-Key':    JSONBIN_WRITE_KEY,
+        'Content-Type':     'application/json',
+        'X-Master-Key':     JSONBIN_WRITE_KEY,
         'X-Bin-Versioning': 'false'
       },
       body: JSON.stringify(payload)
     });
-
     if (res.ok) {
       const gameCount  = payload.sched?.length || 0;
       const scoreCount = Object.keys(payload.scores || {}).length;
       showToast(`✓ Saved — ${gameCount} games, ${scoreCount} scores synced ☁`);
     } else {
-      // Log the actual HTTP status so we can diagnose (rate limit, auth, size)
       const body = await res.text().catch(() => '');
       console.error(`JSONBin save failed: HTTP ${res.status}`, body);
       showToast(`⚠ Cloud save failed (${res.status}) — data saved locally`);
     }
   } catch(e) {
-    console.warn('JSONBin save error (network?):', e);
-    showToast('⚠ Offline — data saved locally, will sync when reconnected');
+    console.warn('JSONBin save error:', e);
+    showToast('⚠ Offline — data saved locally');
   }
 }
 
 // ── LOAD ──────────────────────────────────────────────────────────────────────
+// Returns: 'cache' | 'cloud' | false
 async function loadData() {
 
-  // 1. Try JSONBin (cloud source of truth)
-  if (JSONBIN_BIN_ID && (JSONBIN_READ_KEY || JSONBIN_WRITE_KEY)) {
-    try {
-      const res = await fetch(JSONBIN_URL() + '/latest', {
-        headers: { 'X-Master-Key': JSONBIN_READ_KEY || JSONBIN_WRITE_KEY }
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        const d = json.record;
-
-        if (d && (d.sched?.length || d.teams?.length)) {
-          applyData(d);
-          // Update local cache with fresh cloud data
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e) {}
-          return true;
-        }
-        // Cloud returned empty/blank record — fall through to localStorage
-        console.warn('JSONBin record is empty — trying localStorage');
-      } else {
-        console.warn(`JSONBin load failed: HTTP ${res.status}`);
-      }
-    } catch(e) {
-      console.warn('JSONBin load error (network?):', e);
-    }
-  }
-
-  // 2. Fallback: localStorage with current key
+  // ── STEP 1: Paint from localStorage immediately (zero network wait) ──────
+  let cachedData = null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const d = JSON.parse(raw);
-      applyData(d);
-      showToast('⚠ Loaded from local cache (cloud unavailable)');
-      return true;
+      cachedData = JSON.parse(raw);
+      applyData(cachedData);
     }
   } catch(e) {
     console.warn('localStorage read failed:', e);
   }
 
-  // 3. Migrate from old key 'hccsl_2026'
-  try {
-    const OLD_KEY = 'hccsl_2026';
-    const old = localStorage.getItem(OLD_KEY);
-    if (old) {
-      const d = JSON.parse(old);
-      applyData(d);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e) {}
-      try { localStorage.removeItem(OLD_KEY); } catch(e) {}
-      showToast('✓ Migrated from previous season data');
-      // Push migrated data to cloud immediately
-      _flushToCloud(d);
-      return true;
+  // ── Legacy key migration ─────────────────────────────────────────────────
+  if (!cachedData) {
+    try {
+      const old = localStorage.getItem('hccsl_2026');
+      if (old) {
+        cachedData = JSON.parse(old);
+        applyData(cachedData);
+        try { localStorage.setItem(STORAGE_KEY, old); } catch(e) {}
+        try { localStorage.removeItem('hccsl_2026'); } catch(e) {}
+        _flushToCloud(cachedData); // push migrated data to cloud
+      }
+    } catch(e) {}
+  }
+
+  // ── STEP 2: Render immediately with whatever we have ─────────────────────
+  if (cachedData && (cachedData.sched?.length || cachedData.teams?.length)) {
+    _renderAll();
+    // Background-refresh from cloud — don't await, don't block
+    _backgroundCloudSync(cachedData);
+    return 'cache';
+  }
+
+  // ── STEP 3: No cache — must wait for cloud (first-ever load) ────────────
+  if (JSONBIN_BIN_ID && (JSONBIN_READ_KEY || JSONBIN_WRITE_KEY)) {
+    try {
+      const d = await _fetchCloud();
+      if (d) {
+        applyData(d);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e) {}
+        return 'cloud';
+      }
+    } catch(e) {
+      console.warn('Cloud load failed:', e);
     }
-  } catch(e) {
-    console.warn('localStorage migration failed:', e);
   }
 
   return false;
 }
 
+async function _fetchCloud() {
+  const res = await fetch(JSONBIN_URL() + '/latest', {
+    headers: { 'X-Master-Key': JSONBIN_READ_KEY || JSONBIN_WRITE_KEY }
+  });
+  if (!res.ok) { console.warn(`JSONBin load: HTTP ${res.status}`); return null; }
+  const json = await res.json();
+  const d = json.record;
+  return (d && (d.sched?.length || d.teams?.length)) ? d : null;
+}
+
+// Silently fetch cloud in background; patch UI only if data differs
+async function _backgroundCloudSync(cachedData) {
+  if (!JSONBIN_BIN_ID || !(JSONBIN_READ_KEY || JSONBIN_WRITE_KEY)) return;
+  try {
+    const d = await _fetchCloud();
+    if (!d) return;
+
+    // Quick dirty-check: compare score counts and game counts
+    const cloudScores = Object.keys(d.scores || {}).length;
+    const cacheScores = Object.keys(cachedData.scores || {}).length;
+    const cloudGames  = d.sched?.length || 0;
+    const cacheGames  = cachedData.sched?.length || 0;
+
+    if (cloudScores !== cacheScores || cloudGames !== cacheGames) {
+      applyData(d);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e) {}
+      _renderAll();
+      showToast(`☁ Refreshed — ${cloudGames} games · ${cloudScores} scores`);
+    }
+    // else: cache was current, no UI flicker needed
+  } catch(e) {
+    console.warn('Background cloud sync failed:', e);
+  }
+}
+
+function _renderAll() {
+  if (!G.sched.length) return;
+  try { renderSched();     } catch(e) { console.error('renderSched:', e); }
+  try { renderStandings(); } catch(e) {}
+  try { renderStats();     } catch(e) {}
+}
+
 // ── APPLY DATA ────────────────────────────────────────────────────────────────
 function applyData(d) {
   if (!d) return;
-  if (d.teams)    G.teams    = d.teams;
+  if (d.teams) G.teams = d.teams;
   if (d.diamonds) {
     const defaults = {
       5:  { lightsCapable: true  },
@@ -195,7 +222,7 @@ function applyData(d) {
   if (d.se) { const el = document.getElementById('se'); if (el) el.value = d.se; }
   if (d.days && d.days.length) applyDays(d.days);
   if (d.currentSeason) G.currentSeason = d.currentSeason;
-  G.champions    = d.champions    || null;
+  G.champions     = d.champions     || null;
   G.seasonArchive = d.seasonArchive || {};
   try { updateSeasonHeader(); } catch(e) {}
 }
@@ -245,38 +272,35 @@ function clearData() {
 // ── DOM READY ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async function() {
 
-  // Initialise UI controls first (sync)
-  try { renderTeams();     } catch(e) { console.error('renderTeams failed:', e); }
-  try { renderDiamonds();  } catch(e) { console.error('renderDiamonds failed:', e); }
-  try { initDayChecks();   } catch(e) { console.error('initDayChecks failed:', e); }
-  try { updateGptNotice(); } catch(e) { console.error('updateGptNotice failed:', e); }
+  // Init UI controls (sync, instant)
+  try { renderTeams();     } catch(e) { console.error('renderTeams:', e); }
+  try { renderDiamonds();  } catch(e) { console.error('renderDiamonds:', e); }
+  try { initDayChecks();   } catch(e) { console.error('initDayChecks:', e); }
+  try { updateGptNotice(); } catch(e) {}
 
-  // Load data from cloud / localStorage
-  let restored = false;
-  try { restored = await loadData(); } catch(e) { console.error('loadData failed:', e); }
+  // Load data — returns immediately from cache if available
+  let result = false;
+  try { result = await loadData(); } catch(e) { console.error('loadData:', e); }
 
-  // Re-render controls with restored data
+  // Re-render controls with restored state (teams/diamonds may have changed)
   try { renderTeams();    } catch(e) {}
   try { renderDiamonds(); } catch(e) {}
-
-  // Re-apply days in case cloud payload arrived after initDayChecks ran
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) { const d = JSON.parse(raw); if (d.days) applyDays(d.days); }
-  } catch(e) {}
-
   try { updateGptNotice();       } catch(e) {}
   try { renderChampionAdminUI(); } catch(e) {}
 
-  if (G.sched.length) {
-    try { renderSched();      } catch(e) { console.error('renderSched failed:', e); }
-    try { renderStandings();  } catch(e) {}
-    try { renderStats();      } catch(e) {}
-    if (restored) {
-      setTimeout(() => showToast(
-        `✓ Loaded — ${G.sched.length} games · ${Object.keys(G.scores).length} scores`
-      ), 350);
-    }
+  if (result === 'cache') {
+    // Already rendered by loadData — show quiet confirmation
+    setTimeout(() => showToast(
+      `✓ ${G.sched.length} games · ${Object.keys(G.scores).length} scores`
+    ), 200);
+  } else if (result === 'cloud') {
+    // First-ever load from cloud
+    try { renderSched();     } catch(e) {}
+    try { renderStandings(); } catch(e) {}
+    try { renderStats();     } catch(e) {}
+    setTimeout(() => showToast(
+      `✓ Loaded — ${G.sched.length} games · ${Object.keys(G.scores).length} scores`
+    ), 200);
   }
 });
 
