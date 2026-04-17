@@ -7,7 +7,7 @@ function genSched(){
   const T2=document.getElementById('time2')?.value||'8:15 PM';
   const tfaced=parseInt(document.getElementById('tfaced')?.value)||2;
   const cobyes=Math.max(0,parseInt(document.getElementById('cobyes')?.value)||0);
-  const gptInput=parseInt(document.getElementById('gpt')?.value)||null; // league teams cap only
+  const gptInput=parseInt(document.getElementById('gpt')?.value)||null;
 
   if(!ss||!se){alert('Set season start and end dates first.');return;}
   const days=getSelectedDays();
@@ -24,12 +24,12 @@ function genSched(){
   const nights=getGameNights(ss,se,days);
   if(!nights.length){alert('No game nights in selected date range.');return;}
 
-  // Per-team game cap: applies to league teams only; CrossOver is never capped
+  // Per-team game cap (league teams only; CrossOver never capped)
   const teamGameCount={};
   for(const t of leagueTeams) teamGameCount[t]=0;
   const teamAtCap=(t)=>gptInput!==null&&(teamGameCount[t]||0)>=gptInput;
 
-  // ── CrossOver bye nights: evenly distributed ─────────────────────────────
+  // ── CrossOver bye nights: evenly distributed ──────────────────────────────
   const coByeSet=new Set();
   if(d9&&cobyes>0){
     const clamped=Math.min(cobyes,nights.length);
@@ -42,25 +42,38 @@ function genSched(){
     }
   }
 
-  // ── Build all required league pair slots ──────────────────────────────────
-  const allPairs=[];
-  for(let i=0;i<leagueTeams.length;i++)
-    for(let j=i+1;j<leagueTeams.length;j++)
-      for(let f=0;f<tfaced;f++)
-        allPairs.push([leagueTeams[i],leagueTeams[j]]);
+  // ── Build pair pool: tfaced minimum copies, then fill extras ─────────────
+  // We build the minimum required pairs first, then add extra rounds
+  // so remaining game nights are never wasted due to an empty pair pool.
+  function buildPairs(rounds){
+    const pairs=[];
+    for(let i=0;i<leagueTeams.length;i++)
+      for(let j=i+1;j<leagueTeams.length;j++)
+        for(let r=0;r<rounds;r++)
+          pairs.push([leagueTeams[i],leagueTeams[j]]);
+    return shuffle(pairs);
+  }
 
-  shuffle(allPairs);
+  // Estimate slots available across all nights
+  const lgSlotsPerNight=dhDiamonds.length+singleDiamonds.length;
+  const totalLgSlots=lgSlotsPerNight*nights.length;
 
-  const hc={};
-  for(const t of G.teams) hc[t]=0;
+  // How many full rounds can we fit within GPT cap and available slots?
+  const uniquePairs=leagueTeams.length*(leagueTeams.length-1)/2;
+  const maxRoundsByGpt=gptInput?Math.floor(gptInput/(leagueTeams.length-1)):999;
+  const maxRoundsBySlots=uniquePairs>0?Math.floor(totalLgSlots/uniquePairs):tfaced;
+  const totalRounds=Math.max(tfaced,Math.min(maxRoundsByGpt,maxRoundsBySlots));
+
+  let remainingPairs=buildPairs(totalRounds);
+
+  const hcMap={};
+  for(const t of G.teams) hcMap[t]=0;
 
   const sched=[];
   const gameSeq={};
 
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
-
-  const remainingPairs=[...allPairs];
 
   for(let ni=0;ni<nights.length;ni++){
     const date=nights[ni];
@@ -69,10 +82,9 @@ function genSched(){
 
     const busyTonight=new Set();
 
-    // ── D9 CrossOver (CrossOver itself is never capped) ──────────────────────
+    // ── D9 CrossOver ─────────────────────────────────────────────────────────
     const isCOBye=coByeSet.has(ni);
     if(d9&&!isCOBye){
-      // Find a CrossOver opponent not at their league cap and not busy tonight
       let opp=null;
       for(let attempt=0;attempt<coOpponents.length;attempt++){
         const candidate=coOpponents[(coIdx+attempt)%coOpponents.length];
@@ -84,7 +96,6 @@ function genSched(){
       }
       if(opp!==null){
         busyTonight.add(opp);
-        // Both D9 games count toward the league opponent's cap
         teamGameCount[opp]=(teamGameCount[opp]||0)+2;
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:9,lights:true,home:CROSSOVER,away:opp,bye:'',crossover:true});
@@ -93,8 +104,11 @@ function genSched(){
       }
     }
 
-    // ── DH league diamonds (e.g. D12) ───────────────────────────────────────
+    // ── DH league diamonds ────────────────────────────────────────────────────
     for(const dm of dhDiamonds){
+      // If pair pool is exhausted, top it up with another round
+      if(remainingPairs.length===0) remainingPairs=buildPairs(1);
+
       const pairIdx=remainingPairs.findIndex(([t1,t2])=>
         !busyTonight.has(t1)&&!busyTonight.has(t2)&&
         !teamAtCap(t1)&&!teamAtCap(t2)
@@ -102,25 +116,25 @@ function genSched(){
       if(pairIdx===-1) continue;
 
       const [t1,t2]=remainingPairs.splice(pairIdx,1)[0];
-      const [h1,a1]=pickHA(t1,t2,hc);
+      const [h1,a1]=pickHA(t1,t2,hcMap);
 
-      busyTonight.add(h1);
-      busyTonight.add(a1);
-      // DH = 2 games each
+      busyTonight.add(h1);busyTonight.add(a1);
       teamGameCount[h1]=(teamGameCount[h1]||0)+2;
       teamGameCount[a1]=(teamGameCount[a1]||0)+2;
 
       gameSeq[yr]++;
       sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:h1,away:a1,bye:'',crossover:false});
-      hc[h1]=(hc[h1]||0)+1;
+      hcMap[h1]=(hcMap[h1]||0)+1;
 
       gameSeq[yr]++;
       sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:a1,away:h1,bye:'',crossover:false});
-      hc[a1]=(hc[a1]||0)+1;
+      hcMap[a1]=(hcMap[a1]||0)+1;
     }
 
-    // ── Single diamonds (D5, D13, D14) — 6:30 only ──────────────────────────
+    // ── Single diamonds (D5, D13, D14) ───────────────────────────────────────
     for(const dm of singleDiamonds){
+      if(remainingPairs.length===0) remainingPairs=buildPairs(1);
+
       const pairIdx=remainingPairs.findIndex(([t1,t2])=>
         !busyTonight.has(t1)&&!busyTonight.has(t2)&&
         !teamAtCap(t1)&&!teamAtCap(t2)
@@ -128,37 +142,30 @@ function genSched(){
       if(pairIdx===-1) continue;
 
       const [t1,t2]=remainingPairs.splice(pairIdx,1)[0];
-      const [h,a]=pickHA(t1,t2,hc);
+      const [h,a]=pickHA(t1,t2,hcMap);
 
-      busyTonight.add(h);
-      busyTonight.add(a);
-      // Single = 1 game each
+      busyTonight.add(h);busyTonight.add(a);
       teamGameCount[h]=(teamGameCount[h]||0)+1;
       teamGameCount[a]=(teamGameCount[a]||0)+1;
 
       gameSeq[yr]++;
       sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:h,away:a,bye:'',crossover:false});
-      hc[h]=(hc[h]||0)+1;
+      hcMap[h]=(hcMap[h]||0)+1;
     }
   }
 
-  if(remainingPairs.length>0){
-    const msg=`⚠ ${remainingPairs.length} matchup(s) could not be scheduled — not enough game nights or GPT cap reached.\n\nProceed with partial schedule?`;
-    if(!confirm(msg)) return;
-  }
-
-  // ── Validation: no team exceeds 2 games/night ────────────────────────────
+  // ── Validation: no team exceeds 2 games/night ─────────────────────────────
   const nightTeamCount={};
   for(const g of sched){
-    const key=`${g.date}|${g.home}`;
-    const key2=`${g.date}|${g.away}`;
-    nightTeamCount[key]=(nightTeamCount[key]||0)+1;
-    nightTeamCount[key2]=(nightTeamCount[key2]||0)+1;
+    const k1=`${g.date}|${g.home}`;
+    const k2=`${g.date}|${g.away}`;
+    nightTeamCount[k1]=(nightTeamCount[k1]||0)+1;
+    nightTeamCount[k2]=(nightTeamCount[k2]||0)+1;
   }
   const violations=Object.entries(nightTeamCount).filter(([,c])=>c>2);
   if(violations.length){
-    console.error('Schedule validation failed — teams with >2 games/night:',violations);
-    alert(`⚠ Schedule error: ${violations.length} team/night combination(s) exceed 2 games. Check console. Please regenerate.`);
+    console.error('Validation failed — >2 games/night:',violations);
+    alert(`⚠ Schedule error: ${violations.length} team/night combination(s) exceed 2 games. Please regenerate.`);
     return;
   }
 
@@ -178,7 +185,8 @@ function genSched(){
   renderEdit();
   const byeNote=cobyes>0?` · CrossOver plays ${coNights}/${nights.length} nights`:'';
   const gptNote=gptInput?` · League teams capped at ${gptInput} games`:'';
-  showToast(`✓ Schedule generated — ${sched.length} games across ${nights.length} nights${byeNote}${gptNote}`);
+  const actualGpt=leagueTeams.length?Math.round(Object.values(teamGameCount).reduce((s,v)=>s+v,0)/leagueTeams.length):0;
+  showToast(`✓ Schedule generated — ${sched.length} games across ${nights.length} nights · ~${actualGpt} games/team${byeNote}${gptNote}`);
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
