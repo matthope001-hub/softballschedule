@@ -299,35 +299,39 @@ function updateGptNotice(){
   // Required nights to schedule all matchups given available slots per night
   const requiredNights=lgPairSlotsPerNight>0?Math.ceil(uniquePairs*tfaced/lgPairSlotsPerNight):0;
 
-  const displayedGpt=gptVal||gamesPerTeamAlgo;
-
-  const nightsMatch=nights===requiredNights&&requiredNights>0;
   const lgGamesFromFaced=uniquePairs*tfaced;
-
   const lgGamesPerNight=dhCount*2+singleCount;
   const totalGamesPerNight=lgGamesPerNight+(d9?2:0);
-  const totalGames=totalGamesPerNight*(nightsMatch?requiredNights:nights);
-  const coTotalGames=d9?2*(nightsMatch?requiredNights:nights):0;
+
+  // nights >= requiredNights is valid — extra nights schedule additional matchups
+  const nightsOk=nights>=requiredNights&&requiredNights>0;
+  const totalGames=totalGamesPerNight*nights;
+  const coTotalGames=d9?2*nights:0;
   const lgTotalGames=totalGames-coTotalGames;
+
+  // Actual expected games/team across all scheduled nights
+  const gamesPerTeamExpected=leagueN>0?Math.round((nights*lgGamesPerNight)/leagueN):0;
+  const displayedGpt=gptVal?Math.min(gptVal,gamesPerTeamExpected):gamesPerTeamExpected;
 
   const t1=`${lgPairSlotsPerNight} league slot${lgPairSlotsPerNight!==1?'s':''}/night`;
   const t2=d9?'1 CrossOver DH':'no D9';
 
   let gptWarning='';
-  if(gptVal&&gptVal!==gamesPerTeamAlgo){
+  if(gptVal&&gptVal<gamesPerTeamExpected){
     gptWarning=`<div style="padding:6px 12px;background:#fff8e6;border-top:1px solid var(--border);font-size:12px;color:#b45309">
-      ⚠ Algorithm produces <strong>${gamesPerTeamAlgo} games/team</strong> from current settings.
-      GPT set to <strong>${gptVal}</strong> — generator will cap each league team at ${gptVal} games.
+      ⚠ Without a cap, teams would play ~<strong>${gamesPerTeamExpected} games</strong> across ${nights} nights.
+      GPT set to <strong>${gptVal}</strong> — generator will stop each league team at ${gptVal} games.
     </div>`;
   }
 
   let statusHtml,statusBg;
-  if(!nightsMatch){
-    const diff=requiredNights-nights;
-    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — ${tfaced}× times faced needs at least <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. ${diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`}`;
+  if(!nightsOk){
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Not enough nights</span> — ≥${tfaced}× per pair needs at least <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. Add ${requiredNights-nights} more game night${requiredNights-nights!==1?'s':''}.`;
     statusBg='#fff0f0';
   }else{
-    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${displayedGpt} games/team target, every pair plays ≥${tfaced}×</span>`;
+    const extra=nights-requiredNights;
+    const extraNote=extra>0?` · ${extra} extra night${extra!==1?'s':''} will add more matchups`:'';
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ~${displayedGpt} games/team, every pair plays ≥${tfaced}×${extraNote}</span>`;
     statusBg='#edf7f0';
   }
 
@@ -337,8 +341,8 @@ function updateGptNotice(){
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border)">
       <div style="padding:8px 12px;border-right:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Game Nights</div>
-        <div style="font-size:22px;font-weight:800;color:${nightsMatch?'var(--navy)':'var(--red)'};line-height:1.2">${nights}</div>
-        <div style="font-size:11px;color:var(--muted)">Need ${requiredNights}</div>
+        <div style="font-size:22px;font-weight:800;color:${nightsOk?'var(--navy)':'var(--red)'};line-height:1.2">${nights}</div>
+        <div style="font-size:11px;color:var(--muted)">Min ${requiredNights}</div>
       </div>
       <div style="padding:8px 12px;border-right:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Games/Team</div>
@@ -347,8 +351,8 @@ function updateGptNotice(){
       </div>
       <div style="padding:8px 12px">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
-        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
-        <div style="font-size:11px;color:var(--muted)">${nightsMatch&&d9?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsOk?totalGames:'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${nightsOk&&d9?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
       </div>
     </div>
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
