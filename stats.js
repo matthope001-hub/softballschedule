@@ -206,4 +206,126 @@ function renderStats(){
       ${hCard('🛡','Best Defense',bestDef[0]||'—',bestDef[0]?`${teamRA[bestDef[0]]} allowed`:'')}
       ${hCard('🥇','Most Wins',mostW[0]||'—',mostW[0]?`${teamW[mostW[0]]} wins`:'')}
       ${hCard('📉','Most Losses',mostL[0]||'—',mostL[0]?`${teamL[mostL[0]]} losses`:'')}
-      ${hCard('💥','Biggest Win',biggestGame?(bwSc.h>bwSc.a?biggestGame.home:biggestGame.aw
+      ${hCard('💥','Biggest Win',biggestGame?(bwSc.h>bwSc.a?biggestGame.home:biggestGame.away):'—',biggestGame?`${Math.max(bwSc.h,bwSc.a)}–${Math.min(bwSc.h,bwSc.a)} (+${biggestMargin} runs)`:'')}
+      ${hCard('🔥','Highest Scoring',highestGame?`${highestGame.home} vs ${highestGame.away}`:'—',highestGame?`${hsSc.h}–${hsSc.a} (${highestTotal} runs)`:'')}
+      ${hCard('🦺','Shutouts',String(shutouts),'combined')}
+      ${hCard('⚾','Total Runs',String(totalRuns),'this season')}
+    </div>
+  </div>`:''}
+
+  <div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div class="card-title" style="margin:0">Games Per Team</div>
+      ${dToggle}
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Total = games a team appears in (home or away) · Diamond cols = appearances on that diamond</div>
+    <div class="mat-wrap">
+      <table class="st2">
+        <thead><tr>
+          <th style="text-align:left;min-width:140px">Team</th>
+          <th style="min-width:52px;text-align:center">Total</th>
+          <th style="min-width:52px;text-align:center">Home</th>
+          <th style="min-width:52px;text-align:center">Away</th>
+          <th style="min-width:68px;text-align:center">DH Nights</th>
+          ${dHeadCells}
+        </tr></thead>
+        <tbody>${gptRows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div style="margin-bottom:6px">
+      <div class="card-title" style="margin-bottom:2px">Head-to-Head Matrix</div>
+      <div style="font-size:11px;color:var(--muted)">Scheduled games per pair · <strong style="color:#15803d">CO</strong> col = vs CrossOver · Bold = matchup complete (≥2)</div>
+    </div>
+    <div class="mat-wrap">
+      <table class="st2">
+        <thead><tr>
+          <th style="text-align:left;min-width:130px">vs →</th>
+          ${h2hColHeads}
+          <th class="h2h-co-head" style="padding:8px 6px;min-width:44px">CO</th>
+        </tr></thead>
+        <tbody>${h2hRows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title" style="margin-bottom:8px">Diamond Usage</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Actual games scheduled per diamond · D5/D13/D14 single game per night, D9/D12 doubleheader</div>
+    ${dUsage}
+  </div>
+
+  <div class="card">
+    <div class="card-title">📈 Standings History</div>
+    <div id="standings-history-chart" style="height:260px;position:relative"></div>
+  </div>`;
+
+  // Wire up diamond toggle after render
+  const btn=document.getElementById('_stats_dtoggle');
+  if(btn){
+    btn.onclick=function(){
+      const showing=btn.textContent.includes('▴');
+      document.querySelectorAll('.st2-dcol-head,.st2-dcol').forEach(el=>el.style.display=showing?'none':'');
+      btn.textContent=showing?'D-cols ▾':'D-cols ▴';
+    };
+  }
+
+  try{renderStandingsHistoryChart();}catch(e){}
+}
+
+// ── diamond column toggle (global fallback) ───────────────────────────────────
+function statsToggleDcols(){
+  const btn=document.getElementById('_stats_dtoggle');
+  if(btn)btn.onclick();
+}
+
+// ── standings history chart ───────────────────────────────────────────────────
+function renderStandingsHistoryChart(){
+  const el=document.getElementById('standings-history-chart');
+  if(!el)return;
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+  const scoredGames=G.sched.filter(g=>G.scores[g.id]&&!g.playoff&&!g.crossover)
+    .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  if(!scoredGames.length){
+    el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No scored games yet</div>';
+    return;
+  }
+  const pts={};for(const t of leagueTeams)pts[t]=0;
+  const snapshots=[];
+  for(const g of scoredGames){
+    const sc=G.scores[g.id];
+    if(leagueTeams.includes(g.home)){if(sc.h>sc.a)pts[g.home]+=2;else if(sc.h===sc.a)pts[g.home]+=1;}
+    if(leagueTeams.includes(g.away)){if(sc.a>sc.h)pts[g.away]+=2;else if(sc.h===sc.a)pts[g.away]+=1;}
+    snapshots.push({date:g.date,...Object.fromEntries(leagueTeams.map(t=>[t,pts[t]]))});
+  }
+  const W=el.offsetWidth||600,H=260;
+  const pad={t:10,r:10,b:30,l:28};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  const maxPts=Math.max(1,...leagueTeams.map(t=>pts[t]));
+  const n=snapshots.length;
+  const xScale=i=>pad.l+i*(cw/(n-1||1));
+  const yScale=v=>pad.t+ch-(v/maxPts)*ch;
+  const lines=leagueTeams.map((t,ti)=>{
+    const col=TEAM_COLOURS[ti%TEAM_COLOURS.length];
+    const d=snapshots.map((s,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(s[t]).toFixed(1)}`).join(' ');
+    return`<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>`;
+  }).join('');
+  const xLabels=[];
+  const step=Math.max(1,Math.floor(n/6));
+  for(let i=0;i<n;i+=step){
+    const[,m,day]=snapshots[i].date.split('-');
+    xLabels.push(`<text x="${xScale(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${parseInt(m)}/${parseInt(day)}</text>`);
+  }
+  const yLines=[];
+  const yStep=Math.ceil(maxPts/4);
+  for(let v=0;v<=maxPts;v+=yStep){
+    yLines.push(`<text x="${pad.l-4}" y="${(yScale(v)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`);
+    yLines.push(`<line x1="${pad.l}" y1="${yScale(v).toFixed(1)}" x2="${W-pad.r}" y2="${yScale(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`);
+  }
+  const legend=leagueTeams.map((t,ti)=>`<div style="display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap"><span style="width:12px;height:3px;background:${TEAM_COLOURS[ti%TEAM_COLOURS.length]};display:inline-block;border-radius:2px"></span>${esc(t)}</div>`).join('');
+  el.innerHTML=`
+    <svg width="${W}" height="${H}" style="display:block;overflow:visible">${yLines.join('')}${lines}${xLabels.join('')}</svg>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding:0 ${pad.l}px">${legend}</div>`;
+}
