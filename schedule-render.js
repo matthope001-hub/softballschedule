@@ -1,5 +1,8 @@
 // ── SCHEDULE RENDER ───────────────────────────────────────────────────────────
 
+let schedFilterTeam    = null;
+let schedFilterDiamond = null;
+
 function toggleAccordion(bodyId, arrId){
   const body=document.getElementById(bodyId);
   const arr=document.getElementById(arrId);
@@ -68,28 +71,61 @@ function renderLastResults(){
 }
 
 // ── FILTER ────────────────────────────────────────────────────────────────────
-function renderFilterChips(){
-  const el=document.getElementById('team-filter-chips');
-  if(!el)return;
-  const filterBar=document.getElementById('team-filter-bar');
-  if(!G.sched.length){if(filterBar)filterBar.style.display='none';return;}
-  if(filterBar)filterBar.style.display='';
 
-  const chips=[
-    `<button onclick="setSchedFilter(null,this)" class="chip-filter${schedFilterTeam===null?' active':''}">All Teams</button>`
-  ].concat(
-    G.teams.map(t=>{
-      const gamesCount=G.sched.filter(g=>g.home===t||g.away===t).length;
-      return`<button onclick="setSchedFilter(${JSON.stringify(t)},this)" class="chip-filter${schedFilterTeam===t?' active':''}" title="${gamesCount} games">${esc(t)}</button>`;
-    })
-  );
-  el.innerHTML=chips.join('');
+function renderFilterChips(){
+  const filterBar=document.getElementById('team-filter-bar');
+  if(!filterBar)return;
+
+  if(!G.sched.length){
+    filterBar.style.display='none';
+    return;
+  }
+  filterBar.style.display='';
+
+  // ── Team chips
+  const teamEl=document.getElementById('team-filter-chips');
+  if(teamEl){
+    const chips=[
+      `<button onclick="setTeamFilter(null,this)" class="chip-filter${schedFilterTeam===null?' active':''}">All Teams</button>`
+    ].concat(
+      G.teams.map(t=>`<button onclick="setTeamFilter(${JSON.stringify(t)},this)" class="chip-filter${schedFilterTeam===t?' active':''}">${esc(t)}</button>`)
+    );
+    teamEl.innerHTML=chips.join('');
+  }
+
+  // ── Diamond chips — build from active diamonds in schedule
+  let dmEl=document.getElementById('diamond-filter-chips');
+  if(!dmEl){
+    // Create diamond filter row if it doesn't exist yet
+    const row=document.createElement('div');
+    row.style.cssText='margin-top:8px';
+    row.innerHTML=`<div class="filter-label" style="margin-bottom:4px">Filter by Diamond</div><div id="diamond-filter-chips" class="filter-chips"></div>`;
+    filterBar.appendChild(row);
+    dmEl=document.getElementById('diamond-filter-chips');
+  }
+
+  if(dmEl){
+    const usedDiamonds=[...new Set(G.sched.map(g=>g.diamond))].sort((a,b)=>a-b);
+    const dmChips=[
+      `<button onclick="setDiamondFilter(null,this)" class="chip-filter${schedFilterDiamond===null?' active':''}">All Diamonds</button>`
+    ].concat(
+      usedDiamonds.map(d=>`<button onclick="setDiamondFilter(${JSON.stringify(d)},this)" class="chip-filter${schedFilterDiamond===d?' active':''}">${getDiamondName(d)}</button>`)
+    );
+    dmEl.innerHTML=dmChips.join('');
+  }
 }
 
-function setSchedFilter(team,btn){
+function setTeamFilter(team, btn){
   schedFilterTeam=team;
-  // Update chip active states without re-rendering the whole schedule
   document.querySelectorAll('#team-filter-chips .chip-filter').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  _renderSchedGames();
+  _updateFilterLabel();
+}
+
+function setDiamondFilter(diamond, btn){
+  schedFilterDiamond=diamond;
+  document.querySelectorAll('#diamond-filter-chips .chip-filter').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   _renderSchedGames();
   _updateFilterLabel();
@@ -98,15 +134,31 @@ function setSchedFilter(team,btn){
 function _updateFilterLabel(){
   const label=document.getElementById('_filter_active_label');
   if(!label)return;
+  const parts=[];
   if(schedFilterTeam){
     const count=G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam).length;
+    parts.push(`${esc(schedFilterTeam)} · ${count} games`);
+  }
+  if(schedFilterDiamond){
+    const count=G.sched.filter(g=>g.diamond===schedFilterDiamond).length;
+    parts.push(`${getDiamondName(schedFilterDiamond)} · ${count} games`);
+  }
+  if(parts.length){
     label.innerHTML=`<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--navy);background:#e8edf5;padding:4px 10px;border-radius:20px">
-      Showing: ${esc(schedFilterTeam)} · ${count} games
-      <button onclick="setSchedFilter(null,document.querySelector('.chip-filter'))" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:0;margin-left:2px" title="Clear filter">×</button>
+      Showing: ${parts.join(' + ')}
+      <button onclick="clearAllFilters()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:0;margin-left:2px" title="Clear filters">×</button>
     </span>`;
   } else {
     label.innerHTML='';
   }
+}
+
+function clearAllFilters(){
+  schedFilterTeam=null;
+  schedFilterDiamond=null;
+  renderFilterChips();
+  _renderSchedGames();
+  _updateFilterLabel();
 }
 
 // ── MAIN RENDER ───────────────────────────────────────────────────────────────
@@ -120,14 +172,22 @@ function renderSched(){
 function _renderSchedGames(){
   const el=document.getElementById('so');
   if(!el)return;
-  if(!G.sched.length){el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';return;}
+  if(!G.sched.length){
+    el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';
+    return;
+  }
 
-  const filtered=schedFilterTeam
-    ?G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam)
-    :G.sched;
+  let filtered=G.sched;
+  if(schedFilterTeam)    filtered=filtered.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
+  if(schedFilterDiamond) filtered=filtered.filter(g=>g.diamond===schedFilterDiamond);
 
   if(!filtered.length){
-    el.innerHTML=`<div class="empty">No games found for ${esc(schedFilterTeam)}</div>`;
+    const desc=[
+      schedFilterTeam    ? esc(schedFilterTeam)              : null,
+      schedFilterDiamond ? getDiamondName(schedFilterDiamond) : null
+    ].filter(Boolean).join(' + ');
+    el.innerHTML=`<div id="_filter_active_label" style="margin-bottom:8px"></div><div class="empty">No games found for ${desc}</div>`;
+    _updateFilterLabel();
     return;
   }
 
@@ -178,16 +238,14 @@ function _renderSchedGames(){
     html+=monthAccordion(month,inner,mi,'so',0);
   });
 
-  // Inject active filter label slot before schedule output
   el.innerHTML=`<div id="_filter_active_label" style="margin-bottom:8px"></div>${html}`;
   _updateFilterLabel();
 
-  // Auto-open current or soonest upcoming month
+  // Auto-open current/soonest month
   const now=toDateStr(new Date());
-  const curMonth=monthLabel(now);
   let opened=false;
   monthOrder.forEach((month,i)=>{
-    if(!opened&&(month===curMonth||monthMap[month].some(g=>g.date>=now))){
+    if(!opened&&(monthLabel(now)===month||monthMap[month].some(g=>g.date>=now))){
       const body=document.getElementById(`so_m${i}`);
       const arr=document.getElementById(`arr_so_m${i}`);
       if(body){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
@@ -248,10 +306,9 @@ function renderScores(){
   el.innerHTML=html;
 
   const now=toDateStr(new Date());
-  const curMonth=monthLabel(now);
   let opened=false;
   monthOrder.forEach((month,i)=>{
-    if(!opened&&(month===curMonth||monthMap[month].some(g=>g.date>=now))){
+    if(!opened&&(monthLabel(now)===month||monthMap[month].some(g=>g.date>=now))){
       const body=document.getElementById(`sc_m${i}`);
       const arr=document.getElementById(`arr_sc_m${i}`);
       if(body){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
