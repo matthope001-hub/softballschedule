@@ -1,51 +1,37 @@
-// ── SCHEDULE RENDER + SCORES ──────────────────────────────────────────────────
+// ── SCHEDULE RENDER ───────────────────────────────────────────────────────────
 
-// Sunset safety data for Hamilton ON (43.26°N) — no-lights diamonds (D13/D14)
-// Curfew: 6:30 PM start + 1h30m = 8:00 PM must be done
-const SUNSET_SAFETY=[
-  {from:'2026-05-01',to:'2026-09-07',status:'safe'},
-  {from:'2026-09-08',to:'2026-09-08',status:'caution'},  // 7:36 PM — 3 min margin
-  {from:'2026-09-09',to:'2026-12-31',status:'unsafe'},
-];
-
-function sunsetStatus(dateStr){
-  for(const r of SUNSET_SAFETY){
-    if(dateStr>=r.from&&dateStr<=r.to) return r.status;
-  }
-  return 'safe';
+function toggleAccordion(bodyId, arrId){
+  const body=document.getElementById(bodyId);
+  const arr=document.getElementById(arrId);
+  if(!body)return;
+  const open=body.classList.toggle('open');
+  if(arr)arr.textContent=open?'▲':'▼';
 }
 
-function sunsetBadge(dateStr){
-  const hasNoLit=G.sched.some(g=>g.date===dateStr&&!isDiamondLit(g.diamond)&&g.diamond!==9);
-  if(!hasNoLit) return '';
-  const st=sunsetStatus(dateStr);
-  if(st==='caution') return ` <span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:6px">⚠ LOW LIGHT</span>`;
-  if(st==='unsafe')  return ` <span style="background:#fee2e2;color:#991b1b;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;margin-left:6px">🌙 UNSAFE</span>`;
-  return '';
-}
-
-function monthAccordion(month,inner,idx,pfx,openSlots){
-  const amber=openSlots>0?`<span style="color:#d97706;font-size:11px;font-weight:700;margin-left:8px">${openSlots} OPEN</span>`:'';
-  return`<div style="margin-bottom:8px">
-    <div onclick="toggleAccordion('${pfx}_m${idx}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--navy);color:#fff;border-radius:var(--r-sm);cursor:pointer;user-select:none">
-      <span style="font-weight:800;font-size:13px;letter-spacing:0.5px">${month}${amber}</span>
-      <span id="arr_${pfx}_m${idx}" style="font-size:12px">▼</span>
+function monthAccordion(month,inner,idx,prefix,openSlots){
+  const bodyId=`${prefix}_m${idx}`;
+  const arrId=`arr_${prefix}_m${idx}`;
+  const slotBadge=openSlots>0?`<span style="background:#f59e0b;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:8px">${openSlots} OPEN</span>`:'';
+  return`<div class="acc-wrap">
+    <div class="acc-head" onclick="toggleAccordion('${bodyId}','${arrId}')">
+      <span class="acc-title">${month}${slotBadge}</span>
+      <span class="acc-arr" id="${arrId}">▼</span>
     </div>
-    <div id="${pfx}_m${idx}" class="accordion-body">${inner}</div>
+    <div class="acc-body" id="${bodyId}">${inner}</div>
   </div>`;
 }
 
-function toggleAccordion(id){
-  const el=document.getElementById(id);
-  const arr=document.getElementById('arr_'+id);
-  if(!el) return;
-  el.classList.toggle('open');
-  if(arr) arr.textContent=el.classList.contains('open')?'▲':'▼';
+function sunsetBadge(dateStr){
+  const UNSAFE=['2026-09-15','2026-09-22','2026-09-29'];
+  const CAUTION=['2026-09-08'];
+  if(UNSAFE.includes(dateStr))return`<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px">🌙 NO LIGHTS</span>`;
+  if(CAUTION.includes(dateStr))return`<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px">⚠ LOW LIGHT</span>`;
+  return'';
 }
 
 function renderSeasonBanner(){
   const el=document.getElementById('season-banner');
-  if(!el) return;
+  if(!el)return;
   if(!G.sched.length){el.innerHTML='';return;}
   const total=G.sched.filter(g=>!g.playoff).length;
   const scored=G.sched.filter(g=>!g.playoff&&G.scores[g.id]).length;
@@ -61,52 +47,89 @@ function renderSeasonBanner(){
 
 function renderLastResults(){
   const el=document.getElementById('last-results');
-  if(!el) return;
-  const scored=G.sched.filter(g=>G.scores[g.id]&&!g.playoff).sort((a,b)=>b.date.localeCompare(a.date)||(b.time||'').localeCompare(a.time||'')).slice(0,5);
+  if(!el)return;
+  const scored=G.sched.filter(g=>G.scores[g.id]&&!g.playoff)
+    .sort((a,b)=>b.date.localeCompare(a.date)||(b.time||'').localeCompare(a.time||''))
+    .slice(0,5);
   if(!scored.length){el.innerHTML='';return;}
   el.innerHTML=`<div style="margin-bottom:10px">
     <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin-bottom:6px">Recent Results</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">
     ${scored.map(g=>{
       const sc=G.scores[g.id];
-      const homeWin=sc.h>sc.a,awayWin=sc.a>sc.h;
+      const hw=sc.h>sc.a,aw=sc.a>sc.h;
       return`<div style="padding:6px 10px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px">
-        <div style="font-weight:${homeWin?'800':'400'};color:${homeWin?'var(--navy)':'var(--muted)'}">${esc(g.home)} ${sc.h}</div>
-        <div style="font-weight:${awayWin?'800':'400'};color:${awayWin?'var(--navy)':'var(--muted)'}">${esc(g.away)} ${sc.a}</div>
+        <div style="font-weight:${hw?'800':'400'};color:${hw?'var(--navy)':'var(--muted)'}">${esc(g.home)} ${sc.h}</div>
+        <div style="font-weight:${aw?'800':'400'};color:${aw?'var(--navy)':'var(--muted)'}">${esc(g.away)} ${sc.a}</div>
       </div>`;
     }).join('')}
     </div>
   </div>`;
 }
 
+// ── FILTER ────────────────────────────────────────────────────────────────────
 function renderFilterChips(){
   const el=document.getElementById('team-filter-chips');
-  if(!el) return;
+  if(!el)return;
   const filterBar=document.getElementById('team-filter-bar');
   if(!G.sched.length){if(filterBar)filterBar.style.display='none';return;}
-  if(filterBar) filterBar.style.display='';
-  el.innerHTML=`<button onclick="setSchedFilter(null,this)" class="chip-filter${schedFilterTeam===null?' active':''}" style="font-size:12px">All</button>`
-    +G.teams.map(t=>`<button onclick="setSchedFilter('${esc(t)}',this)" class="chip-filter${schedFilterTeam===t?' active':''}" style="font-size:12px">${esc(t)}</button>`).join('');
+  if(filterBar)filterBar.style.display='';
+
+  const chips=[
+    `<button onclick="setSchedFilter(null,this)" class="chip-filter${schedFilterTeam===null?' active':''}">All Teams</button>`
+  ].concat(
+    G.teams.map(t=>{
+      const gamesCount=G.sched.filter(g=>g.home===t||g.away===t).length;
+      return`<button onclick="setSchedFilter(${JSON.stringify(t)},this)" class="chip-filter${schedFilterTeam===t?' active':''}" title="${gamesCount} games">${esc(t)}</button>`;
+    })
+  );
+  el.innerHTML=chips.join('');
 }
 
 function setSchedFilter(team,btn){
   schedFilterTeam=team;
-  document.querySelectorAll('.chip-filter').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  renderSched();
+  // Update chip active states without re-rendering the whole schedule
+  document.querySelectorAll('#team-filter-chips .chip-filter').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  _renderSchedGames();
+  _updateFilterLabel();
 }
 
+function _updateFilterLabel(){
+  const label=document.getElementById('_filter_active_label');
+  if(!label)return;
+  if(schedFilterTeam){
+    const count=G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam).length;
+    label.innerHTML=`<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--navy);background:#e8edf5;padding:4px 10px;border-radius:20px">
+      Showing: ${esc(schedFilterTeam)} · ${count} games
+      <button onclick="setSchedFilter(null,document.querySelector('.chip-filter'))" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:0;margin-left:2px" title="Clear filter">×</button>
+    </span>`;
+  } else {
+    label.innerHTML='';
+  }
+}
+
+// ── MAIN RENDER ───────────────────────────────────────────────────────────────
 function renderSched(){
   renderSeasonBanner();
   renderLastResults();
   renderFilterChips();
+  _renderSchedGames();
+}
+
+function _renderSchedGames(){
   const el=document.getElementById('so');
-  if(!el) return;
+  if(!el)return;
   if(!G.sched.length){el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';return;}
 
   const filtered=schedFilterTeam
     ?G.sched.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam)
     :G.sched;
+
+  if(!filtered.length){
+    el.innerHTML=`<div class="empty">No games found for ${esc(schedFilterTeam)}</div>`;
+    return;
+  }
 
   const monthMap={};const monthOrder=[];
   for(const g of filtered){
@@ -127,23 +150,37 @@ function renderSched(){
       const sc=G.scores[g.id];
       const isCO=g.crossover;
       const isPly=g.playoff;
-      const badge=isPly?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>':
-                  isCO?'<span style="font-size:10px;background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">CO</span>':'';
+      const badge=isPly
+        ?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>'
+        :isCO
+        ?'<span style="font-size:10px;background:#f0fdf4;color:#166534;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">CO</span>'
+        :'';
+
+      let homeStyle='',awayStyle='';
+      if(schedFilterTeam){
+        if(g.home===schedFilterTeam)homeStyle='font-weight:800;color:var(--navy)';
+        if(g.away===schedFilterTeam)awayStyle='font-weight:800;color:var(--navy)';
+      }
+
       const scoreHtml=sc
         ?`<span style="font-family:var(--mono);font-size:13px;font-weight:800;color:${sc.h>sc.a?'var(--navy)':sc.a>sc.h?'var(--muted)':'var(--text)'}">${sc.h}</span>
            <span style="color:var(--muted);margin:0 3px">–</span>
            <span style="font-family:var(--mono);font-size:13px;font-weight:800;color:${sc.a>sc.h?'var(--navy)':sc.h>sc.a?'var(--muted)':'var(--text)'}">${sc.a}</span>`
         :`<span style="color:var(--muted);font-size:12px">vs</span>`;
+
       inner+=`<div class="game-row${isCO?' co':''}${isPly?' playoff':''}">
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||'TBD'}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
-        <span class="game-teams">${esc(g.home)}${badge} ${scoreHtml} ${esc(g.away)}</span>
+        <span class="game-teams"><span style="${homeStyle}">${esc(g.home)}</span>${badge} ${scoreHtml} <span style="${awayStyle}">${esc(g.away)}</span></span>
       </div>`;
     }
     html+=monthAccordion(month,inner,mi,'so',0);
   });
-  el.innerHTML=html;
+
+  // Inject active filter label slot before schedule output
+  el.innerHTML=`<div id="_filter_active_label" style="margin-bottom:8px"></div>${html}`;
+  _updateFilterLabel();
 
   // Auto-open current or soonest upcoming month
   const now=toDateStr(new Date());
@@ -166,7 +203,7 @@ function renderSched(){
 // ── SCORES ────────────────────────────────────────────────────────────────────
 function renderScores(){
   const el=document.getElementById('sco');
-  if(!el) return;
+  if(!el)return;
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to enter scores</div>';return;}
 
   const nonPlayoff=G.sched.filter(g=>!g.playoff);
@@ -210,7 +247,6 @@ function renderScores(){
   });
   el.innerHTML=html;
 
-  // Auto-open current month
   const now=toDateStr(new Date());
   const curMonth=monthLabel(now);
   let opened=false;
@@ -223,17 +259,11 @@ function renderScores(){
   });
 }
 
-// ── SCORE SAVE — clamp negatives to 0 (FIX: score input sanitation) ──────────
 function saveScore(id){
   const hRaw=document.getElementById('sh_'+id)?.value;
   const aRaw=document.getElementById('sa_'+id)?.value;
-  if(hRaw===''||aRaw===''){
-    delete G.scores[id];
-  } else {
-    const h=Math.max(0,parseInt(hRaw)||0);
-    const a=Math.max(0,parseInt(aRaw)||0);
-    G.scores[id]={h,a};
-  }
+  if(hRaw===''||aRaw===''){delete G.scores[id];}
+  else{const h=Math.max(0,parseInt(hRaw)||0);const a=Math.max(0,parseInt(aRaw)||0);G.scores[id]={h,a};}
   saveData();
   renderStandings();
   renderStats();
