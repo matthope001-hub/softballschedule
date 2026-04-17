@@ -203,6 +203,7 @@ function renderDiamonds(){
     </div>`;
   }
   el.innerHTML=html;
+} // ← MISSING BRACE RESTORED
 
 // ── DAYS OF WEEK ──────────────────────────────────────────────────────────────
 const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
