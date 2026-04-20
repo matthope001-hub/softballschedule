@@ -251,6 +251,13 @@ function updateSeasonHeader(){
 function renderChampions(){
   const el=document.getElementById('champ-content');
   if(!el)return;
+
+  // ── Loading guard: data still async, DOMContentLoaded will re-render ──
+  if(G.champions===null&&G.sched.length===0){
+    el.innerHTML='<div class="empty">⏳ Loading…</div>';
+    return;
+  }
+
   const champs=getChampions();
   const{counts,podBCounts}=champCounts();
   const leaderboard=Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
