@@ -7,7 +7,7 @@ function genSched(){
   const T2=document.getElementById('time2')?.value||'8:15 PM';
   const tfaced=parseInt(document.getElementById('tfaced')?.value)||2;
   const cobyes=Math.max(0,parseInt(document.getElementById('cobyes')?.value)||0);
-  const gptInput=parseInt(document.getElementById('gpt')?.value)||null;
+  const gptInput=parseInt(document.getElementById('gpt')?.value)||null; // league teams cap only
 
   if(!ss||!se){alert('Set season start and end dates first.');return;}
   const days=getSelectedDays();
@@ -24,15 +24,14 @@ function genSched(){
   const nights=getGameNights(ss,se,days);
   if(!nights.length){alert('No game nights in selected date range.');return;}
 
-  // ── Per-team game counter ─────────────────────────────────────────────────
-  // CrossOver games count toward a league team's GPT total.
+  // ── Per-team game counter (league teams only; CrossOver is never capped) ────
   const teamGames={};
   for(const t of leagueTeams) teamGames[t]=0;
 
-  const gamesLeft =(t)=>gptInput!=null?Math.max(0,gptInput-(teamGames[t]||0)):999;
-  const needsGames=(t)=>gptInput==null||(teamGames[t]||0)<gptInput;
+  const gamesLeft=(t)=>gptInput!=null?Math.max(0,gptInput-(teamGames[t]||0)):999;
+  const teamAtCap=(t)=>gptInput!=null&&(teamGames[t]||0)>=gptInput;
 
-  // ── CrossOver bye nights ──────────────────────────────────────────────────
+  // ── CrossOver bye nights: evenly distributed ─────────────────────────────
   const coByeSet=new Set();
   if(d9&&cobyes>0){
     const clamped=Math.min(cobyes,nights.length);
@@ -47,8 +46,8 @@ function genSched(){
 
   // ── Cap-driven pair pool ──────────────────────────────────────────────────
   // Initial pool: tfaced rounds of all unique pairs, shuffled.
-  // When exhausted, findPair() pulls extra-round pairs on demand so every
-  // team can reach gptInput exactly — no pre-built over-allocation.
+  // findPair() also generates on-demand extra-round pairs when pool is exhausted
+  // so every team can reach gptInput exactly.
   function freshPool(){
     const pool=[];
     for(let i=0;i<leagueTeams.length;i++)
@@ -58,8 +57,8 @@ function genSched(){
     return shuffle(pool);
   }
 
-  // Find and remove the best pair from pool for a slot needing `needed` games
-  // each. Falls back to an on-demand extra-round pair when pool is empty.
+  // Find and remove the best pair from pool for a slot needing `needed` games each.
+  // Falls back to an on-demand extra-round pair when pool is empty.
   function findPair(pool,busy,needed){
     const idx=pool.findIndex(([t1,t2])=>{
       if(busy.has(t1)||busy.has(t2)) return false;
@@ -67,7 +66,7 @@ function genSched(){
     });
     if(idx!==-1) return pool.splice(idx,1)[0];
 
-    // Pool exhausted for eligible teams — try extra-round pair on demand
+    // Pool exhausted — try extra-round pair on demand (only when GPT set)
     if(gptInput==null) return null;
     const eligible=shuffle(leagueTeams.filter(t=>gamesLeft(t)>=needed&&!busy.has(t)));
     for(let i=0;i<eligible.length;i++)
@@ -77,11 +76,15 @@ function genSched(){
   }
 
   let pool=freshPool();
+
+  // hcMap: home-game count per team, used to balance H/A assignment
   const hcMap={};
   for(const t of G.teams) hcMap[t]=0;
 
   const sched=[];
   const gameSeq={};
+
+  // FIX: use leagueTeams length for modulo safety; coIdx always kept in-bounds
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
@@ -97,7 +100,12 @@ function genSched(){
       let opp=null;
       for(let attempt=0;attempt<coOpponents.length;attempt++){
         const c=coOpponents[(coIdx+attempt)%coOpponents.length];
-        if(gamesLeft(c)>=2&&!busy.has(c)){opp=c;coIdx=(coIdx+attempt+1)%coOpponents.length;break;}
+        if(gamesLeft(c)>=2&&!busy.has(c)){
+          opp=c;
+          // FIX: always apply modulo to prevent unbounded growth
+          coIdx=(coIdx+attempt+1)%coOpponents.length;
+          break;
+        }
       }
       if(opp){
         busy.add(opp);
@@ -109,10 +117,10 @@ function genSched(){
       }
     }
 
-    // ── DH league diamonds ────────────────────────────────────────────────────
+    // ── DH league diamonds (lights=true, e.g. D12) ───────────────────────────
     for(const dm of dhDiamonds){
 
-      // Attempt 1: full DH — both teams need ≥2
+      // Attempt 1: full DH — both teams need ≥2 games
       const dhPair=findPair(pool,busy,2);
       if(dhPair){
         const [t1,t2]=dhPair;
@@ -129,7 +137,7 @@ function genSched(){
         continue;
       }
 
-      // Attempt 2: single fallback — teams needing exactly 1 more game
+      // Attempt 2: single fallback — one pair needs exactly 1 game each.
       // 6:30 gets a real game; 8:15 becomes an open slot.
       const sPair=findPair(pool,busy,1);
       if(sPair){
@@ -141,6 +149,7 @@ function genSched(){
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:h,away:a,bye:'',crossover:false});
         hcMap[h]=(hcMap[h]||0)+1;
+        // FIX: do NOT increment hcMap[a] here — the 8:15 slot is open, not a real game for `a`
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
         continue;
@@ -153,7 +162,7 @@ function genSched(){
       sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
     }
 
-    // ── Single diamonds ───────────────────────────────────────────────────────
+    // ── Single diamonds (no lights, e.g. D5, D13, D14) — 6:30 only ──────────
     for(const dm of singleDiamonds){
       const pair=findPair(pool,busy,1);
       if(!pair){
@@ -219,10 +228,12 @@ function genSched(){
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-function pickHA(t1,t2,hc){
-  const h1=hc[t1]||0,h2=hc[t2]||0;
+// 3-arg pickHA: hcMap passed explicitly — no global dependency
+function pickHA(t1,t2,hcMap){
+  const h1=hcMap[t1]||0,h2=hcMap[t2]||0;
   if(h1<h2) return[t1,t2];
   if(h2<h1) return[t2,t1];
   return Math.random()<0.5?[t1,t2]:[t2,t1];
 }
+
 function generateSchedule(){ if(typeof checkAdmin==='function'&&!checkAdmin())return; genSched(); }
