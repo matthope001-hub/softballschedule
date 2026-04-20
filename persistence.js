@@ -203,3 +203,4 @@ document.addEventListener('DOMContentLoaded',async function(){
 window.addEventListener('resize',()=>{
   try{if(document.getElementById('tab-stats')?.classList.contains('active'))renderStandingsHistoryChart();}catch(e){}
 });
+function clearAll(){ clearData(); }
