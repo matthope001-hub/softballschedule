@@ -83,32 +83,32 @@ function renderFilterChips(){
   if(filterBar)filterBar.style.display='block';
   if(exportBar)exportBar.classList.add('vis');
 
-  // Team chips
+  // Team chips — use data-team attribute to avoid apostrophe issues
   const teamEl=document.getElementById('team-filter-chips');
   if(teamEl){
     const chips=[
       `<button onclick="setTeamFilter(null,this)" class="chip-filter${schedFilterTeam===null?' active':''}">All Teams</button>`
     ].concat(
-      G.teams.map(t=>`<button onclick="setTeamFilter(${JSON.stringify(t)},this)" class="chip-filter${schedFilterTeam===t?' active':''}">${esc(t)}</button>`)
+      G.teams.map(t=>`<button onclick="setTeamFilter(this.dataset.team,this)" data-team="${esc(t)}" class="chip-filter${schedFilterTeam===t?' active':''}">${esc(t)}</button>`)
     );
     teamEl.innerHTML=chips.join('');
   }
 
-  // Diamond chips
+  // Diamond chips — use data-diamond attribute
   const dmEl=document.getElementById('diamond-filter-chips');
   if(dmEl){
     const usedDiamonds=[...new Set(G.sched.filter(g=>!g.open).map(g=>g.diamond))].sort((a,b)=>a-b);
     const dmChips=[
       `<button onclick="setDiamondFilter(null,this)" class="chip-filter${schedFilterDiamond===null?' active':''}">All Diamonds</button>`
     ].concat(
-      usedDiamonds.map(d=>`<button onclick="setDiamondFilter(${JSON.stringify(d)},this)" class="chip-filter${schedFilterDiamond===d?' active':''}">${getDiamondName(d)}</button>`)
+      usedDiamonds.map(d=>`<button onclick="setDiamondFilter(parseInt(this.dataset.diamond),this)" data-diamond="${d}" class="chip-filter${schedFilterDiamond===d?' active':''}">${getDiamondName(d)}</button>`)
     );
     dmEl.innerHTML=dmChips.join('');
   }
 }
 
 function setTeamFilter(team,btn){
-  schedFilterTeam=team;
+  schedFilterTeam=team||null;
   document.querySelectorAll('#team-filter-chips .chip-filter').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   _renderSchedGames();
@@ -116,7 +116,7 @@ function setTeamFilter(team,btn){
 }
 
 function setDiamondFilter(diamond,btn){
-  schedFilterDiamond=diamond;
+  schedFilterDiamond=diamond||null;
   document.querySelectorAll('#diamond-filter-chips .chip-filter').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   _renderSchedGames();
