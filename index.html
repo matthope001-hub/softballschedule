@@ -36,17 +36,29 @@
   <div id="tab-schedule" class="section active">
     <div id="season-banner"></div>
     <div id="last-results"></div>
+
+    <!-- Filter bar: team + diamond chips -->
+    <div id="filter-bar" class="filter-bar">
+      <div style="margin-bottom:8px">
+        <div class="filter-label">Filter by Team</div>
+        <div id="team-filter-chips" class="filter-chips"></div>
+      </div>
+      <div>
+        <div class="filter-label">Filter by Diamond</div>
+        <div id="diamond-filter-chips" class="filter-chips"></div>
+      </div>
+    </div>
+
+    <!-- Schedule output -->
+    <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
+
+    <!-- Export bar: below the schedule -->
     <div id="export-bar" class="export-bar">
       <span class="export-label">Export:</span>
       <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ CSV</button>
       <button class="btn btn-outline btn-sm" onclick="exportPrint()">🖨 Print</button>
       <button class="btn btn-outline btn-sm" onclick="exportICal()">📅 iCal</button>
     </div>
-    <div id="team-filter-bar" class="filter-bar">
-      <div class="filter-label">Filter by Team</div>
-      <div id="team-filter-chips" class="filter-chips"></div>
-    </div>
-    <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
   </div>
 
   <!-- ─── STANDINGS TAB ─────────────────────────────────────────────────────── -->
@@ -118,7 +130,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Curfew & Official Games <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 11.0–12.1)</span></div>
+      <div class="card-title">Curfew &amp; Official Games <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 11.0–12.1)</span></div>
       <div class="rules-grid">
         <div class="rule-item"><span class="rule-num">11.0</span><span class="rule-text">Curfew: no new inning after <strong>1h 45m</strong>. 15-min grace period if both teams and umpire agree (counts toward 1h 45m total). Game reverts to last complete inning if time expires.</span></div>
         <div class="rule-item"><span class="rule-num">12.1</span><span class="rule-text">Official game = <strong>3½ innings</strong> (home team leading) or <strong>4 complete innings</strong>.</span></div>
@@ -209,136 +221,46 @@
 
         <div class="card">
           <div class="card-title">Manage Diamonds</div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Toggle active/inactive and lights. D13/D14 have no lights infrastructure.</div>
-          <div id="diamond-list" style="display:grid;gap:8px;margin-bottom:12px"></div>
-          <button class="btn btn-outline btn-sm" onclick="addDiamond()">+ Add Diamond</button>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Toggle active/inactive and lights. D13/D14 lights are permanently locked (no infrastructure).</div>
+          <div id="dm"></div>
         </div>
 
         <div class="card">
           <div class="card-title">Season Settings</div>
           <div class="row">
-            <div class="field">
-              <label>Season Start</label>
-              <input type="date" id="ss" value="2026-05-19" oninput="updateGptNotice()" />
-            </div>
-            <div class="field">
-              <label>Season End</label>
-              <input type="date" id="se" value="2026-09-29" oninput="updateGptNotice()" />
-            </div>
+            <div class="field"><label>Season Start</label><input type="date" id="ss" onchange="updateGptNotice()"/></div>
+            <div class="field"><label>Season End</label><input type="date" id="se" onchange="updateGptNotice()"/></div>
           </div>
-          <div class="field" style="margin-bottom:0.9rem">
+          <div class="field" style="margin-top:10px">
             <label>Game Nights</label>
-            <div id="day-checks" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+            <div id="day-checks" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
           </div>
-          <div class="row">
-            <div class="field">
-              <label>Games Per Team</label>
-              <input type="number" id="gpt" value="22" min="1" max="60" placeholder="e.g. 22" oninput="updateGptNotice()" />
-            </div>
-            <div class="field">
-              <label>CrossOver Bye Weeks</label>
-              <input type="number" id="cobyes" value="0" min="0" max="10" placeholder="e.g. 3" oninput="updateGptNotice()" />
-            </div>
+          <div class="row" style="margin-top:10px">
+            <div class="field"><label>Game Time 1</label><input type="time" id="time1" value="18:30"/></div>
+            <div class="field"><label>Game Time 2 (DH)</label><input type="time" id="time2" value="20:15"/></div>
           </div>
-          <div class="row">
-            <div class="field">
-              <label>First Game Time</label>
-              <select id="time1" class="sel">
-                <option>5:00 PM</option><option>5:15 PM</option><option>5:30 PM</option>
-                <option>5:45 PM</option><option>6:00 PM</option><option>6:15 PM</option>
-                <option selected>6:30 PM</option><option>6:45 PM</option><option>7:00 PM</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Second Game Time (DH)</label>
-              <select id="time2" class="sel">
-                <option>7:00 PM</option><option>7:15 PM</option><option>7:30 PM</option>
-                <option>7:45 PM</option><option>8:00 PM</option><option selected>8:15 PM</option>
-                <option>8:30 PM</option><option>8:45 PM</option><option>9:00 PM</option>
-              </select>
-            </div>
+          <div class="field" style="margin-top:10px">
+            <label>Times Faced (min opponent matchups)</label>
+            <select id="tfaced" onchange="updateGptNotice()" style="margin-top:4px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-xs);font-family:var(--font);font-size:13px;background:var(--white)">
+              <option value="1">1× — face each opponent once</option>
+              <option value="2" selected>2× — face each opponent twice</option>
+              <option value="3">3× — face each opponent three times</option>
+              <option value="4">4× — face each opponent four times</option>
+              <option value="5">5× — face each opponent five times</option>
+            </select>
           </div>
-          <div class="row">
-            <div class="field">
-              <label>Times Each Team Faces Each Opponent</label>
-              <select id="tfaced" class="sel" onchange="updateGptNotice()">
-                <option value="1">1× — once each</option>
-                <option value="2" selected>2× — twice each</option>
-                <option value="3">3× — three times each</option>
-                <option value="4">4× — four times each</option>
-                <option value="5">5× — five times each</option>
-              </select>
-            </div>
-          </div>
-          <div id="gpt-notice" style="margin-bottom:1rem"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Schedule Calculator</div>
+          <div id="gpt-notice" style="font-size:13px;color:var(--muted)">Configure teams and dates to see projections.</div>
+        </div>
+
+        <div class="card" style="border-color:var(--red)">
+          <div class="card-title" style="color:var(--red)">Generate / Reset</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-primary" onclick="adminGuard(genSched)()">⚾ Generate Schedule</button>
-            <button class="btn btn-outline" onclick="clearData()" style="color:var(--red);border-color:var(--red)">🗑 Clear All Data</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">🏆 Record Season Champions</div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Enter champions after playoffs complete. Saved to the cloud — appears in the Champions tab instantly.</div>
-          <div class="row">
-            <div class="field">
-              <label>Season Year</label>
-              <input type="number" id="champ-year" min="2000" max="2100" style="width:100%" />
-            </div>
-          </div>
-          <div class="row">
-            <div class="field">
-              <label>POD A Champion <span style="color:var(--red)">*</span></label>
-              <input type="text" id="champ-poda" placeholder="e.g. Kibosh" />
-            </div>
-            <div class="field">
-              <label>POD B Champion <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
-              <input type="text" id="champ-podb" placeholder="e.g. JAFT" />
-            </div>
-          </div>
-          <button class="btn btn-primary" onclick="recordChampions()" style="margin-top:4px">💾 Save Champions</button>
-          <div id="champ-admin-list" style="margin-top:12px;display:grid;gap:6px"></div>
-        </div>
-
-        <div class="card" style="border:2px solid var(--red)">
-          <div class="card-title" style="color:var(--red)">🔄 Start New Season</div>
-          <div class="notice" style="margin-bottom:12px">Archives the current season permanently, then resets schedule &amp; scores for the new year. Champions history is never deleted.</div>
-          <div class="row">
-            <div class="field">
-              <label>New Season Year <span style="color:var(--red)">*</span></label>
-              <input type="number" id="new-season-year" min="2000" max="2100" placeholder="e.g. 2027" />
-            </div>
-          </div>
-          <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-cd)">Optionally record outgoing season champions:</div>
-          <div class="row">
-            <div class="field">
-              <label>Outgoing POD A Champion</label>
-              <input type="text" id="new-season-champ-poda" placeholder="e.g. Kibosh" />
-            </div>
-            <div class="field">
-              <label>Outgoing POD B Champion</label>
-              <input type="text" id="new-season-champ-podb" placeholder="e.g. JAFT" />
-            </div>
-          </div>
-          <button class="btn btn-danger" onclick="startNewSeason()">🔄 Archive &amp; Start New Season</button>
-        </div>
-
-        <div class="card">
-          <div class="card-title">League Quick Reference</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:13px">
-            <div>
-              <div style="font-family:var(--font-cd);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid var(--border)">📊 Standings</div>
-              <div style="color:var(--text2);display:grid;gap:5px">
-                <div>CrossOver is <strong>excluded from standings</strong> — guest team only.</div>
-                <div>Results vs CrossOver <strong>count</strong> for league teams' W/L/T records.</div>
-                <div>Run differential <strong>capped at +7</strong> per game.</div>
-                <div>Ranked by points (W=2, T=1, L=0), tiebroken by run differential.</div>
-              </div>
-            </div>
-            <div>
-              <div style="font-family:var(--font-cd);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--navy);margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid var(--border)">📍 Venue</div>
-              <div style="color:var(--text2)">Turner Park, Hamilton · Tuesday nights</div>
-            </div>
+            <button class="btn btn-primary" onclick="generateSchedule()">⚡ Generate Schedule</button>
+            <button class="btn" style="background:none;color:var(--red);border:1.5px solid var(--red)" onclick="clearAll()">🗑 Clear All Data</button>
           </div>
         </div>
 
@@ -351,102 +273,12 @@
 <div id="_toast"></div>
 
 <script src="data.js"></script>
-<script src="champions.js"></script>
 <script src="persistence.js"></script>
-<script src="schedule-gen.js"></script>
 <script src="schedule-render.js"></script>
-<script src="exports.js"></script>
-<script src="standings.js"></script>
-<script src="stats.js"></script>
+<script src="schedule-gen.js"></script>
 <script src="edit.js"></script>
+<script src="standings.js"></script>
 <script src="playoffs.js"></script>
-<script>
-var activeAdminTab = 'scores';
-
-function unlockAdmin(){
-  if(checkAdmin()){
-    document.getElementById('admin-locked').style.display='none';
-    document.getElementById('admin-unlocked').style.display='block';
-    const cy=document.getElementById('champ-year');
-    if(cy&&!cy.value) cy.value=G.currentSeason||2026;
-    refreshActiveAdminTab();
-    try{ renderChampionAdminUI(); }catch(e){}
-  }
-}
-
-function showAdminTab(tab, btn){
-  activeAdminTab = tab;
-  document.querySelectorAll('.admin-subtab').forEach(function(b){ b.classList.remove('active'); });
-  document.querySelectorAll('.admin-panel').forEach(function(p){ p.classList.remove('active'); });
-  if(btn) btn.classList.add('active');
-  document.getElementById('admin-'+tab).classList.add('active');
-  refreshActiveAdminTab();
-}
-
-function refreshActiveAdminTab(){
-  if(activeAdminTab==='scores') renderScores();
-  if(activeAdminTab==='edit') renderEdit();
-  if(activeAdminTab==='settings'){
-    try{ renderTeams(); }catch(e){}
-    try{ renderDiamonds(); }catch(e){}
-    try{ updateGptNotice(); }catch(e){}
-    try{ renderChampionAdminUI(); }catch(e){}
-  }
-}
-</script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-(function(){
-  var mapInitialized = false;
-  var _origShowTab = showTab;
-  showTab = function(t, btn) {
-    _origShowTab(t, btn);
-    if (t === 'admin' && isAdmin) {
-      document.getElementById('admin-locked').style.display='none';
-      document.getElementById('admin-unlocked').style.display='block';
-      refreshActiveAdminTab();
-    }
-    if (t === 'parkmap' && !mapInitialized) {
-      mapInitialized = true;
-      var diamonds = [
-        {id:2,  lat:43.1961481, lng:-79.87783,   status:'inactive',     note:'Inactive · no lights · near Rymal Rd'},
-        {id:3,  lat:43.1955013, lng:-79.8782437, status:'inactive',     note:'Inactive · no lights · near Rymal Rd'},
-        {id:4,  lat:43.1940919, lng:-79.8795775, status:'inactive',     note:'Inactive · no lights'},
-        {id:5,  lat:43.1917341, lng:-79.8807409, status:'active-nolit', note:'Active · lights capable · 6:30 PM only'},
-        {id:6,  lat:43.1904,    lng:-79.8814,    status:'inactive',     note:'Inactive'},
-        {id:7,  lat:43.1892,    lng:-79.8820,    status:'inactive',     note:'Inactive'},
-        {id:8,  lat:43.1882,    lng:-79.8826,    status:'inactive',     note:'Inactive'},
-        {id:9,  lat:43.1872,    lng:-79.8832,    status:'active-lit',   note:'Active · lights ON · CrossOver DH 6:30 + 8:15'},
-        {id:10, lat:43.1862,    lng:-79.8838,    status:'inactive',     note:'Inactive'},
-        {id:11, lat:43.1852,    lng:-79.8844,    status:'inactive',     note:'Inactive'},
-        {id:12, lat:43.1842,    lng:-79.8850,    status:'active-lit',   note:'Active · lights ON · League DH 6:30 + 8:15'},
-        {id:13, lat:43.1780,    lng:-79.8900,    status:'active-nolit', note:'Active · NO lights infrastructure · 6:30 PM only'},
-        {id:14, lat:43.1770,    lng:-79.8910,    status:'active-nolit', note:'Active · NO lights infrastructure · 6:30 PM only'}
-      ];
-      var colors = {'active-lit':'#2f9e44','active-nolit':'#1971c2','inactive':'#9aacbf'};
-      var map = L.map('park-map').setView([43.1872, -79.8832], 15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-      diamonds.forEach(function(d){
-        var col = colors[d.status]||'#9aacbf';
-        var icon = L.divIcon({
-          html: '<div style="background:'+col+';color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);font-family:\'Barlow Condensed\',sans-serif">'+d.id+'</div>',
-          className:'',iconSize:[28,28],iconAnchor:[14,14]
-        });
-        L.marker([d.lat,d.lng],{icon:icon}).addTo(map).bindPopup('<strong>Diamond '+d.id+'</strong><br>'+d.note);
-      });
-      var legend = document.getElementById('map-legend');
-      if(legend){
-        legend.innerHTML = [
-          {col:'#2f9e44',label:'Active — Lights ON'},
-          {col:'#1971c2',label:'Active — No Lights / Lights Capable'},
-          {col:'#9aacbf',label:'Inactive'}
-        ].map(function(e){
-          return '<div style="display:flex;align-items:center;gap:10px;font-size:13px"><div style="width:14px;height:14px;border-radius:50%;background:'+e.col+';flex-shrink:0"></div>'+e.label+'</div>';
-        }).join('');
-      }
-    }
-  };
-})();
-</script>
+<script src="exports.js"></script>
 </body>
 </html>
