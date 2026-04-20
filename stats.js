@@ -8,20 +8,12 @@ const TEAM_COLOURS=[
 function renderStats(){
   const el=document.getElementById('sta');
   if(!el)return;
-  if(!document.getElementById('tab-stats')?.classList.contains('active')){
-    el.dataset.stale='1';return;
-  }
-  el.dataset.stale='0';
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to view stats</div>';return;}
 
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const allTeams=G.teams;
   const schedDiamondIds=[...new Set(G.sched.filter(g=>!g.open&&g.diamond!=null).map(g=>g.diamond))].sort((a,b)=>a-b);
 
-  // ── per-team accumulation ──
-  // ts[t].total    = games that team appears in (home OR away)
-  // ts[t].fields[d]= games on diamond d that team appears in
-  // dGameCount[d]  = actual distinct games on diamond d (not appearances)
   const ts={};
   for(const t of allTeams){
     ts[t]={total:0,home:0,away:0,dh:0,fields:{}};
@@ -30,18 +22,14 @@ function renderStats(){
   const h2h={};const coGames={};
   for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]=0;coGames[t]=0;}
 
-  // Count actual games per diamond (1 per game, not 2 per appearance)
   const dGameCount={};
   schedDiamondIds.forEach(d=>dGameCount[d]=0);
 
   const nightCount={};
 
   for(const g of G.sched){
-    if(g.open) continue;
-    // Actual game count per diamond
+    if(g.open)continue;
     dGameCount[g.diamond]=(dGameCount[g.diamond]||0)+1;
-
-    // Per-team stats — each team gets +1 for appearing in a game
     if(ts[g.home]){
       ts[g.home].total++;
       ts[g.home].home++;
@@ -52,7 +40,6 @@ function renderStats(){
       ts[g.away].away++;
       ts[g.away].fields[g.diamond]=(ts[g.away].fields[g.diamond]||0)+1;
     }
-
     if(h2h[g.home]&&h2h[g.home][g.away]!==undefined)h2h[g.home][g.away]++;
     if(h2h[g.away]&&h2h[g.away][g.home]!==undefined)h2h[g.away][g.home]++;
     if(g.crossover){
@@ -63,8 +50,8 @@ function renderStats(){
     nightCount[key]=(nightCount[key]||0)+1;
   }
 
-  // DH nights: team played 2 games on same diamond same night
   for(const g of G.sched){
+    if(g.open)continue;
     const key=`${g.date}§${g.diamond}`;
     if((nightCount[key]||0)>=2){
       if(ts[g.home])ts[g.home].dh++;
@@ -72,8 +59,7 @@ function renderStats(){
     }
   }
 
-  // ── season highlights ──
-  const scored=G.sched.filter(g=>G.scores[g.id]&&!g.playoff);
+  const scored=G.sched.filter(g=>!g.open&&G.scores[g.id]&&!g.playoff);
   const teamW={},teamL={},teamRF={},teamRA={};
   let totalRuns=0,shutouts=0,biggestMargin=0,biggestGame=null,highestTotal=0,highestGame=null;
   for(const t of leagueTeams){teamW[t]=0;teamL[t]=0;teamRF[t]=0;teamRA[t]=0;}
@@ -106,9 +92,8 @@ function renderStats(){
   const bwSc=biggestGame?G.scores[biggestGame.id]:null;
   const hsSc=highestGame?G.scores[highestGame.id]:null;
   const played=scored.length;
-  const total=G.sched.filter(g=>!g.playoff).length;
+  const total=G.sched.filter(g=>!g.open&&!g.playoff).length;
 
-  // ── inject scoped styles once ──
   if(!document.getElementById('_stats_css')){
     const s=document.createElement('style');
     s.id='_stats_css';
@@ -141,14 +126,12 @@ function renderStats(){
     return w.map(x=>x[0]).join('').toUpperCase().slice(0,4);
   }
 
-  // ── games-per-team table ──
   const dHeadCells=schedDiamondIds.map(d=>`<th class="st2-dcol-head" style="display:none;min-width:44px;background:var(--surface2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);text-align:center;padding:8px 12px;border-bottom:2px solid var(--border)">D${d}</th>`).join('');
   const dToggle=`<button id="_stats_dtoggle" onclick="statsToggleDcols()" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;margin-left:auto">D-cols ▾</button>`;
 
   const gptRows=allTeams.map(t=>{
     const s=ts[t];
     const isCO=t===CROSSOVER;
-    // Diamond cols: team appearances on that diamond (correct — each team gets 1 per game they play there)
     const dCells=schedDiamondIds.map(d=>{
       const v=s.fields[d]||0;
       return`<td class="st2-dcol${v===0?' num-dim':' num'}" style="display:none;text-align:center;font-family:var(--mono);padding:8px 12px;border-bottom:1px solid var(--border)">${v||'—'}</td>`;
@@ -163,7 +146,6 @@ function renderStats(){
     </tr>`;
   }).join('');
 
-  // ── h2h matrix ──
   const h2hColHeads=leagueTeams.map(t=>`<th class="h2h-col-head" title="${esc(t)}" style="padding:8px 6px;min-width:52px;max-width:52px;text-overflow:ellipsis;overflow:hidden">${abbr(t)}</th>`).join('');
   const h2hRows=leagueTeams.map(r=>{
     const cells=leagueTeams.map(c=>{
@@ -172,15 +154,14 @@ function renderStats(){
       return`<td class="${v>=2?'h2h-match':'h2h-zero'}" style="padding:8px 6px;border-bottom:1px solid var(--border)">${v}</td>`;
     }).join('');
     return`<tr>
-      <th style="text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;white-space:nowrap;min-width:130px">${esc(r)}</th>
+      <th class="row-label" style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;white-space:nowrap;min-width:130px">${esc(r)}</th>
       ${cells}
       <td class="h2h-co" style="padding:8px 6px;border-bottom:1px solid var(--border)">${coGames[r]||0}</td>
     </tr>`;
   }).join('');
 
-  // ── diamond usage — uses dGameCount (actual games, not team appearances) ──
   const dUsage=schedDiamondIds.map(d=>{
-    const gameCount=dGameCount[d]||0;  // ← FIXED: was summing ts[t].fields which double-counted
+    const gameCount=dGameCount[d]||0;
     const pct=total>0?Math.round(gameCount/total*100):0;
     return`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
       <span style="font-family:var(--mono);font-size:12px;font-weight:800;color:var(--navy);min-width:26px">D${d}</span>
@@ -254,7 +235,7 @@ function renderStats(){
 
   <div class="card" style="margin-bottom:12px">
     <div class="card-title" style="margin-bottom:8px">Diamond Usage</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Actual games scheduled per diamond · D5/D13/D14 single game per night, D9/D12 doubleheader</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Actual games scheduled per diamond</div>
     ${dUsage}
   </div>
 
@@ -263,7 +244,6 @@ function renderStats(){
     <div id="standings-history-chart" style="height:260px;position:relative"></div>
   </div>`;
 
-  // Wire up diamond toggle after render
   const btn=document.getElementById('_stats_dtoggle');
   if(btn){
     btn.onclick=function(){
@@ -287,7 +267,7 @@ function renderStandingsHistoryChart(){
   const el=document.getElementById('standings-history-chart');
   if(!el)return;
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
-  const scoredGames=G.sched.filter(g=>G.scores[g.id]&&!g.playoff&&!g.crossover)
+  const scoredGames=G.sched.filter(g=>!g.open&&G.scores[g.id]&&!g.playoff&&!g.crossover)
     .sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   if(!scoredGames.length){
     el.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px">No scored games yet</div>';
@@ -310,23 +290,27 @@ function renderStandingsHistoryChart(){
   const yScale=v=>pad.t+ch-(v/maxPts)*ch;
   const lines=leagueTeams.map((t,ti)=>{
     const col=TEAM_COLOURS[ti%TEAM_COLOURS.length];
-    const d=snapshots.map((s,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(s[t]).toFixed(1)}`).join(' ');
-    return`<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>`;
+    const d=snapshots.map((s,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(s[t]||0).toFixed(1)}`).join(' ');
+    return`<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" opacity="0.85"/>
+      <circle cx="${xScale(n-1).toFixed(1)}" cy="${yScale(pts[t]).toFixed(1)}" r="3" fill="${col}"/>`;
   }).join('');
-  const xLabels=[];
-  const step=Math.max(1,Math.floor(n/6));
-  for(let i=0;i<n;i+=step){
-    const[,m,day]=snapshots[i].date.split('-');
-    xLabels.push(`<text x="${xScale(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${parseInt(m)}/${parseInt(day)}</text>`);
-  }
-  const yLines=[];
-  const yStep=Math.ceil(maxPts/4);
-  for(let v=0;v<=maxPts;v+=yStep){
-    yLines.push(`<text x="${pad.l-4}" y="${(yScale(v)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`);
-    yLines.push(`<line x1="${pad.l}" y1="${yScale(v).toFixed(1)}" x2="${W-pad.r}" y2="${yScale(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`);
-  }
-  const legend=leagueTeams.map((t,ti)=>`<div style="display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap"><span style="width:12px;height:3px;background:${TEAM_COLOURS[ti%TEAM_COLOURS.length]};display:inline-block;border-radius:2px"></span>${esc(t)}</div>`).join('');
+  const yTicks=[0,Math.round(maxPts/2),maxPts].map(v=>`
+    <line x1="${pad.l}" y1="${yScale(v).toFixed(1)}" x2="${pad.l+cw}" y2="${yScale(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>
+    <text x="${pad.l-4}" y="${(yScale(v)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`).join('');
+  const xLabels=snapshots.map((s,i)=>{
+    if(n<=1||i===0||i===n-1||i===Math.floor(n/2)){
+      return`<text x="${xScale(i).toFixed(1)}" y="${(pad.t+ch+18).toFixed(1)}" text-anchor="middle" font-size="9" fill="var(--muted)">${s.date.slice(5)}</text>`;
+    }return'';
+  }).join('');
+  const legend=leagueTeams.map((t,ti)=>{
+    const col=TEAM_COLOURS[ti%TEAM_COLOURS.length];
+    return`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text)">
+      <span style="display:inline-block;width:14px;height:3px;background:${col};border-radius:2px;flex-shrink:0"></span>${esc(t)}
+    </div>`;
+  }).join('');
   el.innerHTML=`
-    <svg width="${W}" height="${H}" style="display:block;overflow:visible">${yLines.join('')}${lines}${xLabels.join('')}</svg>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding:0 ${pad.l}px">${legend}</div>`;
+    <svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+      ${yTicks}${lines}${xLabels}
+    </svg>
+    <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px">${legend}</div>`;
 }
