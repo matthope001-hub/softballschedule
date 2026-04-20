@@ -190,13 +190,12 @@ document.addEventListener('DOMContentLoaded',async function(){
   try{updateGptNotice();}catch(e){}
   try{renderChampionAdminUI();}catch(e){}
 
-  if(G.sched.length){
-    try{renderSched();}catch(e){}
-    try{renderStandings();}catch(e){}
-    try{renderStats();}catch(e){}
-    if(restored){
-      setTimeout(()=>showToast(`✓ Loaded — ${G.sched.length} games · ${Object.keys(G.scores).length} scores`),200);
-    }
+  // Re-render whichever tab is currently active now that data is loaded
+  const activeTab=window._activeTab||'schedule';
+  try{_renderActiveTab(activeTab);}catch(e){}
+
+  if(restored&&G.sched.length){
+    setTimeout(()=>showToast(`✓ Loaded — ${G.sched.length} games · ${Object.keys(G.scores).length} scores`),200);
   }
 });
 
