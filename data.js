@@ -72,26 +72,37 @@ function showTab(t,btn){
   if(t==='stats'      &&typeof renderStats==='function')     renderStats();
   if(t==='playoffs'   &&typeof renderPlayoffs==='function')  renderPlayoffs();
   if(t==='champions'  &&typeof renderChampions==='function') renderChampions();
-  if(t==='admin'      &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
+  if(t==='admin'      ) refreshActiveAdminTab();
 }
 
-// ── ADMIN SUBTABS ─────────────────────────────────────────────────────────────
+// ── ADMIN TABS ────────────────────────────────────────────────────────────────
+var activeAdminTab='scores';
+
+function unlockAdmin(){
+  if(typeof checkAdmin==='function'&&!checkAdmin())return;
+  document.getElementById('admin-locked').style.display='none';
+  document.getElementById('admin-unlocked').style.display='block';
+  refreshActiveAdminTab();
+}
+
 function showAdminTab(t,btn){
+  activeAdminTab=t;
   document.querySelectorAll('.admin-subtab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
   if(btn)btn.classList.add('active');
   const panel=document.getElementById('admin-'+t);
   if(panel)panel.classList.add('active');
-  if(t==='scores' &&typeof renderScores==='function') renderScores();
-  if(t==='edit'   &&typeof renderEdit==='function')   renderEdit();
+  refreshActiveAdminTab();
 }
 
 function refreshActiveAdminTab(){
-  const activeBtn=document.querySelector('.admin-subtab.active');
-  if(!activeBtn)return;
-  const t=activeBtn.textContent.trim().toLowerCase();
-  if(t==='scores' &&typeof renderScores==='function') renderScores();
-  if(t==='edit'   &&typeof renderEdit==='function')   renderEdit();
+  if(activeAdminTab==='scores'){try{renderScores();}catch(e){}}
+  if(activeAdminTab==='edit')  {try{renderEdit();  }catch(e){}}
+  if(activeAdminTab==='settings'){
+    try{renderTeams();}catch(e){}
+    try{renderDiamonds();}catch(e){}
+    try{updateGptNotice();}catch(e){}
+  }
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -106,6 +117,7 @@ document.getElementById('ti').addEventListener('keydown',e=>{if(e.key==='Enter')
 function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);saveData();renderTeams();}
 function renderTeams(){
   const el=document.getElementById('tl');
+  if(!el)return;
   if(!G.teams.length){el.innerHTML='<div style="color:var(--gray3);font-size:13px;font-weight:700;padding:8px 0">No teams added yet</div>';return;}
   el.innerHTML='';
   G.teams.forEach(t=>{
@@ -164,7 +176,8 @@ function renderRulesDiamonds(){
 }
 
 function renderDiamonds(){
-  const el=document.getElementById('diamond-list');
+  // index.html uses id="dm" for the diamond list container
+  const el=document.getElementById('dm');
   if(!el)return;
 
   const active=G.diamonds.filter(d=>d.active);
