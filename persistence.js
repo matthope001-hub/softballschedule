@@ -24,6 +24,7 @@ function unlockAdmin(){
   if(isAdmin){
     document.getElementById('admin-locked').style.display='none';
     document.getElementById('admin-unlocked').style.display='block';
+    refreshActiveAdminTab();
     return;
   }
   const pin=prompt('Enter admin PIN:');
@@ -32,8 +33,7 @@ function unlockAdmin(){
     showToast('🔓 Admin mode on');
     document.getElementById('admin-locked').style.display='none';
     document.getElementById('admin-unlocked').style.display='block';
-    try{renderScores();}catch(e){}
-    try{renderEdit();}catch(e){}
+    refreshActiveAdminTab();
   } else if(pin!==null){
     showToast('✗ Wrong PIN');
   }
