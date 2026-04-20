@@ -225,3 +225,4 @@ function pickHA(t1,t2,hc){
   if(h2<h1) return[t2,t1];
   return Math.random()<0.5?[t1,t2]:[t2,t1];
 }
+function generateSchedule(){ if(typeof checkAdmin==='function'&&!checkAdmin())return; genSched(); }
