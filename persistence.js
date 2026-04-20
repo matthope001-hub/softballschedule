@@ -40,14 +40,18 @@ function unlockAdmin(){
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
+// FIX: use combined translateX(-50%) translateY to keep pill centered
 function showToast(msg, duration=2800) {
   let t=document.getElementById('_toast');
   if(!t){ t=document.createElement('div'); t.id='_toast'; document.body.appendChild(t); }
   t.textContent=msg;
   t.style.opacity='1';
-  t.style.transform='translateY(0)';
+  t.style.transform='translateX(-50%) translateY(0)';
   clearTimeout(t._hide);
-  t._hide=setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(6px)'; },duration);
+  t._hide=setTimeout(()=>{
+    t.style.opacity='0';
+    t.style.transform='translateX(-50%) translateY(12px)';
+  }, duration);
 }
 
 // ── SAVE ──────────────────────────────────────────────────────────────────────
@@ -154,9 +158,10 @@ function applyDays(days){
     cb.checked=on;
     const lbl=document.getElementById('daylabel-'+dayIdx);
     if(lbl){
-      lbl.style.borderColor=on?'var(--navy)':'var(--border)';
-      lbl.style.background =on?'var(--navy)':'var(--white)';
-      lbl.style.color      =on?'#fff':'var(--text)';
+      // FIX: updated to Apple system blue instead of old --navy
+      lbl.style.borderColor=on?'var(--sys-blue)':'var(--sep-opaque)';
+      lbl.style.background =on?'var(--sys-blue)':'var(--surface)';
+      lbl.style.color      =on?'#fff':'var(--text2)';
     }
   });
 }
@@ -190,7 +195,6 @@ document.addEventListener('DOMContentLoaded',async function(){
   try{updateGptNotice();}catch(e){}
   try{renderChampionAdminUI();}catch(e){}
 
-  // Re-render whichever tab is currently active now that data is loaded
   const activeTab=window._activeTab||'schedule';
   try{_renderActiveTab(activeTab);}catch(e){}
 
