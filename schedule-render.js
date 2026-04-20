@@ -80,7 +80,7 @@ function renderFilterChips(){
     return;
   }
 
-  if(filterBar)filterBar.style.display='';
+  if(filterBar)filterBar.style.display='block';
   if(exportBar)exportBar.classList.add('vis');
 
   // Team chips
@@ -176,8 +176,8 @@ function _renderSchedGames(){
 
   if(!filtered.length){
     const desc=[
-      schedFilterTeam    ? esc(schedFilterTeam)              : null,
-      schedFilterDiamond ? getDiamondName(schedFilterDiamond) : null
+      schedFilterTeam    ? esc(schedFilterTeam)               : null,
+      schedFilterDiamond ? getDiamondName(schedFilterDiamond)  : null
     ].filter(Boolean).join(' + ');
     el.innerHTML=`<div class="empty">No games found for ${desc}</div>`;
     return;
