@@ -30,9 +30,8 @@ let G={
 };
 
 const CROSSOVER='CrossOver';
-let hc={};
-let schedFilterTeam=null;
-let schedFilterDiamond=null;
+// FIX: removed global `let hc={}` — hc/hcMap are scoped inside genSched() in schedule-gen.js
+// FIX: removed duplicate `let schedFilterTeam` and `let schedFilterDiamond` — declared in schedule-render.js
 
 // ── DIAMOND HELPERS ───────────────────────────────────────────────────────────
 function getDiamonds(){ return G.diamonds; }
@@ -56,12 +55,8 @@ function shuffle(arr){
   for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
-function pickHA(t1,t2){
-  const h1=hc[t1]||0,h2=hc[t2]||0;
-  if(h1<h2)return[t1,t2];
-  if(h2<h1)return[t2,t1];
-  return Math.random()<0.5?[t1,t2]:[t2,t1];
-}
+// FIX: removed broken 2-arg pickHA that read from undeclared global `hc`.
+// The correct 3-arg pickHA(t1,t2,hcMap) lives in schedule-gen.js.
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function showTab(t,btn){
@@ -69,7 +64,7 @@ function showTab(t,btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   if(btn)btn.classList.add('active');
   const tabEl=document.getElementById('tab-'+t);
-  if(tabEl)tabEl.classList.add('active');
+  if(tabEl)tabEl.classList.add('active'); // FIX: null-guard instead of direct property access
   window._activeTab=t;
   _renderActiveTab(t);
   if(t==='parkmap'){
@@ -203,32 +198,29 @@ function renderDiamonds(){
     const lightsBtn=!isActive?'':capable
       ?`<button onclick="toggleDiamondLights(${d.id})"
           style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
-          ${d.lights?'💡 Lights':'🌙 No Lights'}
+          ${d.lights?'💡 Lights ON':'🌙 Lights OFF'}
         </button>`
-      :`<span style="padding:6px 12px;border-radius:5px;border:1.5px solid var(--border);background:var(--gray2);color:var(--gray3);font-size:12px;font-weight:700;white-space:nowrap;font-family:var(--font);display:inline-block" title="No lights infrastructure">🚫 No Lights</span>`;
-    const rowBg=isActive?'var(--white)':'var(--gray2)';
-    const columns=isActive?'grid-template-columns:48px 1fr auto auto auto':'grid-template-columns:48px 1fr auto auto';
-    return`<div style="display:grid;${columns};gap:8px;align-items:center;padding:8px 10px;background:${rowBg};border:1.5px solid var(--border);border-radius:6px;opacity:${isActive?'1':'0.6'}">
-      <span style="font-family:var(--font);font-size:13px;font-weight:800;color:var(--muted);text-align:center">D${d.id}</span>
-      <input type="text" value="${esc(d.name)}" placeholder="Diamond name"
-        onchange="updateDiamondName(${d.id},this.value)"
-        style="font-size:13px;font-weight:700;background:var(--white);border:1.5px solid var(--border);border-radius:5px;padding:6px 10px;color:var(--text);font-family:var(--font);outline:none"/>
-      ${activeBtn}
-      ${lightsBtn}
-      <button onclick="removeDiamond(${d.id})"
-        style="padding:6px 10px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:16px;cursor:pointer;line-height:1;font-family:var(--font)"
-        title="Remove diamond">×</button>
+      :`<span style="font-size:12px;color:var(--muted);font-weight:600;padding:6px 0">🚫 No lights</span>`;
+    const nameInput=`<input value="${esc(d.name)}" onchange="updateDiamondName(${d.id},this.value)"
+      style="border:1.5px solid var(--border);border-radius:5px;padding:5px 8px;font-size:13px;font-weight:700;font-family:var(--font);width:130px"/>`;
+    const delBtn=`<button onclick="removeDiamond(${d.id})" title="Remove diamond"
+      style="padding:5px 9px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:13px;cursor:pointer;font-family:var(--font)">✕</button>`;
+    return`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;font-weight:800;color:var(--navy);min-width:24px">D${d.id}</span>
+      ${nameInput}${activeBtn}${lightsBtn}${delBtn}
     </div>`;
   }
 
   let html='';
   if(active.length){
-    html+=`<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--navy);margin-bottom:6px;margin-top:4px">✅ Active Diamonds (${active.length})</div>`;
-    html+=`<div style="display:flex;flex-direction:column;gap:6px">${active.map(renderRow).join('')}</div>`;
+    html+=`<div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);margin-bottom:6px">✅ Active Diamonds (${active.length}) — used in scheduling</div>
+      ${active.map(renderRow).join('')}
+    </div>`;
   }
   if(inactive.length){
-    html+=`<div style="margin-top:14px">
-      <button onclick="(function(btn){var body=document.getElementById('inactive-dm-body');var open=body.style.display==='none';body.style.display=open?'flex':'none';btn.querySelector('.dm-arr').textContent=open?'▲':'▼';})(this)"
+    html+=`<div>
+      <button onclick="(function(b){const body=document.getElementById('inactive-dm-body');body.style.display=body.style.display==='none'?'flex':'none';b.querySelector('.dm-arr').textContent=body.style.display==='none'?'▼':'▲'})(this)"
         style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:4px 0;cursor:pointer;text-align:left">
         <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted)">⬜ Inactive Diamonds (${inactive.length}) — not used in scheduling</span>
         <span class="dm-arr" style="font-size:10px;color:var(--muted)">▼</span>
@@ -329,39 +321,45 @@ function updateGptNotice(){
   const uniquePairs=leagueN*(leagueN-1)/2;
   const lgPairSlotsPerNight=dhCount+singleCount;
 
-  const gamesPerTeamAlgo=(leagueN-1)*tfaced;
-  const requiredNights=lgPairSlotsPerNight>0?Math.ceil(uniquePairs*tfaced/lgPairSlotsPerNight):0;
+  // Min nights needed for every pair to play tfaced times
+  const requiredNights=lgPairSlotsPerNight>0?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight):0;
+
+  // Games/team the algorithm naturally produces
+  const lgGamesPerNight=dhCount*2+singleCount;
+  const gamesPerTeamAlgo=lgPairSlotsPerNight>0
+    ? Math.round((requiredNights*lgGamesPerNight)/leagueN)
+    : 0;
+
+  const displayedGpt=gptVal||gamesPerTeamAlgo;
+
+  // nightsOk = have at least enough nights (more is fine — algo fills remaining nights)
+  const nightsOk=nights>=requiredNights&&requiredNights>0;
 
   const lgGamesFromFaced=uniquePairs*tfaced;
-  const lgGamesPerNight=dhCount*2+singleCount;
   const totalGamesPerNight=lgGamesPerNight+(d9?2:0);
-
-  const nightsOk=nights>=requiredNights&&requiredNights>0;
-  const totalGames=totalGamesPerNight*nights;
-  const coTotalGames=d9?2*nights:0;
+  const totalGames=totalGamesPerNight*(nightsOk?nights:0);
+  const coTotalGames=d9?2*(nightsOk?nights:0):0;
   const lgTotalGames=totalGames-coTotalGames;
-
-  const gamesPerTeamExpected=leagueN>0?Math.round((nights*lgGamesPerNight)/leagueN):0;
-  const displayedGpt=gptVal?Math.min(gptVal,gamesPerTeamExpected):gamesPerTeamExpected;
 
   const t1=`${lgPairSlotsPerNight} league slot${lgPairSlotsPerNight!==1?'s':''}/night`;
   const t2=d9?'1 CrossOver DH':'no D9';
 
   let gptWarning='';
-  if(gptVal&&gptVal<gamesPerTeamExpected){
+  if(gptVal&&gptVal!==gamesPerTeamAlgo){
     gptWarning=`<div style="padding:6px 12px;background:#fff8e6;border-top:1px solid var(--border);font-size:12px;color:#b45309">
-      ⚠ Without a cap, teams would play ~<strong>${gamesPerTeamExpected} games</strong> across ${nights} nights.
-      GPT set to <strong>${gptVal}</strong> — generator will stop each league team at ${gptVal} games.
+      ⚠ Algorithm produces <strong>${gamesPerTeamAlgo} games/team</strong> from current settings.
+      GPT set to <strong>${gptVal}</strong> — schedule generator will cap each league team at ${gptVal} games.
     </div>`;
   }
 
   let statusHtml,statusBg;
   if(!nightsOk){
-    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Not enough nights</span> — ≥${tfaced}× per pair needs at least <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. Add ${requiredNights-nights} more game night${requiredNights-nights!==1?'s':''}.`;
+    const diff=requiredNights-nights;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Not enough nights</span> — ≥${tfaced}× per pair needs at least <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. Add ${diff} more game night${diff!==1?'s':''}.`;
     statusBg='#fff0f0';
   }else{
     const extra=nights-requiredNights;
-    const extraNote=extra>0?` · ${extra} extra night${extra!==1?'s':''} will add more matchups`:'';
+    const extraNote=extra>0?` · ${extra} extra night${extra!==1?'s':''} will add matchups`:'';
     statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ~${displayedGpt} games/team, every pair plays ≥${tfaced}×${extraNote}</span>`;
     statusBg='#edf7f0';
   }
@@ -405,4 +403,10 @@ function updateGptNotice(){
     ${gptWarning}
     <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
   </div>`;
+}
+
+// ── SEASON HEADER ─────────────────────────────────────────────────────────────
+function updateSeasonHeader(){
+  const el=document.querySelector('.header-badge');
+  if(el&&G.currentSeason)el.textContent=G.currentSeason+' Season';
 }
