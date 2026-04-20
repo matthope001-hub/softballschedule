@@ -31,7 +31,6 @@ let G={
 
 const CROSSOVER='CrossOver';
 let hc={};
-// NOTE: schedFilterTeam and schedFilterDiamond are declared in schedule-render.js
 
 // ── DIAMOND HELPERS ───────────────────────────────────────────────────────────
 function getDiamonds(){ return G.diamonds; }
@@ -74,6 +73,25 @@ function showTab(t,btn){
   if(t==='playoffs'   &&typeof renderPlayoffs==='function')  renderPlayoffs();
   if(t==='champions'  &&typeof renderChampions==='function') renderChampions();
   if(t==='admin'      &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
+}
+
+// ── ADMIN SUBTABS ─────────────────────────────────────────────────────────────
+function showAdminTab(t,btn){
+  document.querySelectorAll('.admin-subtab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const panel=document.getElementById('admin-'+t);
+  if(panel)panel.classList.add('active');
+  if(t==='scores' &&typeof renderScores==='function') renderScores();
+  if(t==='edit'   &&typeof renderEdit==='function')   renderEdit();
+}
+
+function refreshActiveAdminTab(){
+  const activeBtn=document.querySelector('.admin-subtab.active');
+  if(!activeBtn)return;
+  const t=activeBtn.textContent.trim().toLowerCase();
+  if(t==='scores' &&typeof renderScores==='function') renderScores();
+  if(t==='edit'   &&typeof renderEdit==='function')   renderEdit();
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -293,23 +311,19 @@ function updateGptNotice(){
   const uniquePairs=leagueN*(leagueN-1)/2;
   const lgPairSlotsPerNight=dhCount+singleCount;
 
-  // Correct formula: each team faces every other team tfaced times
   const gamesPerTeamAlgo=(leagueN-1)*tfaced;
 
-  // Required nights to schedule all matchups given available slots per night
   const requiredNights=lgPairSlotsPerNight>0?Math.ceil(uniquePairs*tfaced/lgPairSlotsPerNight):0;
 
   const lgGamesFromFaced=uniquePairs*tfaced;
   const lgGamesPerNight=dhCount*2+singleCount;
   const totalGamesPerNight=lgGamesPerNight+(d9?2:0);
 
-  // nights >= requiredNights is valid — extra nights schedule additional matchups
   const nightsOk=nights>=requiredNights&&requiredNights>0;
   const totalGames=totalGamesPerNight*nights;
   const coTotalGames=d9?2*nights:0;
   const lgTotalGames=totalGames-coTotalGames;
 
-  // Actual expected games/team across all scheduled nights
   const gamesPerTeamExpected=leagueN>0?Math.round((nights*lgGamesPerNight)/leagueN):0;
   const displayedGpt=gptVal?Math.min(gptVal,gamesPerTeamExpected):gamesPerTeamExpected;
 
