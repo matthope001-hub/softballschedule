@@ -37,7 +37,6 @@
     <div id="season-banner"></div>
     <div id="last-results"></div>
 
-    <!-- Filter bar: team + diamond chips -->
     <div id="filter-bar" style="margin-bottom:14px;display:none">
       <div style="margin-bottom:8px">
         <div class="filter-label">Filter by Team</div>
@@ -49,10 +48,8 @@
       </div>
     </div>
 
-    <!-- Schedule output -->
     <div id="so"><div class="empty">Add teams and generate a schedule to get started</div></div>
 
-    <!-- Export bar: below the schedule -->
     <div id="export-bar" class="export-bar">
       <span class="export-label">Export:</span>
       <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇ CSV</button>
@@ -272,13 +269,17 @@
 
 <div id="_toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data.js"></script>
 <script src="persistence.js"></script>
 <script src="schedule-render.js"></script>
 <script src="schedule-gen.js"></script>
 <script src="edit.js"></script>
 <script src="standings.js"></script>
+<script src="stats.js"></script>
 <script src="playoffs.js"></script>
+<script src="champions.js"></script>
 <script src="exports.js"></script>
+<script src="map.js"></script>
 </body>
 </html>
