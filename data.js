@@ -31,6 +31,8 @@ let G={
 
 const CROSSOVER='CrossOver';
 let hc={};
+let schedFilterTeam=null;
+let schedFilterDiamond=null;
 
 // ── DIAMOND HELPERS ───────────────────────────────────────────────────────────
 function getDiamonds(){ return G.diamonds; }
@@ -70,6 +72,9 @@ function showTab(t,btn){
   if(tabEl)tabEl.classList.add('active');
   window._activeTab=t;
   _renderActiveTab(t);
+  if(t==='parkmap'){
+    setTimeout(()=>{if(window._leafletMap)window._leafletMap.invalidateSize();},80);
+  }
 }
 
 function _renderActiveTab(t){
@@ -182,33 +187,27 @@ function renderRulesDiamonds(){
 }
 
 function renderDiamonds(){
-  // index.html uses id="dm" for the diamond list container
   const el=document.getElementById('dm');
   if(!el)return;
-
   const active=G.diamonds.filter(d=>d.active);
   const inactive=G.diamonds.filter(d=>!d.active);
 
   function renderRow(d){
     const capable=d.lightsCapable!==false;
     const isActive=d.active;
-
     const activeBtn=`<button onclick="toggleDiamondActive(${d.id})"
       title="${isActive?'Click to deactivate':'Click to activate'}"
       style="padding:6px 12px;border-radius:5px;border:1.5px solid ${isActive?'var(--success,#27ae60)':'var(--border)'};background:${isActive?'#edf7f0':'var(--gray2)'};color:${isActive?'var(--success,#27ae60)':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
       ${isActive?'✅ Active':'⬜ Inactive'}
     </button>`;
-
     const lightsBtn=!isActive?'':capable
       ?`<button onclick="toggleDiamondLights(${d.id})"
           style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
           ${d.lights?'💡 Lights':'🌙 No Lights'}
         </button>`
       :`<span style="padding:6px 12px;border-radius:5px;border:1.5px solid var(--border);background:var(--gray2);color:var(--gray3);font-size:12px;font-weight:700;white-space:nowrap;font-family:var(--font);display:inline-block" title="No lights infrastructure">🚫 No Lights</span>`;
-
     const rowBg=isActive?'var(--white)':'var(--gray2)';
     const columns=isActive?'grid-template-columns:48px 1fr auto auto auto':'grid-template-columns:48px 1fr auto auto';
-
     return`<div style="display:grid;${columns};gap:8px;align-items:center;padding:8px 10px;background:${rowBg};border:1.5px solid var(--border);border-radius:6px;opacity:${isActive?'1':'0.6'}">
       <span style="font-family:var(--font);font-size:13px;font-weight:800;color:var(--muted);text-align:center">D${d.id}</span>
       <input type="text" value="${esc(d.name)}" placeholder="Diamond name"
@@ -331,7 +330,6 @@ function updateGptNotice(){
   const lgPairSlotsPerNight=dhCount+singleCount;
 
   const gamesPerTeamAlgo=(leagueN-1)*tfaced;
-
   const requiredNights=lgPairSlotsPerNight>0?Math.ceil(uniquePairs*tfaced/lgPairSlotsPerNight):0;
 
   const lgGamesFromFaced=uniquePairs*tfaced;
