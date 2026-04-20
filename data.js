@@ -246,8 +246,8 @@ function initDayChecks(){
   }catch(e){}
   el.innerHTML=DAY_NAMES.map((name,i)=>{
     const checked=savedDays.includes(i)?'checked':'';
-    const activeStyle='border-color:var(--navy);background:var(--navy);color:#fff';
-    const inactiveStyle='border-color:var(--border);background:var(--white);color:var(--text)';
+    const activeStyle='border-color:var(--sys-blue);background:var(--sys-blue);color:#fff';
+    const inactiveStyle='border-color:var(--sep-opaque);background:var(--surface);color:var(--text2)';
     return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${checked?activeStyle:inactiveStyle}">
       <input type="checkbox" value="${i}" ${checked} onchange="onDayChange(${i},this)" style="display:none"> ${name}
     </label>`;
@@ -257,8 +257,8 @@ function initDayChecks(){
 function onDayChange(i,cb){
   const lbl=document.getElementById('daylabel-'+i);
   if(lbl){
-    if(cb.checked){lbl.style.borderColor='var(--navy)';lbl.style.background='var(--navy)';lbl.style.color='#fff';}
-    else{lbl.style.borderColor='var(--border)';lbl.style.background='var(--white)';lbl.style.color='var(--text)';}
+    if(cb.checked){lbl.style.borderColor='var(--sys-blue)';lbl.style.background='var(--sys-blue)';lbl.style.color='#fff';}
+    else{lbl.style.borderColor='var(--sep-opaque)';lbl.style.background='var(--surface)';lbl.style.color='var(--text2)';}
   }
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
