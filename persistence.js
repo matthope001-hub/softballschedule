@@ -1,6 +1,4 @@
 // ── PERSISTENCE — CLOUD ONLY (JSONBin) ───────────────────────────────────────
-// No localStorage. Every read/write goes to JSONBin so all devices are in sync.
-
 const JSONBIN_BIN_ID    = '69d7a4c036566621a894eed9';
 const JSONBIN_WRITE_KEY = '$2a$10$0Hbc5Bc9ABqnRlT3.dmE6OURp.z8twcL0yy4bSGoCACQOTb7Z5fJu';
 const JSONBIN_READ_KEY  = '$2a$10$C92oSSIavphdJdlHmYlu4usOllGAQJgkZ5y59MF7NXuDb3pf3Br6m';
@@ -17,8 +15,28 @@ function checkAdmin() {
   if (pin !== null) showToast('✗ Wrong PIN');
   return false;
 }
+
 function adminGuard(fn) {
   return function(...args) { if (checkAdmin()) fn(...args); };
+}
+
+function unlockAdmin(){
+  if(isAdmin){
+    document.getElementById('admin-locked').style.display='none';
+    document.getElementById('admin-unlocked').style.display='block';
+    return;
+  }
+  const pin=prompt('Enter admin PIN:');
+  if(pin===ADMIN_PIN){
+    isAdmin=true;
+    showToast('🔓 Admin mode on');
+    document.getElementById('admin-locked').style.display='none';
+    document.getElementById('admin-unlocked').style.display='block';
+    try{renderScores();}catch(e){}
+    try{renderEdit();}catch(e){}
+  } else if(pin!==null){
+    showToast('✗ Wrong PIN');
+  }
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
@@ -84,8 +102,8 @@ async function loadData() {
   try {
     const res=await fetch(JSONBIN_URL()+'/latest',{
       headers:{
-        'X-Master-Key': JSONBIN_WRITE_KEY,  // FIX: use write/master key for reads too
-        'X-Access-Key': JSONBIN_READ_KEY    // FIX: also send read key in correct header
+        'X-Master-Key': JSONBIN_WRITE_KEY,
+        'X-Access-Key': JSONBIN_READ_KEY
       }
     });
     if(!res.ok){ console.warn(`JSONBin load: HTTP ${res.status}`); showToast(`⚠ Could not load data (${res.status})`); return false; }
