@@ -71,14 +71,17 @@ function renderLastResults(){
 
 // ── FILTER ────────────────────────────────────────────────────────────────────
 function renderFilterChips(){
-  const filterBar=document.getElementById('team-filter-bar');
-  if(!filterBar)return;
+  const filterBar=document.getElementById('filter-bar');
+  const exportBar=document.getElementById('export-bar');
 
   if(!G.sched.length){
-    filterBar.style.display='none';
+    if(filterBar)filterBar.style.display='none';
+    if(exportBar)exportBar.classList.remove('vis');
     return;
   }
-  filterBar.style.display='';
+
+  if(filterBar)filterBar.style.display='';
+  if(exportBar)exportBar.classList.add('vis');
 
   // Team chips
   const teamEl=document.getElementById('team-filter-chips');
@@ -91,18 +94,10 @@ function renderFilterChips(){
     teamEl.innerHTML=chips.join('');
   }
 
-  // Diamond chips — injected after team chips row if not already present
-  let dmEl=document.getElementById('diamond-filter-chips');
-  if(!dmEl){
-    const row=document.createElement('div');
-    row.style.cssText='margin-top:8px';
-    row.innerHTML=`<div class="filter-label" style="margin-bottom:4px">Filter by Diamond</div><div id="diamond-filter-chips" class="filter-chips"></div>`;
-    filterBar.appendChild(row);
-    dmEl=document.getElementById('diamond-filter-chips');
-  }
-
+  // Diamond chips
+  const dmEl=document.getElementById('diamond-filter-chips');
   if(dmEl){
-    const usedDiamonds=[...new Set(G.sched.map(g=>g.diamond))].sort((a,b)=>a-b);
+    const usedDiamonds=[...new Set(G.sched.filter(g=>!g.open).map(g=>g.diamond))].sort((a,b)=>a-b);
     const dmChips=[
       `<button onclick="setDiamondFilter(null,this)" class="chip-filter${schedFilterDiamond===null?' active':''}">All Diamonds</button>`
     ].concat(
@@ -164,23 +159,16 @@ function renderSched(){
   renderLastResults();
   renderFilterChips();
   _renderSchedGames();
-  // Show/hide export bar
-  const eb=document.getElementById('export-bar');
-  if(eb)eb.classList.toggle('vis',G.sched.length>0);
 }
 
 function _renderSchedGames(){
   const el=document.getElementById('so');
   if(!el)return;
 
-  const eb=document.getElementById('export-bar');
-
   if(!G.sched.length){
     el.innerHTML='<div class="empty">Add teams and generate a schedule to get started</div>';
-    if(eb)eb.classList.remove('vis');
     return;
   }
-  if(eb)eb.classList.add('vis');
 
   let filtered=G.sched.filter(g=>!g.open);
   if(schedFilterTeam)    filtered=filtered.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
@@ -188,7 +176,7 @@ function _renderSchedGames(){
 
   if(!filtered.length){
     const desc=[
-      schedFilterTeam    ? esc(schedFilterTeam)       : null,
+      schedFilterTeam    ? esc(schedFilterTeam)              : null,
       schedFilterDiamond ? getDiamondName(schedFilterDiamond) : null
     ].filter(Boolean).join(' + ');
     el.innerHTML=`<div class="empty">No games found for ${desc}</div>`;
@@ -304,7 +292,6 @@ function renderScores(){
   const sco=document.getElementById('sco');
   if(sco){
     sco.innerHTML=html;
-    // Auto-open current/soonest month
     const now=toDateStr(new Date());
     let opened=false;
     monthOrder.forEach((month,i)=>{
