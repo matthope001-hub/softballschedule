@@ -66,13 +66,19 @@ function showTab(t,btn){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  document.getElementById('tab-'+t).classList.add('active');
-  if(t==='schedule'   &&typeof renderSched==='function')    renderSched();
-  if(t==='standings'  &&typeof renderStandings==='function') renderStandings();
-  if(t==='stats'      &&typeof renderStats==='function')     renderStats();
-  if(t==='playoffs'   &&typeof renderPlayoffs==='function')  renderPlayoffs();
-  if(t==='champions'  &&typeof renderChampions==='function') renderChampions();
-  if(t==='admin'      ) refreshActiveAdminTab();
+  const tabEl=document.getElementById('tab-'+t);
+  if(tabEl)tabEl.classList.add('active');
+  window._activeTab=t;
+  _renderActiveTab(t);
+}
+
+function _renderActiveTab(t){
+  if(t==='schedule'  &&typeof renderSched==='function')     renderSched();
+  if(t==='standings' &&typeof renderStandings==='function') renderStandings();
+  if(t==='stats'     &&typeof renderStats==='function')     renderStats();
+  if(t==='playoffs'  &&typeof renderPlayoffs==='function')  renderPlayoffs();
+  if(t==='champions' &&typeof renderChampions==='function') renderChampions();
+  if(t==='admin'     &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
 }
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
