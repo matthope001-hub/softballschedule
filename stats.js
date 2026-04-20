@@ -16,7 +16,7 @@ function renderStats(){
 
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const allTeams=G.teams;
-  const schedDiamondIds=[...new Set(G.sched.map(g=>g.diamond))].sort((a,b)=>a-b);
+  const schedDiamondIds=[...new Set(G.sched.filter(g=>!g.open&&g.diamond!=null).map(g=>g.diamond))].sort((a,b)=>a-b);
 
   // ── per-team accumulation ──
   // ts[t].total    = games that team appears in (home OR away)
@@ -37,6 +37,7 @@ function renderStats(){
   const nightCount={};
 
   for(const g of G.sched){
+    if(g.open) continue;
     // Actual game count per diamond
     dGameCount[g.diamond]=(dGameCount[g.diamond]||0)+1;
 
