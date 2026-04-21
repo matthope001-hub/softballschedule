@@ -292,7 +292,8 @@ function _plyModalRefresh(){
   }
 }
 
-function _plyModalSubmit(plyId,home,away){
+function _plyModalSubmit(){
+  const{plyId,home,away}=window._plyModalState;
   const date=document.getElementById('_pm_date')?.value;
   const time=document.getElementById('_pm_time')?.value?.trim();
   const dmId=window._plyModalState?.diamond;
@@ -335,6 +336,9 @@ function schedulePlayoffGame(plyId,home,away){
   modal.id='_ply_modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(13,27,46,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
 
+  // Store on window to avoid inline apostrophe issues
+  window._plyModalState={plyId,home,away,hour:6,min:'30',ampm:'PM',diamond:null,existingPly,clockStep:'hour'};
+
   modal.innerHTML=`
     <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.25);font-family:sans-serif;max-height:90vh;overflow-y:auto">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7d94;margin-bottom:4px">Schedule Playoff Game</div>
@@ -361,7 +365,7 @@ function schedulePlayoffGame(plyId,home,away){
       </div>
 
       <div style="display:flex;gap:8px;margin-top:20px">
-        <button type="button" onclick="_plyModalSubmit('${plyId}','${esc(home)}','${esc(away)}')"
+        <button type="button" onclick="_plyModalSubmit()"
           style="flex:1;padding:10px;background:#0d1b2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">✓ Confirm</button>
         <button type="button" onclick="document.getElementById('_ply_modal').remove()"
           style="padding:10px 16px;background:none;border:1.5px solid #e2e6ec;border-radius:8px;font-size:13px;color:#6b7d94;cursor:pointer;font-family:sans-serif">Cancel</button>
@@ -371,7 +375,6 @@ function schedulePlayoffGame(plyId,home,away){
   document.body.appendChild(modal);
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
 
-  window._plyModalState={plyId,home,away,hour:6,min:'30',ampm:'PM',diamond:null,existingPly,clockStep:'hour'};
   _plyRenderClock();
   _plyModalRefresh();
 }
@@ -462,6 +465,8 @@ function scoreInput(idH,idA,valH,valA,onChange){
 
 function schedBtn(plyId,home,away){
   const entry=getPlayoffSchedEntry(plyId);
+  const safeHome=(home||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const safeAway=(away||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   if(entry){
     return `<td style="padding:4px 6px;white-space:nowrap">
       <div style="display:inline-flex;align-items:center;gap:8px;background:#0d1b2e;border-radius:6px;padding:5px 10px">
@@ -475,7 +480,7 @@ function schedBtn(plyId,home,away){
     </td>`;
   }
   return `<td style="padding:4px 6px">
-    <button onclick="schedulePlayoffGame('${plyId}','${esc(home)}','${esc(away)}')" style="font-size:11px;padding:4px 10px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:5px;cursor:pointer;color:#0d1b2e;font-weight:600;white-space:nowrap;font-family:sans-serif">📅 Schedule</button>
+    <button onclick="schedulePlayoffGame('${plyId}','${safeHome}','${safeAway}')" style="font-size:11px;padding:4px 10px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:5px;cursor:pointer;color:#0d1b2e;font-weight:600;white-space:nowrap;font-family:sans-serif">📅 Schedule</button>
   </td>`;
 }
 
@@ -501,13 +506,15 @@ function _bracketTeam(team,score,isWinner,isEmpty){
 function _bracketGame(label,g,podKey,key,plyId,inputIdH,inputIdA,onChange){
   const w=winnerOf(g.score,g.home,g.away);
   const entry=getPlayoffSchedEntry(plyId);
+  const safeHome=(g.home||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const safeAway=(g.away||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   const schedInfo=entry
     ?`<div style="font-size:10px;color:#6b7d94;margin-top:5px;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px">
         <span>📅 ${entry.date} · ${entry.time} · ${getDiamondName(entry.diamond)}</span>
         <button onclick="removePlayoffSchedule('${plyId}')" style="background:none;border:none;cursor:pointer;color:#e03131;font-size:11px;padding:0;line-height:1" title="Remove">✕</button>
       </div>`
     :`<div style="text-align:center;margin-top:5px">
-        <button onclick="schedulePlayoffGame('${plyId}','${esc(g.home||'')}','${esc(g.away||'')}')" style="font-size:10px;padding:3px 10px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:4px;cursor:pointer;color:#0d1b2e;font-weight:600;font-family:sans-serif">📅 Schedule</button>
+        <button onclick="schedulePlayoffGame('${plyId}','${safeHome}','${safeAway}')" style="font-size:10px;padding:3px 10px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:4px;cursor:pointer;color:#0d1b2e;font-weight:600;font-family:sans-serif">📅 Schedule</button>
       </div>`;
 
   return`<div style="display:flex;flex-direction:column;gap:3px">
