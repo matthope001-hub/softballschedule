@@ -110,9 +110,9 @@ function fmt12(t){
 }
 
 function refreshActiveAdminTab(){
-  if(activeAdminTab==='playoffs'){try{renderPlayoffsAdmin();}catch(e){}}
-  if(activeAdminTab==='scores'){try{renderScores();}catch(e){}}
+    if(activeAdminTab==='scores'){try{renderScores();}catch(e){}}
   if(activeAdminTab==='edit')  {try{renderEdit();  }catch(e){}}
+  if(activeAdminTab==='playoffs'){try{renderPlayoffsAdmin();}catch(e){}}
   if(activeAdminTab==='settings'){
     try{renderTeams();}catch(e){}
     try{renderDiamonds();}catch(e){}
