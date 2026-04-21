@@ -128,7 +128,7 @@ function _clampScore(val){
 }
 
 function savePlayoffScore(gameId){
-  if(!checkAdmin()) return;
+  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const hRaw=document.getElementById('ph_'+gameId)?.value;
   const aRaw=document.getElementById('pa_'+gameId)?.value;
   const g=G.playoffs.games[gameId];
@@ -143,7 +143,7 @@ function savePlayoffScore(gameId){
 }
 
 function saveSemiScore(pod,key){
-  if(!checkAdmin()) return;
+  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const hRaw=document.getElementById(`psh_${pod}_${key}`)?.value;
   const aRaw=document.getElementById(`psa_${pod}_${key}`)?.value;
   if(!G.playoffs.semis[pod][key]) G.playoffs.semis[pod][key]={home:null,away:null,score:null};
@@ -157,7 +157,7 @@ function saveSemiScore(pod,key){
 }
 
 function saveFinalScore(pod){
-  if(!checkAdmin()) return;
+  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const hRaw=document.getElementById('pfh_'+pod)?.value;
   const aRaw=document.getElementById('pfa_'+pod)?.value;
   if(hRaw===''||aRaw==='') G.playoffs.finals[pod].score=null;
