@@ -199,30 +199,232 @@ function saveFinalScore(pod){
   saveData();renderPlayoffs();
 }
 
+// ── PLAYOFF SCHEDULER MODAL ───────────────────────────────────────────────────
 function schedulePlayoffGame(plyId, home, away){
   if(!checkAdmin()) return;
-  const date=prompt(`Schedule playoff game: ${home} vs ${away}\n\nEnter date (YYYY-MM-DD), e.g. 2026-10-06:`,'2026-10-06');
-  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){if(date!==null)alert('Invalid date format. Use YYYY-MM-DD.');return;}
-  const time=prompt('Enter start time:','6:30 PM');
-  if(!time){return;}
-  const dmNames=G.diamonds.map((d,i)=>`${i+1}. ${d.name}`).join('\n');
-  const dmChoice=prompt(`Choose diamond:\n${dmNames}\n\nEnter number:`,'1');
-  if(!dmChoice) return;
-  const dmIndex=parseInt(dmChoice)-1;
-  if(isNaN(dmIndex)||dmIndex<0||dmIndex>=G.diamonds.length){alert('Invalid diamond choice.');return;}
-  const dm=G.diamonds[dmIndex];
-  // Remove any existing schedule entry for this plyId
+
+  // Build conflict data from existing playoff schedule entries
+  const existingPly=G.sched.filter(g=>g.playoff&&g.plyId!==plyId);
+
+  // All active diamonds
+  const diamonds=G.diamonds.filter(d=>d.active);
+
+  // Remove existing modal if any
+  document.getElementById('_ply_modal')?.remove();
+
+  const modal=document.createElement('div');
+  modal.id='_ply_modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(13,27,46,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.25);font-family:var(--font)">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7d94;margin-bottom:4px">Schedule Playoff Game</div>
+      <div style="font-size:16px;font-weight:800;color:#0d1b2e;margin-bottom:18px">${esc(home)} <span style="color:#6b7d94;font-weight:400">vs</span> ${esc(away)}</div>
+
+      <div style="display:grid;gap:14px">
+
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Date</label>
+          <input type="date" id="_pm_date" value="2026-10-06"
+            style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:var(--font);box-sizing:border-box;outline:none"
+            oninput="_plyModalRefresh()"/>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Time</label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="_pm_time_chips">
+            ${['6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM','8:15 PM','8:30 PM'].map(t=>
+              `<button type="button" onclick="_plySetTime('${t}')"
+                style="padding:5px 12px;border-radius:20px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:600;color:#0d1b2e;cursor:pointer;font-family:var(--font)"
+                id="_pmtc_${t.replace(/[: ]/g,'_')}">${t}</button>`
+            ).join('')}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="position:relative;flex:1">
+              <input type="text" id="_pm_time" placeholder="or type e.g. 7:15 PM"
+                style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:var(--font);box-sizing:border-box;outline:none"
+                oninput="_plyTimeTyped()"/>
+            </div>
+          </div>
+          <!-- Clock picker -->
+          <div id="_pm_clock" style="margin-top:10px;display:none">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div>
+                <div style="font-size:10px;font-weight:700;color:#6b7d94;text-transform:uppercase;margin-bottom:4px">Hour</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
+                  ${[6,7,8,9].map(h=>`<button type="button" onclick="_plySetHour(${h})"
+                    id="_pmh_${h}" style="padding:5px 0;border-radius:6px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:700;color:#0d1b2e;cursor:pointer;font-family:var(--font)">${h}</button>`).join('')}
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;color:#6b7d94;text-transform:uppercase;margin-bottom:4px">Min</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
+                  ${['00','15','30','45'].map(m=>`<button type="button" onclick="_plySetMin('${m}')"
+                    id="_pmm_${m}" style="padding:5px 0;border-radius:6px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:700;color:#0d1b2e;cursor:pointer;font-family:var(--font)">${m}</button>`).join('')}
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;color:#6b7d94;text-transform:uppercase;margin-bottom:4px">AM/PM</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                  ${['AM','PM'].map(ap=>`<button type="button" onclick="_plySetAmpm('${ap}')"
+                    id="_pmap_${ap}" style="padding:5px 0;border-radius:6px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:700;color:#0d1b2e;cursor:pointer;font-family:var(--font)">${ap}</button>`).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="button" onclick="_plyToggleClock()" style="margin-top:6px;font-size:11px;color:#1971c2;background:none;border:none;cursor:pointer;padding:0;font-family:var(--font)">🕐 Toggle clock picker</button>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Diamond</label>
+          <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+
+        <div id="_pm_conflicts" style="display:none;background:#fff3bf;border:1px solid #ffe066;border-radius:6px;padding:8px 12px;font-size:12px;color:#7c5c00"></div>
+
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:20px">
+        <button type="button" onclick="_plyModalSubmit('${plyId}','${esc(home)}','${esc(away)}')"
+          style="flex:1;padding:10px;background:#0d1b2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✓ Confirm</button>
+        <button type="button" onclick="document.getElementById('_ply_modal').remove()"
+          style="padding:10px 16px;background:none;border:1.5px solid #e2e6ec;border-radius:8px;font-size:13px;color:#6b7d94;cursor:pointer;font-family:var(--font)">Cancel</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+
+  // Store state on window for helpers
+  window._plyModalState={plyId,home,away,hour:6,min:'30',ampm:'PM',diamond:null,existingPly};
+  _plyModalRefresh();
+}
+
+function _plyToggleClock(){
+  const cl=document.getElementById('_pm_clock');
+  if(cl) cl.style.display=cl.style.display==='none'?'block':'none';
+}
+
+function _plySetHour(h){
+  window._plyModalState.hour=h;
+  _plyClockToInput();
+}
+function _plySetMin(m){
+  window._plyModalState.min=m;
+  _plyClockToInput();
+}
+function _plySetAmpm(ap){
+  window._plyModalState.ampm=ap;
+  _plyClockToInput();
+}
+function _plyClockToInput(){
+  const{hour,min,ampm}=window._plyModalState;
+  const t=`${hour}:${min} ${ampm}`;
+  const el=document.getElementById('_pm_time');
+  if(el) el.value=t;
+  // highlight clock buttons
+  [6,7,8,9].forEach(h=>{const b=document.getElementById(`_pmh_${h}`);if(b)b.style.background=h===hour?'#0d1b2e':b.style.background='#f7f8fb';if(b)b.style.color=h===hour?'#fff':'#0d1b2e';});
+  ['00','15','30','45'].forEach(m=>{const b=document.getElementById(`_pmm_${m}`);if(b){b.style.background=m===window._plyModalState.min?'#0d1b2e':'#f7f8fb';b.style.color=m===window._plyModalState.min?'#fff':'#0d1b2e';}});
+  ['AM','PM'].forEach(ap=>{const b=document.getElementById(`_pmap_${ap}`);if(b){b.style.background=ap===ampm?'#0d1b2e':'#f7f8fb';b.style.color=ap===ampm?'#fff':'#0d1b2e';}});
+  _plyModalRefresh();
+}
+
+function _plySetTime(t){
+  const el=document.getElementById('_pm_time');
+  if(el) el.value=t;
+  // parse into clock state
+  const m=t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if(m){window._plyModalState.hour=parseInt(m[1]);window._plyModalState.min=m[2];window._plyModalState.ampm=m[3].toUpperCase();}
+  _plyClockToInput();
+  _plyModalRefresh();
+}
+
+function _plyTimeTyped(){
+  _plyModalRefresh();
+}
+
+function _plyModalRefresh(){
+  const date=document.getElementById('_pm_date')?.value||'';
+  const time=document.getElementById('_pm_time')?.value?.trim()||'';
+  const state=window._plyModalState;
+  const existingPly=state?.existingPly||[];
+
+  // Highlight time chips
+  ['6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM','8:15 PM','8:30 PM'].forEach(t=>{
+    const b=document.getElementById('_pmtc_'+t.replace(/[: ]/g,'_'));
+    if(b){b.style.background=t===time?'#0d1b2e':'#f7f8fb';b.style.color=t===time?'#fff':'#0d1b2e';b.style.borderColor=t===time?'#0d1b2e':'#e2e6ec';}
+  });
+
+  // Build diamond buttons with conflict info
+  const dmEl=document.getElementById('_pm_diamonds');
+  if(!dmEl) return;
+  const diamonds=G.diamonds.filter(d=>d.active);
+
+  // Conflicts: diamonds already booked at this date+time
+  const bookedDiamonds=new Set(existingPly.filter(g=>g.date===date&&g.time===time).map(g=>g.diamond));
+  // Teams already playing at this date+time
+  const busyTeams=new Set(existingPly.filter(g=>g.date===date&&g.time===time).flatMap(g=>[g.home,g.away]));
+  const teamConflict=busyTeams.has(state.home)||busyTeams.has(state.away);
+
+  dmEl.innerHTML=diamonds.map(d=>{
+    const booked=bookedDiamonds.has(d.id);
+    const isSelected=state.diamond===d.id;
+    const bg=isSelected?'#0d1b2e':booked?'#fee2e2':'#f7f8fb';
+    const color=isSelected?'#fff':booked?'#b91c1c':'#0d1b2e';
+    const border=isSelected?'#0d1b2e':booked?'#fca5a5':'#e2e6ec';
+    const label=booked?'✗ Booked':'';
+    return`<button type="button" ${booked?'disabled':''} onclick="_plySelectDiamond(${d.id})"
+      style="padding:5px 12px;border-radius:6px;border:1.5px solid ${border};background:${bg};font-size:12px;font-weight:600;color:${color};cursor:${booked?'not-allowed':'pointer'};font-family:var(--font)">
+      D${d.id}${d.lights?' 💡':' 🌙'}${label?` <span style="font-size:10px">${label}</span>`:''}
+    </button>`;
+  }).join('');
+
+  // Show conflict warnings
+  const conflictEl=document.getElementById('_pm_conflicts');
+  if(conflictEl){
+    const msgs=[];
+    if(teamConflict){
+      const who=[state.home,state.away].filter(t=>busyTeams.has(t));
+      msgs.push(`⚠ ${who.join(' and ')} already ha${who.length>1?'ve':'s'} a game scheduled at this date and time.`);
+    }
+    if(msgs.length){conflictEl.style.display='block';conflictEl.innerHTML=msgs.join('<br>');}
+    else{conflictEl.style.display='none';}
+  }
+}
+
+function _plySelectDiamond(id){
+  window._plyModalState.diamond=id;
+  _plyModalRefresh();
+}
+
+function _plyModalSubmit(plyId,home,away){
+  const date=document.getElementById('_pm_date')?.value;
+  const time=document.getElementById('_pm_time')?.value?.trim();
+  const dmId=window._plyModalState?.diamond;
+
+  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please enter a valid date.');return;}
+  if(!time){alert('Please select or enter a time.');return;}
+  if(!dmId){alert('Please select a diamond.');return;}
+
+  const dm=G.diamonds.find(d=>d.id===dmId);
+
+  // Final conflict check — warn but allow override for teams
+  const existingPly=G.sched.filter(g=>g.playoff&&g.plyId!==plyId);
+  const busyTeams=new Set(existingPly.filter(g=>g.date===date&&g.time===time).flatMap(g=>[g.home,g.away]));
+  const teamConflict=[home,away].filter(t=>busyTeams.has(t));
+  if(teamConflict.length){
+    if(!confirm(`⚠ ${teamConflict.join(' and ')} already ha${teamConflict.length>1?'ve':'s'} a game at this time.\n\nSchedule anyway?`)) return;
+  }
+
   G.sched=G.sched.filter(g=>g.plyId!==plyId);
   const yr=date.slice(2,4);
-  const existingIds=G.sched.map(g=>g.id).filter(id=>id.startsWith(yr));
-  let maxSeq=0;
-  for(const id of existingIds){const n=parseInt(id.slice(2));if(!isNaN(n)&&n>maxSeq)maxSeq=n;}
+  const maxSeq=G.sched.reduce((max,g)=>{if(!g.id.startsWith(yr))return max;return Math.max(max,parseInt(g.id.slice(2))||0);},0);
   const newId=`${yr}${String(maxSeq+1).padStart(3,'0')}`;
-  G.sched.push({
-    id:newId,date,time,diamond:dm.id,lights:dm.lights,
-    home,away,bye:'',crossover:false,playoff:true,plyId
-  });
-  G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+
+  G.sched.push({id:newId,date,time,diamond:dmId,lights:dm?.lights||false,home,away,bye:'',crossover:false,playoff:true,plyId});
+  G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||'')||(a.diamond-b.diamond));
+
+  document.getElementById('_ply_modal')?.remove();
   saveData();
   renderPlayoffs();
   renderSched();
