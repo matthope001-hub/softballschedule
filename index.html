@@ -17,6 +17,10 @@
     <div class="header-sub">Turner Park · Tuesday Nights · Hamilton, ON</div>
   </div>
   <div class="header-badge">2026 Season</div>
+  <div id="header-weather" style="display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:2px;padding-left:12px;border-left:1px solid rgba(255,255,255,0.1)">
+    <div id="hw-date" style="font-size:10px;color:rgba(255,255,255,0.38);font-weight:500;white-space:nowrap;letter-spacing:0.1px">—</div>
+    <div id="hw-weather" style="font-size:12px;color:rgba(255,255,255,0.82);font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap"><span style="opacity:0.35">···</span></div>
+  </div>
 </div>
 
 <div class="tabs">
@@ -104,62 +108,41 @@
         <div class="rule-item"><span class="rule-num">1.0</span><span class="rule-text">All games governed by <strong>SPN rules</strong> except where HCCSL rules specifically override.</span></div>
         <div class="rule-item"><span class="rule-num">2.0</span><span class="rule-text">Teams must have a minimum of <strong>8 players</strong> (including at least 3 women) to start a game. Fewer than 8 = forfeit.</span></div>
         <div class="rule-item"><span class="rule-num">2.1</span><span class="rule-text">Maximum of <strong>10 players</strong> on the field. Batting order may include up to <strong>16 players</strong>.</span></div>
-        <div class="rule-item"><span class="rule-num">3.0</span><span class="rule-text"><strong>Gender ratio:</strong> At least 3 women in the field at all times. If a team cannot field 3 women, an out is recorded each time the missing spot comes to bat.</span></div>
-        <div class="rule-item"><span class="rule-num">4.0</span><span class="rule-text">All players must be registered with SPN and listed on the team's official roster before playing.</span></div>
-        <div class="rule-item"><span class="rule-num">5.0</span><span class="rule-text"><strong>Pitching arc:</strong> Minimum 6 feet, maximum 12 feet from the ground.</span></div>
-        <div class="rule-item"><span class="rule-num">6.0</span><span class="rule-text">Home run limit: <strong>3 over-the-fence HR per team per game</strong>. Additional over-fence hits count as a single.</span></div>
-        <div class="rule-item"><span class="rule-num">7.0</span><span class="rule-text"><strong>Mercy rule:</strong> 15 runs after 3 innings, 12 runs after 5 innings.</span></div>
-        <div class="rule-item"><span class="rule-num">8.0</span><span class="rule-text"><strong>Weather cancellation:</strong> Game suspended due to weather before becoming official = rescheduled. If official = result stands. Suspended official game = <strong>7–7 tie</strong>.</span></div>
-        <div class="rule-item"><span class="rule-num">9.0</span><span class="rule-text">A regulation game is <strong>7 innings</strong>. Tied games after 7 innings in the regular season end as a tie.</span></div>
-        <div class="rule-item"><span class="rule-num">10.0</span><span class="rule-text"><strong>Courtesy runner:</strong> Each team may use one courtesy runner per inning. Runner must be the last recorded out.</span></div>
-        <div class="rule-item"><span class="rule-num">11.0</span><span class="rule-text">No new inning shall start after <strong>1 hour 45 minutes</strong> from the official start time (curfew). Existing inning completes.</span></div>
+        <div class="rule-item"><span class="rule-num">3.0</span><span class="rule-text"><strong>Gender ratio:</strong> At least 3 women in the field at all times. Violation = automatic out each inning.</span></div>
+        <div class="rule-item"><span class="rule-num">4.0</span><span class="rule-text">Games are <strong>7 innings</strong> or <strong>75 minutes</strong>, whichever comes first. No new inning starts after the time limit.</span></div>
+        <div class="rule-item"><span class="rule-num">4.1</span><span class="rule-text">Mercy rule: <strong>15 runs after 3 innings</strong>, <strong>12 runs after 4</strong>, <strong>10 runs after 5</strong>.</span></div>
+        <div class="rule-item"><span class="rule-num">5.0</span><span class="rule-text">Pitching: <strong>Arc pitch</strong> — minimum 6 ft, maximum 12 ft. Pitcher must stay behind the rubber until the ball is hit.</span></div>
+        <div class="rule-item"><span class="rule-num">5.1</span><span class="rule-text">Batter starts with a <strong>1-1 count</strong>. Foul on 2-strike count = out.</span></div>
+        <div class="rule-item"><span class="rule-num">6.0</span><span class="rule-text"><strong>Home run limit:</strong> 3 HR per team per game. Additional HRs = out.</span></div>
+        <div class="rule-item"><span class="rule-num">6.1</span><span class="rule-text">Unlimited <strong>encroachment HRs</strong> (when opposing team has more HRs) do not count against the limit.</span></div>
+        <div class="rule-item"><span class="rule-num">7.0</span><span class="rule-text">Base running: No leading or stealing. Runner may leave base when the ball crosses home plate.</span></div>
+        <div class="rule-item"><span class="rule-num">7.1</span><span class="rule-text">Courtesy runner allowed once per inning. Runner must be the last recorded out.</span></div>
+        <div class="rule-item"><span class="rule-num">8.0</span><span class="rule-text"><strong>Weather cancellations:</strong> Game called before 4 innings = no game. 4+ innings complete = official result. Rainout = 7–7 tie for standings purposes.</span></div>
+        <div class="rule-item"><span class="rule-num">9.0</span><span class="rule-text">Tie games: Remain as ties in the standings (1 point each). No extra innings in regular season.</span></div>
+        <div class="rule-item"><span class="rule-num">10.0</span><span class="rule-text"><strong>Standings tiebreakers:</strong> a) Head-to-head points · b) Last matchup result · c) Coin toss.</span></div>
+        <div class="rule-item"><span class="rule-num">11.0</span><span class="rule-text">Run differential capped at <strong>+7 per game</strong> for standings purposes.</span></div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Standings <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rule 10.0)</span></div>
+      <div class="card-title">Player Eligibility <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 12.0–15.0)</span></div>
       <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">10.0</span><span class="rule-text">Points: <strong>Win = 2 pts</strong>, <strong>Tie = 1 pt</strong>, <strong>Loss = 0 pts</strong>.</span></div>
-        <div class="rule-item"><span class="rule-num">10.1</span><span class="rule-text">Tiebreaker order: (a) head-to-head points, (b) winner of most recent matchup, (c) coin toss.</span></div>
-        <div class="rule-item"><span class="rule-num">10.2</span><span class="rule-text">Run differential <strong>capped at +7</strong> per game for standings purposes.</span></div>
-        <div class="rule-item"><span class="rule-num">10.3</span><span class="rule-text"><strong>CrossOver</strong> is a guest team — excluded from standings. Results vs CrossOver count toward league teams' records.</span></div>
+        <div class="rule-item"><span class="rule-num">12.0</span><span class="rule-text">Players must be registered with SPN and on the official team roster before playing.</span></div>
+        <div class="rule-item"><span class="rule-num">12.1</span><span class="rule-text">Minimum age: <strong>18 years</strong> by the first game of the season.</span></div>
+        <div class="rule-item"><span class="rule-num">13.0</span><span class="rule-text"><strong>Pickup players:</strong> Permitted to avoid forfeit. Max 2 pickups per game. Pickups bat last.</span></div>
+        <div class="rule-item"><span class="rule-num">13.1</span><span class="rule-text">Pickup players are not eligible for playoffs.</span></div>
+        <div class="rule-item"><span class="rule-num">14.0</span><span class="rule-text">Players may only be on <strong>one team roster</strong> per season.</span></div>
+        <div class="rule-item"><span class="rule-num">15.0</span><span class="rule-text">Roster changes (additions/drops) must be submitted to the convenor before the player's first game.</span></div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Curfew &amp; Official Games <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 11.0–12.1)</span></div>
+      <div class="card-title">Conduct & Sportsmanship <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 16.0–19.0)</span></div>
       <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">11.0</span><span class="rule-text">Curfew: no new inning after <strong>1h 45m</strong>. 15-min grace period if both teams and umpire agree (counts toward 1h 45m total). Game reverts to last complete inning if time expires.</span></div>
-        <div class="rule-item"><span class="rule-num">12.1</span><span class="rule-text">Official game = <strong>3½ innings</strong> (home team leading) or <strong>4 complete innings</strong>.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Playoffs <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 13.0–13.4)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">13.0</span><span class="rule-text">Two PODs — <strong>POD A</strong> (top 5) and <strong>POD B</strong> (bottom 4).</span></div>
-        <div class="rule-item"><span class="rule-num">13.2</span><span class="rule-text">All playoff games: <strong>single game, 7 innings</strong>, 12-run mercy after 5 innings.</span></div>
-        <div class="rule-item"><span class="rule-num">13.3</span><span class="rule-text">Playoff tie after 7 innings → <strong>international tiebreaker</strong> extra innings.</span></div>
-        <div class="rule-item"><span class="rule-num">13.4</span><span class="rule-text">Playoff eligibility: <strong>40% attendance</strong> (8 of 20 games). Roster submitted by Aug 27.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Batting Order &amp; Substitutions <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 15–16)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">15.0</span><span class="rule-text">Provide lineup to opposing team before each game. Attendance sheets to league within <strong>48 hours</strong>.</span></div>
-        <div class="rule-item"><span class="rule-num">16.0</span><span class="rule-text">Late-arriving players must be added to the <strong>bottom of the batting order</strong> or sit out.</span></div>
-        <div class="rule-item"><span class="rule-num">16.2</span><span class="rule-text">Substitute players declared at game start. Late arrivals only added if order has not been completed once.</span></div>
-        <div class="rule-item"><span class="rule-num">16.4</span><span class="rule-text">Mid-game substitutions must be <strong>gender-for-gender</strong> unless batting order allows otherwise.</span></div>
-        <div class="rule-item"><span class="rule-num">16.5</span><span class="rule-text"><strong>Pinch runners:</strong> max 3 per game.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Conduct &amp; Ejections <span style="font-size:11px;font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(Rules 17–19)</span></div>
-      <div class="rules-grid">
-        <div class="rule-item"><span class="rule-num">17.0</span><span class="rule-text">Zero tolerance for <strong>harassment, discrimination, or abusive language</strong>. Immediate ejection. Repeat = suspension.</span></div>
-        <div class="rule-item"><span class="rule-num">17.1</span><span class="rule-text">Ejected player must leave the field and surrounding area. Team plays short.</span></div>
+        <div class="rule-item"><span class="rule-num">16.0</span><span class="rule-text">Unsportsmanlike conduct, arguing with umpires, or threatening behaviour = ejection.</span></div>
+        <div class="rule-item"><span class="rule-num">16.1</span><span class="rule-text">Ejected players must leave the field and surrounding area. Team plays short.</span></div>
+        <div class="rule-item"><span class="rule-num">17.0</span><span class="rule-text">Fighting = automatic suspension. Duration determined by the convenor.</span></div>
+        <div class="rule-item"><span class="rule-num">17.1</span><span class="rule-text">Team plays short.</span></div>
         <div class="rule-item"><span class="rule-num">18.0</span><span class="rule-text"><strong>Alcohol</strong> on the diamond or dugout = ejection. Permitted in designated areas only.</span></div>
         <div class="rule-item"><span class="rule-num">18.1</span><span class="rule-text">Coaches responsible for spectator conduct. Failure to control spectators can result in ejection or forfeit.</span></div>
         <div class="rule-item"><span class="rule-num">19.0</span><span class="rule-text">Games must be officiated by at least <strong>1 umpire</strong>. No umpire = game cancelled.</span></div>
@@ -285,6 +268,7 @@
 
 </div><!-- /main -->
 
+<div id="add-game-form" style="display:none"></div>
 <div id="_toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
