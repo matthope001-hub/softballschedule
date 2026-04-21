@@ -40,18 +40,14 @@ function unlockAdmin(){
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
-// FIX: use combined translateX(-50%) translateY to keep pill centered
 function showToast(msg, duration=2800) {
   let t=document.getElementById('_toast');
   if(!t){ t=document.createElement('div'); t.id='_toast'; document.body.appendChild(t); }
   t.textContent=msg;
   t.style.opacity='1';
-  t.style.transform='translateX(-50%) translateY(0)';
+  t.style.transform='translateY(0)';
   clearTimeout(t._hide);
-  t._hide=setTimeout(()=>{
-    t.style.opacity='0';
-    t.style.transform='translateX(-50%) translateY(12px)';
-  }, duration);
+  t._hide=setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(6px)'; },duration);
 }
 
 // ── SAVE ──────────────────────────────────────────────────────────────────────
@@ -138,7 +134,11 @@ function applyData(d) {
       lights:(defaults[dm.id]?.lightsCapable===false)?false:dm.lights
     }));
   }
-  if(d.sched)    G.sched=d.sched;
+  if(d.sched){
+    G.sched=d.sched;
+    // Normalize any legacy 24hr times (e.g. "18:30") to 12hr format ("6:30 PM")
+    G.sched.forEach(g=>{ if(g.time) g.time=fmt12(g.time); });
+  }
   if(d.scores)   G.scores=d.scores;
   if(d.playoffs) G.playoffs=d.playoffs;
   if(d.ss){const el=document.getElementById('ss');if(el)el.value=d.ss;}
@@ -158,10 +158,9 @@ function applyDays(days){
     cb.checked=on;
     const lbl=document.getElementById('daylabel-'+dayIdx);
     if(lbl){
-      // FIX: updated to Apple system blue instead of old --navy
-      lbl.style.borderColor=on?'var(--sys-blue)':'var(--sep-opaque)';
-      lbl.style.background =on?'var(--sys-blue)':'var(--surface)';
-      lbl.style.color      =on?'#fff':'var(--text2)';
+      lbl.style.borderColor=on?'var(--navy)':'var(--border)';
+      lbl.style.background =on?'var(--navy)':'var(--white)';
+      lbl.style.color      =on?'#fff':'var(--text)';
     }
   });
 }
@@ -195,6 +194,7 @@ document.addEventListener('DOMContentLoaded',async function(){
   try{updateGptNotice();}catch(e){}
   try{renderChampionAdminUI();}catch(e){}
 
+  // Re-render whichever tab is currently active now that data is loaded
   const activeTab=window._activeTab||'schedule';
   try{_renderActiveTab(activeTab);}catch(e){}
 
@@ -206,4 +206,5 @@ document.addEventListener('DOMContentLoaded',async function(){
 window.addEventListener('resize',()=>{
   try{if(document.getElementById('tab-stats')?.classList.contains('active'))renderStandingsHistoryChart();}catch(e){}
 });
+
 function clearAll(){ clearData(); }
