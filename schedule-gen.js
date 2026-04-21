@@ -44,6 +44,9 @@ function genSched(){
   }
 
   // ── Cap-driven pair pool ──────────────────────────────────────────────────
+  // Initial pool: tfaced rounds of all unique pairs, shuffled.
+  // findPair() also generates on-demand extra-round pairs when pool is exhausted
+  // so every team can reach gptInput exactly.
   function freshPool(){
     const pool=[];
     for(let i=0;i<leagueTeams.length;i++)
@@ -53,12 +56,16 @@ function genSched(){
     return shuffle(pool);
   }
 
+  // Find and remove the best pair from pool for a slot needing `needed` games each.
+  // Falls back to an on-demand extra-round pair when pool is exhausted.
   function findPair(pool,busy,needed){
     const idx=pool.findIndex(([t1,t2])=>{
       if(busy.has(t1)||busy.has(t2)) return false;
       return gamesLeft(t1)>=needed&&gamesLeft(t2)>=needed;
     });
     if(idx!==-1) return pool.splice(idx,1)[0];
+
+    // Pool exhausted — try extra-round pair on demand (only when GPT set)
     if(gptInput==null) return null;
     const eligible=shuffle(leagueTeams.filter(t=>gamesLeft(t)>=needed&&!busy.has(t)));
     for(let i=0;i<eligible.length;i++)
@@ -69,12 +76,14 @@ function genSched(){
 
   let pool=freshPool();
 
+  // hcMap: home-game count per team, used to balance H/A assignment
   const hcMap={};
   for(const t of G.teams) hcMap[t]=0;
 
   const sched=[];
   const gameSeq={};
 
+  // Use leagueTeams length for modulo safety; coIdx always kept in-bounds
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
@@ -86,14 +95,15 @@ function genSched(){
     const busy=new Set();
 
     // ── D9: CrossOver DH ─────────────────────────────────────────────────────
-    // RULE: League team is HOME for game 1; CrossOver is VISITING (away).
-    //       CrossOver is HOME for game 2 (the return match).
+    // RULE: League team is HOME for game 1 (CrossOver is the VISITING/away team).
+    //       CrossOver is HOME for game 2 (league team is away).
     if(d9&&!coByeSet.has(ni)){
       let opp=null;
       for(let attempt=0;attempt<coOpponents.length;attempt++){
         const c=coOpponents[(coIdx+attempt)%coOpponents.length];
         if(gamesLeft(c)>=2&&!busy.has(c)){
           opp=c;
+          // Always apply modulo to prevent unbounded growth
           coIdx=(coIdx+attempt+1)%coOpponents.length;
           break;
         }
@@ -102,10 +112,10 @@ function genSched(){
         busy.add(opp);
         teamGames[opp]=(teamGames[opp]||0)+2;
         gameSeq[yr]++;
-        // Game 1 — league team HOME, CrossOver AWAY (visiting)
+        // Game 1 @ T1 — league team HOME, CrossOver AWAY (visiting)
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:9,lights:true,home:opp,away:CROSSOVER,bye:'',crossover:true});
         gameSeq[yr]++;
-        // Game 2 — CrossOver HOME, league team AWAY
+        // Game 2 @ T2 — CrossOver HOME, league team AWAY
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:9,lights:true,home:CROSSOVER,away:opp,bye:'',crossover:true});
       }
     }
@@ -130,7 +140,8 @@ function genSched(){
         continue;
       }
 
-      // Attempt 2: single fallback — 6:30 gets a real game; 8:15 becomes open slot
+      // Attempt 2: single fallback — one pair needs exactly 1 game each.
+      // 6:30 gets a real game; 8:15 becomes an open slot.
       const sPair=findPair(pool,busy,1);
       if(sPair){
         const [t1,t2]=sPair;
@@ -141,6 +152,7 @@ function genSched(){
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:h,away:a,bye:'',crossover:false});
         hcMap[h]=(hcMap[h]||0)+1;
+        // Do NOT increment hcMap[a] here — the 8:15 slot is open, not a real game for `a`
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
         continue;
