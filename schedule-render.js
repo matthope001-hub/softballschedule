@@ -308,7 +308,9 @@ function renderScores(){
     }
   }
 }
-function saveScore(id, input, side){
+
+// ── SCORE SAVE ────────────────────────────────────────────────────────────────
+function saveScore(id,input,side){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const val=parseInt(input.value);
   if(isNaN(val)||val<0){input.value='';return;}
