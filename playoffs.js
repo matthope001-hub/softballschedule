@@ -60,7 +60,7 @@ function getRegularSeasonRanking(){
         for(const g of(h2hStats[a][b]?.games||[]))
           allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
       }
-    allGames.sort((a,b)=>b.date.localeCompare(a.date));
+    allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
     return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
   }
@@ -138,7 +138,7 @@ function savePlayoffScore(gameId){
   if(hRaw===''&&aRaw===''){g.score=null;saveData();renderPlayoffs();return;}
   const h=_clampScore(hRaw??'');
   const a=_clampScore(aRaw??'');
-  if(h===null||a===null) return; // wait until both sides have values
+  if(h===null||a===null) return;
   g.score={h,a};
   saveData();renderPlayoffs();
 }
@@ -341,28 +341,23 @@ function schedulePlayoffGame(plyId,home,away){
       <div style="font-size:16px;font-weight:800;color:#0d1b2e;margin-bottom:18px">${esc(home)} <span style="color:#6b7d94;font-weight:400">vs</span> ${esc(away)}</div>
 
       <div style="display:grid;gap:16px">
-
         <div>
           <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Date</label>
           <input type="date" id="_pm_date" value="2026-10-06"
             style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:sans-serif;box-sizing:border-box;outline:none"
             oninput="_plyModalRefresh()"/>
         </div>
-
         <div>
           <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Time</label>
           <input type="text" id="_pm_time" placeholder="Tap clock to set time" readonly
             style="width:100%;font-size:15px;font-weight:700;padding:8px 12px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:sans-serif;box-sizing:border-box;outline:none;text-align:center;cursor:default;color:#0d1b2e;background:#f7f8fb"/>
           <div id="_pm_clock_face" style="margin-top:12px"></div>
         </div>
-
         <div>
           <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Diamond</label>
           <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         </div>
-
         <div id="_pm_conflicts" style="display:none;background:#fff3bf;border:1px solid #ffe066;border-radius:6px;padding:8px 12px;font-size:12px;color:#7c5c00"></div>
-
       </div>
 
       <div style="display:flex;gap:8px;margin-top:20px">
@@ -491,6 +486,43 @@ function winnerOf(sc,home,away){
   return null;
 }
 
+// ── POD B BRACKET TREE HELPERS ────────────────────────────────────────────────
+function _bracketTeam(team,score,isWinner,isEmpty){
+  const bg=isWinner?'#0d1b2e':isEmpty?'#f7f8fb':'#fff';
+  const color=isWinner?'#fff':isEmpty?'#9aacbf':'#0d1b2e';
+  const border=isWinner?'#0d1b2e':isEmpty?'#e2e6ec':'#cdd3dd';
+  const fw=isWinner?'800':'600';
+  return`<div style="background:${bg};border:1.5px solid ${border};border-radius:6px;padding:7px 12px;min-width:160px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <span style="font-size:13px;font-weight:${fw};color:${color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${esc(team||'TBD')}</span>
+    ${score!==''&&score!==undefined&&score!==null?`<span style="font-family:monospace;font-size:14px;font-weight:800;color:${isWinner?'#fff':'#0d1b2e'};flex-shrink:0">${score}</span>`:''}
+  </div>`;
+}
+
+function _bracketGame(label,g,podKey,key,plyId,inputIdH,inputIdA,onChange){
+  const w=winnerOf(g.score,g.home,g.away);
+  const entry=getPlayoffSchedEntry(plyId);
+  const schedInfo=entry
+    ?`<div style="font-size:10px;color:#6b7d94;margin-top:5px;text-align:center;display:flex;align-items:center;justify-content:center;gap:4px">
+        <span>📅 ${entry.date} · ${entry.time} · ${getDiamondName(entry.diamond)}</span>
+        <button onclick="removePlayoffSchedule('${plyId}')" style="background:none;border:none;cursor:pointer;color:#e03131;font-size:11px;padding:0;line-height:1" title="Remove">✕</button>
+      </div>`
+    :`<div style="text-align:center;margin-top:5px">
+        <button onclick="schedulePlayoffGame('${plyId}','${esc(g.home||'')}','${esc(g.away||'')}')" style="font-size:10px;padding:3px 10px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:4px;cursor:pointer;color:#0d1b2e;font-weight:600;font-family:sans-serif">📅 Schedule</button>
+      </div>`;
+
+  return`<div style="display:flex;flex-direction:column;gap:3px">
+    <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#9aacbf;margin-bottom:2px;text-align:center">${label}</div>
+    ${_bracketTeam(g.home,g.score?g.score.h:'',w===g.home,!g.home)}
+    <div style="display:flex;align-items:center;gap:4px;justify-content:center;padding:2px 0">
+      <input type="number" min="0" class="si" id="${inputIdH}" value="${g.score?g.score.h:''}" placeholder="–" onchange="${onChange}" style="width:42px;text-align:center"/>
+      <span style="color:#9aacbf;font-size:12px">–</span>
+      <input type="number" min="0" class="si" id="${inputIdA}" value="${g.score?g.score.a:''}" placeholder="–" onchange="${onChange}" style="width:42px;text-align:center"/>
+    </div>
+    ${_bracketTeam(g.away,g.score?g.score.a:'',w===g.away,!g.away)}
+    ${schedInfo}
+  </div>`;
+}
+
 function renderPod(podLabel,pfx,podKey,seeds){
   const standing=podRRStandings(seeds,pfx);
   const games=Object.values(G.playoffs.games).filter(g=>g.id.startsWith(pfx+'RR')).sort((a,b)=>a.id.localeCompare(b.id));
@@ -536,6 +568,7 @@ function renderPod(podLabel,pfx,podKey,seeds){
   <div class="card-title">${esc(podLabel)}</div>
   <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${rrPlayed}/${rrTotal} round robin games played</div>`;
 
+  // RR standings table
   h+=`<table class="st" style="margin-bottom:12px"><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>RF</th><th>RA</th><th>Diff</th></tr></thead><tbody>`;
   h+=standing.map((s,i)=>{
     const diff=s.rf-s.ra;
@@ -552,6 +585,7 @@ function renderPod(podLabel,pfx,podKey,seeds){
   }).join('');
   h+=`</tbody></table>`;
 
+  // RR games
   h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Round Robin Games</div>`;
   h+=`<table class="gt" style="margin-bottom:12px">`;
   for(const g of games){
@@ -569,14 +603,17 @@ function renderPod(podLabel,pfx,podKey,seeds){
   }
   h+=`</table>`;
 
+  // Elimination bracket
   h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Elimination Bracket</div>`;
+
   if(!rrDone){
     h+=`<div class="notice">Complete all round robin games to unlock the bracket.</div>`;
-  } else {
-    if(isPodA) h+=elimNote;
+  } else if(isPodA){
+    // POD A — original table layout
+    h+=elimNote;
     h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Semi-Finals</div>`;
     h+=`<table class="gt" style="margin-bottom:10px">`;
-    [{key:'s1',g:sm1,label:`1 vs 4`},{key:'s2',g:sm2,label:`2 vs 3`}].forEach(({key,g,label})=>{
+    [{key:'s1',g:sm1,label:'1 vs 4'},{key:'s2',g:sm2,label:'2 vs 3'}].forEach(({key,g,label})=>{
       const winner=winnerOf(g.score,g.home,g.away);
       const plyId=`${podKey}_${key}`;
       h+=`<tr class="${g.score?'':'empty-slot'}">
@@ -610,6 +647,40 @@ function renderPod(podLabel,pfx,podKey,seeds){
         </div>`;
       }
     }
+  } else {
+    // POD B — visual bracket tree
+    const finGame={
+      home:fin.home||(semi1winner||'TBD'),
+      away:fin.away||(semi2winner||'TBD'),
+      score:fin.score
+    };
+
+    const connector=`
+      <svg width="48" height="240" viewBox="0 0 48 240" style="flex-shrink:0">
+        <path d="M0 60 H24 V180 H0" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
+        <path d="M24 120 H48" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
+      </svg>`;
+
+    h+=`<div style="overflow-x:auto;padding-bottom:8px">
+      <div style="display:inline-flex;align-items:center;gap:0;min-width:480px">
+
+        <div style="display:flex;flex-direction:column;gap:24px">
+          ${_bracketGame('Semi-Final 1 · 1 vs 4',sm1,podKey,'s1',`${podKey}_s1`,`psh_${podKey}_s1`,`psa_${podKey}_s1`,`saveSemiScore('${podKey}','s1')`)}
+          ${_bracketGame('Semi-Final 2 · 2 vs 3',sm2,podKey,'s2',`${podKey}_s2`,`psh_${podKey}_s2`,`psa_${podKey}_s2`,`saveSemiScore('${podKey}','s2')`)}
+        </div>
+
+        ${connector}
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+          ${_bracketGame(`${podLabel} Final`,finGame,podKey,'final',`${podKey}_final`,`pfh_${podKey}`,`pfa_${podKey}`,`saveFinalScore('${podKey}')`)}
+          ${champion?`<div style="margin-top:4px;padding:10px 16px;background:linear-gradient(135deg,#0d1b2e,#1e3057);border-radius:8px;color:#fff;text-align:center;min-width:160px">
+            <div style="font-size:10px;opacity:0.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Champion</div>
+            <div style="font-size:18px;font-weight:800">🏆 ${esc(champion)}</div>
+          </div>`:''}
+        </div>
+
+      </div>
+    </div>`;
   }
 
   h+=`</div>`;
