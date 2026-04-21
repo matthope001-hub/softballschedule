@@ -91,18 +91,37 @@
 /* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: var(--font);
-  font-size: 16px;
-  line-height: 1.47; /* SF Pro body leading */
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--text);
   background: var(--bg);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: 'kern' 1, 'liga' 1;
+  position: relative;
 }
+
+/* ── WATERMARK ── */
+body::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  background: url('logo.png') no-repeat center / contain;
+  opacity: 0.045;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── LAYOUT ── */
+.main { max-width: 900px; margin: 0 auto; padding: 20px 16px 52px; position: relative; z-index: 1; }
 
 /* ── HEADER — frosted glass iOS nav bar ── */
 .header {
