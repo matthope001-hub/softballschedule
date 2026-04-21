@@ -886,21 +886,16 @@ input.si:focus {
   margin-top: 2px;
 }
 
-/* ── EDIT ROWS ── */
-.edit-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 16px;
-  border-bottom: 0.5px solid var(--sep);
-  background: var(--surface);
-  font-size: 13px;
-  flex-wrap: wrap;
-  transition: background 0.1s;
-}
-.edit-row:last-child { border-bottom: none; }
+/* ── EDIT TAB ── */
+.edit-row { display: flex; flex-direction: column; gap: 3px; padding: 6px 14px; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.1s; }
 .edit-row:hover { background: var(--surface2); }
-.edit-row.open-slot-edit { background: rgba(0,0,0,0.015); }
+.edit-row.late { background: #f5f7ff; }
+.edit-row.open-slot { background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(13,27,46,0.018) 6px, rgba(13,27,46,0.018) 12px); }
+.edit-row.open-slot:hover { background: var(--surface2); }
+.edit-row-meta { display: flex; align-items: center; gap: 8px; }
+.edit-row-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.edit-row select, .edit-row .edit-time { font-family: var(--font); font-size: 12px; font-weight: 500; background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); border-radius: var(--r-xs); padding: 3px 6px; outline: none; }
+.edit-row select:focus { border-color: var(--blue); }
 
 /* ── ADMIN SUBTABS ── */
 .admin-subtabs {
