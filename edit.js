@@ -108,6 +108,7 @@ inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid $
           <select class="sel" id="${slotId}_a" style="font-size:12px"><option value="">— Away —</option>${teamOpts}</select>
           <button onclick="addSlotGame('${slotId}','${dateStr}','${T2}',${dmId},${dm?.lights?'true':'false'})" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
 </div>`;
+        }
       }
     }
     html+=monthAccordion(month,inner,mi,'em',monthOpenSlots);
