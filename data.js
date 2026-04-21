@@ -167,7 +167,6 @@ function toggleDiamondActive(id){
   if(!d)return;
   if(d.active&&G.diamonds.filter(x=>x.active).length<=1){alert('Need at least one active diamond.');return;}
   d.active=!d.active;
-  if(!d.active)d.lights=false;
   saveData();renderDiamonds();renderRulesDiamonds();updateGptNotice();
 }
 function toggleDiamondLights(id){
