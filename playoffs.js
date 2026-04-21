@@ -314,13 +314,20 @@ function scoreInput(idH,idA,valH,valA,onChange){
 function schedBtn(plyId, home, away){
   const entry=getPlayoffSchedEntry(plyId);
   if(entry){
-    return `<td style="white-space:nowrap;padding:0 6px">
-      <span style="font-size:11px;color:var(--navy);font-weight:600">📅 ${entry.date} · ${entry.time}</span>
-      <span style="font-size:11px;color:var(--muted)"> · ${getDiamondName(entry.diamond)}</span>
-      <button onclick="removePlayoffSchedule('${plyId}')" title="Remove schedule" style="margin-left:4px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;padding:0">✕</button>
+    return `<td style="padding:4px 6px;white-space:nowrap">
+      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:6px;padding:4px 10px">
+        <span style="font-size:12px">📅</span>
+        <div style="line-height:1.3">
+          <div style="font-size:12px;font-weight:700;color:var(--navy)">${fmtDate(entry.date)}</div>
+          <div style="font-size:11px;color:var(--muted)">${entry.time} · ${getDiamondName(entry.diamond)}</div>
+        </div>
+        <button onclick="removePlayoffSchedule('${plyId}')" title="Remove scheduled date" style="margin-left:4px;background:none;border:1.5px solid var(--border);border-radius:4px;cursor:pointer;color:var(--muted);font-size:11px;padding:1px 5px;line-height:1">✕</button>
+      </div>
     </td>`;
   }
-  return `<td><button onclick="schedulePlayoffGame('${plyId}','${esc(home)}','${esc(away)}')" style="font-size:11px;padding:3px 8px;background:var(--gray1);border:1.5px solid var(--border);border-radius:5px;cursor:pointer;color:var(--navy);font-weight:600;white-space:nowrap">📅 Schedule</button></td>`;
+  return `<td style="padding:4px 6px">
+    <button onclick="schedulePlayoffGame('${plyId}','${esc(home)}','${esc(away)}')" style="font-size:11px;padding:4px 10px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:5px;cursor:pointer;color:var(--navy);font-weight:600;white-space:nowrap;font-family:var(--font)">📅 Schedule</button>
+  </td>`;
 }
 
 function winnerOf(sc,home,away){
