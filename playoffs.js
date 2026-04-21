@@ -1,14 +1,10 @@
 // ── PLAYOFFS ──────────────────────────────────────────────────────────────────
 
-// ── BUG FIX #1: filter g.playoff so playoff scores don't pollute regular season stats
-// ── BUG FIX #2: use full 3-tier tiebreaker (H2H → last matchup → coin toss)
-//               matching standings.js exactly, so seeds match the displayed table
 function getRegularSeasonRanking(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
   for(const t of leagueTeams) stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
 
-  // Build H2H tracking (same structure as standings.js)
   const h2hStats={};
   for(const t of leagueTeams){
     h2hStats[t]={};
@@ -16,7 +12,7 @@ function getRegularSeasonRanking(){
   }
 
   const scoredGames=[...G.sched].filter(g=>
-    !g.playoff&&  // FIX #1: exclude playoff games
+    !g.playoff&&
     G.scores[g.id]&&
     stats[g.home]!==undefined&&
     stats[g.away]!==undefined&&
@@ -27,7 +23,6 @@ function getRegularSeasonRanking(){
   for(const g of scoredGames){
     const sc=G.scores[g.id];
     const{ch,ca}=capRuns(sc.h,sc.a);
-    // Regular stats
     stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
     if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
     else if(sc.a>sc.h)stats[g.home].l++;
@@ -38,49 +33,26 @@ function getRegularSeasonRanking(){
     else if(sc.h>sc.a)stats[g.away].l++;
     else{stats[g.away].tie++;stats[g.away].pts++;}
 
-    // H2H tracking
-    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
-    h2hStats[g.home][g.away].games.push({date:g.date,homePts:hw?2:tie?1:0});
-    h2hStats[g.away][g.home].games.push({date:g.date,homePts:aw?2:tie?1:0});
-    if(hw)h2hStats[g.home][g.away].pts+=2;
-    else if(aw)h2hStats[g.away][g.home].pts+=2;
-    else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
+    const homePts=sc.h>sc.a?2:sc.h===sc.a?1:0;
+    const awayPts=sc.a>sc.h?2:sc.h===sc.a?1:0;
+    h2hStats[g.home][g.away].pts+=homePts;
+    h2hStats[g.home][g.away].games.push({date:g.date,homePts});
+    h2hStats[g.away][g.home].pts+=awayPts;
+    h2hStats[g.away][g.home].games.push({date:g.date,homePts:awayPts});
   }
 
-  // Also accumulate CrossOver games in regular stats (non-H2H)
-  for(const g of G.sched){
-    if(g.playoff||!G.scores[g.id]) continue;
-    if(g.home===CROSSOVER||g.away===CROSSOVER){
-      const sc=G.scores[g.id];
-      const{ch,ca}=capRuns(sc.h,sc.a);
-      if(stats[g.home]!==undefined){
-        stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
-        if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
-        else if(sc.a>sc.h)stats[g.home].l++;
-        else{stats[g.home].tie++;stats[g.home].pts++;}
-      }
-      if(stats[g.away]!==undefined){
-        stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
-        if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
-        else if(sc.h>sc.a)stats[g.away].l++;
-        else{stats[g.away].tie++;stats[g.away].pts++;}
-      }
-    }
-  }
-
-  // FIX #2: Full 3-tier tiebreaker — mirrors standings.js exactly
-  function stableRand(a,b){let h=0;for(const c of (a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
+  function stableRand(a,b){return(a+b).split('').reduce((n,c)=>n+c.charCodeAt(0),0)%2===0;}
 
   function tiebreak(group){
+    if(group.length===1) return group[0];
     const h2hPts={};
     for(const t of group){
       h2hPts[t]=0;
-      for(const u of group) if(u!==t) h2hPts[t]+=h2hStats[t][u]?.pts||0;
+      for(const u of group) if(u!==t) h2hPts[t]+=(h2hStats[t][u]?.pts||0);
     }
     const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
     const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
     if(afterH2H.length===1) return afterH2H[0];
-    // Tiebreaker b: winner of most recent matchup
     const allGames=[];
     for(let i=0;i<afterH2H.length;i++)
       for(let j=i+1;j<afterH2H.length;j++){
@@ -90,7 +62,6 @@ function getRegularSeasonRanking(){
       }
     allGames.sort((a,b)=>b.date.localeCompare(a.date));
     for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
-    // Tiebreaker c: stable coin toss
     return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
   }
 
@@ -151,7 +122,6 @@ function resetPlayoffs(){
   saveData();renderPlayoffs();showToast('Playoffs reset');
 }
 
-// ── BUG FIX #3: clamp scores to >= 0 in all save functions
 function _clampScore(val){
   const n=parseInt(val);
   return isNaN(n)?null:Math.max(0,n);
@@ -199,147 +169,86 @@ function saveFinalScore(pod){
   saveData();renderPlayoffs();
 }
 
-// ── PLAYOFF SCHEDULER MODAL ───────────────────────────────────────────────────
-function schedulePlayoffGame(plyId, home, away){
-  if(!checkAdmin()) return;
+// ── ANALOG CLOCK PICKER ───────────────────────────────────────────────────────
+function _plyRenderClock(){
+  const state=window._plyModalState;
+  const el=document.getElementById('_pm_clock_face');
+  if(!el) return;
+  const isHour=state.clockStep==='hour';
+  const size=220;
+  const cx=size/2,cy=size/2,r=size/2-10;
 
-  // Build conflict data from existing playoff schedule entries
-  const existingPly=G.sched.filter(g=>g.playoff&&g.plyId!==plyId);
+  let items=[];
+  if(isHour){
+    for(let h=1;h<=12;h++) items.push({label:String(h),val:h});
+  } else {
+    ['00','05','10','15','20','25','30','35','40','45','50','55'].forEach((m,i)=>items.push({label:m,val:m}));
+  }
 
-  // All active diamonds
-  const diamonds=G.diamonds.filter(d=>d.active);
+  const hands=items.map((item,i)=>{
+    const angle=(i/items.length)*2*Math.PI-Math.PI/2;
+    const hr=r*0.72;
+    const x=cx+hr*Math.cos(angle);
+    const y=cy+hr*Math.sin(angle);
+    const selected=isHour?(state.hour===item.val):(state.min===item.val);
+    return{...item,x,y,selected};
+  });
 
-  // Remove existing modal if any
-  document.getElementById('_ply_modal')?.remove();
+  const sel=hands.find(h=>h.selected);
+  const handLine=sel?`<line x1="${cx}" y1="${cy}" x2="${sel.x}" y2="${sel.y}" stroke="#0d1b2e" stroke-width="2.5" stroke-linecap="round"/>`:'';
+  const centerDot=`<circle cx="${cx}" cy="${cy}" r="4" fill="#0d1b2e"/>`;
 
-  const modal=document.createElement('div');
-  modal.id='_ply_modal';
-  modal.style.cssText='position:fixed;inset:0;background:rgba(13,27,46,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+  const circles=hands.map(h=>`
+    <g onclick="_plyClockTap('${h.val}')" style="cursor:pointer">
+      <circle cx="${h.x}" cy="${h.y}" r="18" fill="${h.selected?'#0d1b2e':'transparent'}"/>
+      <text x="${h.x}" y="${h.y}" text-anchor="middle" dominant-baseline="central"
+        font-size="13" font-weight="${h.selected?'800':'600'}" fill="${h.selected?'#fff':'#0d1b2e'}"
+        font-family="sans-serif">${h.label}</text>
+    </g>`).join('');
 
-  modal.innerHTML=`
-    <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.25);font-family:var(--font)">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7d94;margin-bottom:4px">Schedule Playoff Game</div>
-      <div style="font-size:16px;font-weight:800;color:#0d1b2e;margin-bottom:18px">${esc(home)} <span style="color:#6b7d94;font-weight:400">vs</span> ${esc(away)}</div>
-
-      <div style="display:grid;gap:14px">
-
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Date</label>
-          <input type="date" id="_pm_date" value="2026-10-06"
-            style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:var(--font);box-sizing:border-box;outline:none"
-            oninput="_plyModalRefresh()"/>
-        </div>
-
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Time</label>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="_pm_time_chips">
-            ${['6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM','8:15 PM','8:30 PM'].map(t=>
-              `<button type="button" onclick="_plySetTime('${t}')"
-                style="padding:5px 12px;border-radius:20px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:600;color:#0d1b2e;cursor:pointer;font-family:var(--font)"
-                id="_pmtc_${t.replace(/[: ]/g,'_')}">${t}</button>`
-            ).join('')}
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="position:relative;flex:1">
-              <input type="text" id="_pm_time" placeholder="or type e.g. 7:15 PM"
-                style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:var(--font);box-sizing:border-box;outline:none"
-                oninput="_plyTimeTyped()"/>
-            </div>
-          </div>
-          <!-- Clock picker -->
-          <div id="_pm_clock" style="margin-top:10px;display:none">
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              <div>
-                <div style="font-size:10px;font-weight:700;color:#6b7d94;text-transform:uppercase;margin-bottom:4px">Hour</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
-                  ${[6,7,8,9].map(h=>`<button type="button" onclick="_plySetHour(${h})"
-                    id="_pmh_${h}" style="padding:5px 0;border-radius:6px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:700;color:#0d1b2e;cursor:pointer;font-family:var(--font)">${h}</button>`).join('')}
-                </div>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;color:#6b7d94;text-transform:uppercase;margin-bottom:4px">Min</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
-                  ${['00','15','30','45'].map(m=>`<button type="button" onclick="_plySetMin('${m}')"
-                    id="_pmm_${m}" style="padding:5px 0;border-radius:6px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:700;color:#0d1b2e;cursor:pointer;font-family:var(--font)">${m}</button>`).join('')}
-                </div>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;color:#6b7d94;text-transform:uppercase;margin-bottom:4px">AM/PM</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-                  ${['AM','PM'].map(ap=>`<button type="button" onclick="_plySetAmpm('${ap}')"
-                    id="_pmap_${ap}" style="padding:5px 0;border-radius:6px;border:1.5px solid #e2e6ec;background:#f7f8fb;font-size:12px;font-weight:700;color:#0d1b2e;cursor:pointer;font-family:var(--font)">${ap}</button>`).join('')}
-                </div>
-              </div>
-            </div>
-          </div>
-          <button type="button" onclick="_plyToggleClock()" style="margin-top:6px;font-size:11px;color:#1971c2;background:none;border:none;cursor:pointer;padding:0;font-family:var(--font)">🕐 Toggle clock picker</button>
-        </div>
-
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Diamond</label>
-          <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-        </div>
-
-        <div id="_pm_conflicts" style="display:none;background:#fff3bf;border:1px solid #ffe066;border-radius:6px;padding:8px 12px;font-size:12px;color:#7c5c00"></div>
-
-      </div>
-
-      <div style="display:flex;gap:8px;margin-top:20px">
-        <button type="button" onclick="_plyModalSubmit('${plyId}','${esc(home)}','${esc(away)}')"
-          style="flex:1;padding:10px;background:#0d1b2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✓ Confirm</button>
-        <button type="button" onclick="document.getElementById('_ply_modal').remove()"
-          style="padding:10px 16px;background:none;border:1.5px solid #e2e6ec;border-radius:8px;font-size:13px;color:#6b7d94;cursor:pointer;font-family:var(--font)">Cancel</button>
-      </div>
+  el.innerHTML=`
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;margin:0 auto">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#f7f8fb" stroke="#e2e6ec" stroke-width="1.5"/>
+      ${handLine}
+      ${centerDot}
+      ${circles}
+    </svg>
+    <div style="text-align:center;margin-top:8px;font-size:22px;font-weight:800;color:#0d1b2e;letter-spacing:1px">
+      ${state.hour}:${state.min}
+      <span onclick="_plySetAmpm('AM')" style="font-size:14px;font-weight:700;cursor:pointer;color:${state.ampm==='AM'?'#0d1b2e':'#9aacbf'}">AM</span>
+      <span style="color:#e2e6ec;margin:0 2px">/</span>
+      <span onclick="_plySetAmpm('PM')" style="font-size:14px;font-weight:700;cursor:pointer;color:${state.ampm==='PM'?'#0d1b2e':'#9aacbf'}">PM</span>
+    </div>
+    <div style="text-align:center;margin-top:4px;font-size:11px;font-weight:600;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px">
+      ${isHour?'Tap hour → then tap minutes':'Tap minutes'}
     </div>`;
+}
 
-  document.body.appendChild(modal);
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
-
-  // Store state on window for helpers
-  window._plyModalState={plyId,home,away,hour:6,min:'30',ampm:'PM',diamond:null,existingPly};
+function _plyClockTap(val){
+  const state=window._plyModalState;
+  if(state.clockStep==='hour'){
+    state.hour=parseInt(val);
+    state.clockStep='minute';
+  } else {
+    state.min=String(val).padStart(2,'0');
+    state.clockStep='hour';
+  }
+  const el=document.getElementById('_pm_time');
+  if(el) el.value=`${state.hour}:${state.min} ${state.ampm}`;
+  _plyRenderClock();
   _plyModalRefresh();
 }
 
-function _plyToggleClock(){
-  const cl=document.getElementById('_pm_clock');
-  if(cl) cl.style.display=cl.style.display==='none'?'block':'none';
-}
-
-function _plySetHour(h){
-  window._plyModalState.hour=h;
-  _plyClockToInput();
-}
-function _plySetMin(m){
-  window._plyModalState.min=m;
-  _plyClockToInput();
-}
 function _plySetAmpm(ap){
   window._plyModalState.ampm=ap;
-  _plyClockToInput();
-}
-function _plyClockToInput(){
-  const{hour,min,ampm}=window._plyModalState;
-  const t=`${hour}:${min} ${ampm}`;
   const el=document.getElementById('_pm_time');
-  if(el) el.value=t;
-  // highlight clock buttons
-  [6,7,8,9].forEach(h=>{const b=document.getElementById(`_pmh_${h}`);if(b)b.style.background=h===hour?'#0d1b2e':b.style.background='#f7f8fb';if(b)b.style.color=h===hour?'#fff':'#0d1b2e';});
-  ['00','15','30','45'].forEach(m=>{const b=document.getElementById(`_pmm_${m}`);if(b){b.style.background=m===window._plyModalState.min?'#0d1b2e':'#f7f8fb';b.style.color=m===window._plyModalState.min?'#fff':'#0d1b2e';}});
-  ['AM','PM'].forEach(ap=>{const b=document.getElementById(`_pmap_${ap}`);if(b){b.style.background=ap===ampm?'#0d1b2e':'#f7f8fb';b.style.color=ap===ampm?'#fff':'#0d1b2e';}});
+  if(el) el.value=`${window._plyModalState.hour}:${window._plyModalState.min} ${ap}`;
+  _plyRenderClock();
   _plyModalRefresh();
 }
 
-function _plySetTime(t){
-  const el=document.getElementById('_pm_time');
-  if(el) el.value=t;
-  // parse into clock state
-  const m=t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if(m){window._plyModalState.hour=parseInt(m[1]);window._plyModalState.min=m[2];window._plyModalState.ampm=m[3].toUpperCase();}
-  _plyClockToInput();
-  _plyModalRefresh();
-}
-
-function _plyTimeTyped(){
+function _plySelectDiamond(id){
+  window._plyModalState.diamond=id;
   _plyModalRefresh();
 }
 
@@ -349,20 +258,11 @@ function _plyModalRefresh(){
   const state=window._plyModalState;
   const existingPly=state?.existingPly||[];
 
-  // Highlight time chips
-  ['6:00 PM','6:30 PM','7:00 PM','7:30 PM','8:00 PM','8:15 PM','8:30 PM'].forEach(t=>{
-    const b=document.getElementById('_pmtc_'+t.replace(/[: ]/g,'_'));
-    if(b){b.style.background=t===time?'#0d1b2e':'#f7f8fb';b.style.color=t===time?'#fff':'#0d1b2e';b.style.borderColor=t===time?'#0d1b2e':'#e2e6ec';}
-  });
-
-  // Build diamond buttons with conflict info
   const dmEl=document.getElementById('_pm_diamonds');
   if(!dmEl) return;
   const diamonds=G.diamonds.filter(d=>d.active);
 
-  // Conflicts: diamonds already booked at this date+time
   const bookedDiamonds=new Set(existingPly.filter(g=>g.date===date&&g.time===time).map(g=>g.diamond));
-  // Teams already playing at this date+time
   const busyTeams=new Set(existingPly.filter(g=>g.date===date&&g.time===time).flatMap(g=>[g.home,g.away]));
   const teamConflict=busyTeams.has(state.home)||busyTeams.has(state.away);
 
@@ -372,29 +272,21 @@ function _plyModalRefresh(){
     const bg=isSelected?'#0d1b2e':booked?'#fee2e2':'#f7f8fb';
     const color=isSelected?'#fff':booked?'#b91c1c':'#0d1b2e';
     const border=isSelected?'#0d1b2e':booked?'#fca5a5':'#e2e6ec';
-    const label=booked?'✗ Booked':'';
     return`<button type="button" ${booked?'disabled':''} onclick="_plySelectDiamond(${d.id})"
-      style="padding:5px 12px;border-radius:6px;border:1.5px solid ${border};background:${bg};font-size:12px;font-weight:600;color:${color};cursor:${booked?'not-allowed':'pointer'};font-family:var(--font)">
-      D${d.id}${d.lights?' 💡':' 🌙'}${label?` <span style="font-size:10px">${label}</span>`:''}
-    </button>`;
+      style="padding:5px 12px;border-radius:6px;border:1.5px solid ${border};background:${bg};font-size:12px;font-weight:600;color:${color};cursor:${booked?'not-allowed':'pointer'};font-family:sans-serif">
+      D${d.id}${d.lights?' 💡':' 🌙'}${booked?' ✗':''}</button>`;
   }).join('');
 
-  // Show conflict warnings
   const conflictEl=document.getElementById('_pm_conflicts');
   if(conflictEl){
     const msgs=[];
     if(teamConflict){
       const who=[state.home,state.away].filter(t=>busyTeams.has(t));
-      msgs.push(`⚠ ${who.join(' and ')} already ha${who.length>1?'ve':'s'} a game scheduled at this date and time.`);
+      msgs.push(`⚠ ${who.join(' and ')} already ha${who.length>1?'ve':'s'} a game at this date and time.`);
     }
     if(msgs.length){conflictEl.style.display='block';conflictEl.innerHTML=msgs.join('<br>');}
-    else{conflictEl.style.display='none';}
+    else conflictEl.style.display='none';
   }
-}
-
-function _plySelectDiamond(id){
-  window._plyModalState.diamond=id;
-  _plyModalRefresh();
 }
 
 function _plyModalSubmit(plyId,home,away){
@@ -403,12 +295,10 @@ function _plyModalSubmit(plyId,home,away){
   const dmId=window._plyModalState?.diamond;
 
   if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please enter a valid date.');return;}
-  if(!time){alert('Please select or enter a time.');return;}
+  if(!time){alert('Please select a time.');return;}
   if(!dmId){alert('Please select a diamond.');return;}
 
   const dm=G.diamonds.find(d=>d.id===dmId);
-
-  // Final conflict check — warn but allow override for teams
   const existingPly=G.sched.filter(g=>g.playoff&&g.plyId!==plyId);
   const busyTeams=new Set(existingPly.filter(g=>g.date===date&&g.time===time).flatMap(g=>[g.home,g.away]));
   const teamConflict=[home,away].filter(t=>busyTeams.has(t));
@@ -432,6 +322,62 @@ function _plyModalSubmit(plyId,home,away){
   showToast(`📅 Playoff game scheduled — ${home} vs ${away}`);
 }
 
+function schedulePlayoffGame(plyId,home,away){
+  if(!checkAdmin()) return;
+
+  const existingPly=G.sched.filter(g=>g.playoff&&g.plyId!==plyId);
+  document.getElementById('_ply_modal')?.remove();
+
+  const modal=document.createElement('div');
+  modal.id='_ply_modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(13,27,46,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.25);font-family:sans-serif;max-height:90vh;overflow-y:auto">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7d94;margin-bottom:4px">Schedule Playoff Game</div>
+      <div style="font-size:16px;font-weight:800;color:#0d1b2e;margin-bottom:18px">${esc(home)} <span style="color:#6b7d94;font-weight:400">vs</span> ${esc(away)}</div>
+
+      <div style="display:grid;gap:16px">
+
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Date</label>
+          <input type="date" id="_pm_date" value="2026-10-06"
+            style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:sans-serif;box-sizing:border-box;outline:none"
+            oninput="_plyModalRefresh()"/>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Time</label>
+          <input type="text" id="_pm_time" placeholder="Tap clock to set time" readonly
+            style="width:100%;font-size:15px;font-weight:700;padding:8px 12px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:sans-serif;box-sizing:border-box;outline:none;text-align:center;cursor:default;color:#0d1b2e;background:#f7f8fb"/>
+          <div id="_pm_clock_face" style="margin-top:12px"></div>
+        </div>
+
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Diamond</label>
+          <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+
+        <div id="_pm_conflicts" style="display:none;background:#fff3bf;border:1px solid #ffe066;border-radius:6px;padding:8px 12px;font-size:12px;color:#7c5c00"></div>
+
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:20px">
+        <button type="button" onclick="_plyModalSubmit('${plyId}','${esc(home)}','${esc(away)}')"
+          style="flex:1;padding:10px;background:#0d1b2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">✓ Confirm</button>
+        <button type="button" onclick="document.getElementById('_ply_modal').remove()"
+          style="padding:10px 16px;background:none;border:1.5px solid #e2e6ec;border-radius:8px;font-size:13px;color:#6b7d94;cursor:pointer;font-family:sans-serif">Cancel</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+
+  window._plyModalState={plyId,home,away,hour:6,min:'30',ampm:'PM',diamond:null,existingPly,clockStep:'hour'};
+  _plyRenderClock();
+  _plyModalRefresh();
+}
+
 function removePlayoffSchedule(plyId){
   if(!checkAdmin()) return;
   G.sched=G.sched.filter(g=>g.plyId!==plyId);
@@ -446,7 +392,6 @@ function getPlayoffSchedEntry(plyId){
   return G.sched.find(g=>g.plyId===plyId)||null;
 }
 
-// ── BUG FIX #2 (cont): podRRStandings with H2H tiebreaker for correct semi seeding
 function podRRStandings(teams,pfx){
   const stats={};
   for(const t of teams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
@@ -461,18 +406,22 @@ function podRRStandings(teams,pfx){
     stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
     stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
     const hw=h>a,aw=a>h,tie=h===a;
-    if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;h2h[g.home][g.away].pts+=2;}
-    else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;h2h[g.away][g.home].pts+=2;}
-    else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;h2h[g.home][g.away].pts++;h2h[g.away][g.home].pts++;}
-    h2h[g.home][g.away].games.push({id:g.id,winner:hw?g.home:aw?g.away:null});
-    h2h[g.away][g.home].games.push({id:g.id,winner:aw?g.away:hw?g.home:null});
+    if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
+    else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
+    else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
+    const homePts=hw?2:tie?1:0;
+    const awayPts=aw?2:tie?1:0;
+    h2h[g.home][g.away].pts+=homePts;
+    h2h[g.home][g.away].games.push({date:g.date,homePts});
+    h2h[g.away][g.home].pts+=awayPts;
+    h2h[g.away][g.home].games.push({date:g.date,homePts:awayPts});
   }
 
-  function stableRand(a,b){let h=0;for(const c of (a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
-
+  function stableRand(a,b){return(a+b).split('').reduce((n,c)=>n+c.charCodeAt(0),0)%2===0;}
   function tiebreak(group){
+    if(group.length===1) return group[0];
     const h2hPts={};
-    for(const t of group){h2hPts[t]=0;for(const u of group)if(u!==t)h2hPts[t]+=h2h[t][u]?.pts||0;}
+    for(const t of group){h2hPts[t]=0;for(const u of group)if(u!==t)h2hPts[t]+=(h2h[t][u]?.pts||0);}
     const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
     const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
     if(afterH2H.length===1) return afterH2H[0];
@@ -481,9 +430,9 @@ function podRRStandings(teams,pfx){
       for(let j=i+1;j<afterH2H.length;j++){
         const a=afterH2H[i],b=afterH2H[j];
         for(const g of(h2h[a][b]?.games||[]))
-          allGames.push({id:g.id,winner:g.winner});
+          allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
       }
-    allGames.sort((a,b)=>b.id.localeCompare(a.id));
+    allGames.sort((a,b)=>b.date.localeCompare(a.date));
     for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
     return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
   }
@@ -495,25 +444,25 @@ function podRRStandings(teams,pfx){
     let j=i+1;
     while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
     const group=sorted.slice(i,j);
-    if(group.length===1){ranked.push({team:group[0]});}
+    if(group.length===1){ranked.push({team:group[0],...stats[group[0]]});}
     else{
       const rankGroup=(g)=>{
         if(!g.length) return[];
         const winner=tiebreak(g);
-        return[{team:winner},...rankGroup(g.filter(t=>t!==winner))];
+        return[{team:winner,...stats[winner]},...rankGroup(g.filter(t=>t!==winner))];
       };
       ranked.push(...rankGroup(group));
     }
     i=j;
   }
-  return ranked.map((r,i)=>({rank:i+1,...stats[r.team],team:r.team}));
+  return ranked.map((r,i)=>({...r,rank:i+1}));
 }
 
 function scoreInput(idH,idA,valH,valA,onChange){
   return `<td class="g-si"><input type="number" min="0" class="si" id="${idH}" value="${valH}" placeholder="–" onchange="${onChange}"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="${idA}" value="${valA}" placeholder="–" onchange="${onChange}"/></td>`;
 }
 
-function schedBtn(plyId, home, away){
+function schedBtn(plyId,home,away){
   const entry=getPlayoffSchedEntry(plyId);
   if(entry){
     return `<td style="padding:4px 6px;white-space:nowrap">
@@ -528,7 +477,7 @@ function schedBtn(plyId, home, away){
     </td>`;
   }
   return `<td style="padding:4px 6px">
-    <button onclick="schedulePlayoffGame('${plyId}','${esc(home)}','${esc(away)}')" style="font-size:11px;padding:4px 10px;background:var(--surface2);border:1.5px solid var(--border2);border-radius:5px;cursor:pointer;color:var(--navy);font-weight:600;white-space:nowrap;font-family:var(--font)">📅 Schedule</button>
+    <button onclick="schedulePlayoffGame('${plyId}','${esc(home)}','${esc(away)}')" style="font-size:11px;padding:4px 10px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:5px;cursor:pointer;color:#0d1b2e;font-weight:600;white-space:nowrap;font-family:sans-serif">📅 Schedule</button>
   </td>`;
 }
 
@@ -552,7 +501,6 @@ function renderPod(podLabel,pfx,podKey,seeds){
   const isPodA=pfx==='PA';
   const elimNote=isPodA?`<div class="notice" style="background:#fff0f0;border-color:var(--red)">⛔ ${esc(standing[4]?.team||'5th')} is eliminated after the round robin.</div>`:'';
 
-  // Auto-populate semis from RR standings when RR is done
   let stateChanged=false;
   if(rrDone&&s1&&s2&&s3&&s4){
     if(!semis.s1||semis.s1.home!==s1||semis.s1.away!==s4){
@@ -570,7 +518,6 @@ function renderPod(podLabel,pfx,podKey,seeds){
   const semi1winner=winnerOf(sm1.score,sm1.home,sm1.away);
   const semi2winner=winnerOf(sm2.score,sm2.home,sm2.away);
 
-  // Auto-populate final
   if(semi1winner&&semi2winner){
     if(!fin.home||fin.home!==semi1winner||fin.away!==semi2winner){
       G.playoffs.finals[podKey].home=semi1winner;
@@ -586,7 +533,6 @@ function renderPod(podLabel,pfx,podKey,seeds){
   <div class="card-title">${esc(podLabel)}</div>
   <div style="font-size:11px;color:var(--muted);margin-bottom:10px">${rrPlayed}/${rrTotal} round robin games played</div>`;
 
-  // RR standings table
   h+=`<table class="st" style="margin-bottom:12px"><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>RF</th><th>RA</th><th>Diff</th></tr></thead><tbody>`;
   h+=standing.map((s,i)=>{
     const diff=s.rf-s.ra;
@@ -603,7 +549,6 @@ function renderPod(podLabel,pfx,podKey,seeds){
   }).join('');
   h+=`</tbody></table>`;
 
-  // RR games
   h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Round Robin Games</div>`;
   h+=`<table class="gt" style="margin-bottom:12px">`;
   for(const g of games){
@@ -621,7 +566,6 @@ function renderPod(podLabel,pfx,podKey,seeds){
   }
   h+=`</table>`;
 
-  // Elimination bracket
   h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Elimination Bracket</div>`;
   if(!rrDone){
     h+=`<div class="notice">Complete all round robin games to unlock the bracket.</div>`;
@@ -683,11 +627,11 @@ function renderPlayoffs(){
         <div class="notice">Seeding is pulled automatically from the final regular season standings. Make sure all regular season scores are entered first.</div>
         ${ranked.length>=9?`
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+          <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD A — Top 5</div>
             ${ranked.slice(0,5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
           </div>
-          <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+          <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD B — Bottom 4</div>
             ${ranked.slice(5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
           </div>
@@ -698,7 +642,7 @@ function renderPlayoffs(){
       <div class="card">
         <div class="card-title">Format</div>
         <div style="display:grid;gap:10px">
-          <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+          <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD A — Top 5 Teams</div>
             <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
               <div>① Round Robin — each team plays the other 4 once (10 games)</div>
@@ -707,7 +651,7 @@ function renderPlayoffs(){
               <div>④ POD A Final — Semi winners meet</div>
             </div>
           </div>
-          <div style="padding:12px;background:var(--gray1);border-radius:var(--r-sm)">
+          <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD B — Bottom 4 Teams</div>
             <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
               <div>① Round Robin — each team plays the other 3 once (6 games)</div>
