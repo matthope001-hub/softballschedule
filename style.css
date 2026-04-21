@@ -887,15 +887,16 @@ input.si:focus {
 }
 
 /* ── EDIT TAB ── */
-.edit-row { display: flex; flex-direction: column; gap: 3px; padding: 6px 14px; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.1s; }
+.edit-row { border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.1s; border-left-width: 3px; border-left-style: solid; }
 .edit-row:hover { background: var(--surface2); }
 .edit-row.late { background: #f5f7ff; }
 .edit-row.open-slot { background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(13,27,46,0.018) 6px, rgba(13,27,46,0.018) 12px); }
 .edit-row.open-slot:hover { background: var(--surface2); }
-.edit-row-meta { display: flex; align-items: center; gap: 8px; }
-.edit-row-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.edit-row select, .edit-row .edit-time { font-family: var(--font); font-size: 12px; font-weight: 500; background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); border-radius: var(--r-xs); padding: 3px 6px; outline: none; }
-.edit-row select:focus { border-color: var(--blue); }
+.edit-row-meta { display: flex; align-items: center; gap: 8px; padding: 5px 14px 3px; }
+.edit-row-controls { display: flex; align-items: center; gap: 6px; padding: 3px 14px 6px; flex-wrap: nowrap; overflow-x: auto; }
+.edit-row-controls select { flex-shrink: 0; font-family: var(--font); font-size: 12px; font-weight: 500; background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); border-radius: var(--r-xs); padding: 3px 6px; outline: none; width: auto; }
+.edit-row-controls select:focus { border-color: var(--blue); }
+.edit-row-controls .sel { width: auto !important; }
 
 /* ── ADMIN SUBTABS ── */
 .admin-subtabs {
