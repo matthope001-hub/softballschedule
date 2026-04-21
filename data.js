@@ -64,7 +64,7 @@ function showTab(t,btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   if(btn)btn.classList.add('active');
   const tabEl=document.getElementById('tab-'+t);
-  if(tabEl)tabEl.classList.add('active'); // FIX: null-guard instead of direct property access
+  if(tabEl)tabEl.classList.add('active');
   window._activeTab=t;
   _renderActiveTab(t);
   if(t==='parkmap'){
@@ -84,13 +84,6 @@ function _renderActiveTab(t){
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
 var activeAdminTab='scores';
 
-function unlockAdmin(){
-  if(typeof checkAdmin==='function'&&!checkAdmin())return;
-  document.getElementById('admin-locked').style.display='none';
-  document.getElementById('admin-unlocked').style.display='block';
-  refreshActiveAdminTab();
-}
-
 function showAdminTab(t,btn){
   activeAdminTab=t;
   document.querySelectorAll('.admin-subtab').forEach(b=>b.classList.remove('active'));
@@ -100,6 +93,15 @@ function showAdminTab(t,btn){
   if(panel)panel.classList.add('active');
   refreshActiveAdminTab();
 }
+
+function refreshActiveAdminTab(){
+  const t=activeAdminTab;
+  if(t==='scores'  &&typeof renderScores==='function')       renderScores();
+  if(t==='edit'    &&typeof renderEdit==='function')         renderEdit();
+  if(t==='playoffs'&&typeof renderPlayoffsAdmin==='function')renderPlayoffsAdmin();
+  if(t==='settings'&&typeof renderDiamonds==='function'){    renderTeams();renderDiamonds();updateGptNotice();}
+}
+
 function fmt12(t){
   if(!t||!t.includes(':')) return t;
   if(t.toLowerCase().includes('am')||t.toLowerCase().includes('pm')) return t;
@@ -109,126 +111,102 @@ function fmt12(t){
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
 
-function refreshActiveAdminTab(){
-    if(activeAdminTab==='scores'){try{renderScores();}catch(e){}}
-  if(activeAdminTab==='edit')  {try{renderEdit();  }catch(e){}}
-  if(activeAdminTab==='playoffs'){try{renderPlayoffsAdmin();}catch(e){}}
-  if(activeAdminTab==='settings'){
-    try{renderTeams();}catch(e){}
-    try{renderDiamonds();}catch(e){}
-    try{updateGptNotice();}catch(e){}
+// ── GAME NIGHTS ───────────────────────────────────────────────────────────────
+function getSelectedDays(){
+  const cbs=document.querySelectorAll('#day-checks input[type=checkbox]:checked');
+  return Array.from(cbs).map(cb=>parseInt(cb.value));
+}
+
+function getGameNights(ss,se,days){
+  const nights=[];
+  const start=new Date(ss+'T12:00:00');
+  const end=new Date(se+'T12:00:00');
+  const cur=new Date(start);
+  while(cur<=end){
+    if(days.includes(cur.getDay())) nights.push(toDateStr(cur));
+    cur.setDate(cur.getDate()+1);
   }
+  return nights;
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
 function addTeam(){
   const inp=document.getElementById('ti');
-  const name=inp.value.trim();
-  if(!name||G.teams.includes(name))return;
-  if(G.teams.length>=10){alert("MAX 10 TEAMS, WU-TANG AIN'T FOREVER");return;}
-  G.teams.push(name);inp.value='';saveData();renderTeams();
+  const name=(inp?.value||'').trim();
+  if(!name){alert('Enter a team name.');return;}
+  if(G.teams.includes(name)){alert('Team already exists.');return;}
+  if(G.teams.length>=10){alert('Maximum 10 teams.');return;}
+  G.teams.push(name);
+  inp.value='';
+  saveData();
+  renderTeams();
+  updateGptNotice();
 }
-document.getElementById('ti').addEventListener('keydown',e=>{if(e.key==='Enter')addTeam();});
-function removeTeam(name){G.teams=G.teams.filter(t=>t!==name);saveData();renderTeams();}
+
+function removeTeam(name){
+  if(!checkAdmin()) return;
+  if(!confirm(`Remove "${name}" from the league?`)) return;
+  G.teams=G.teams.filter(t=>t!==name);
+  saveData();
+  renderTeams();
+  updateGptNotice();
+}
+
 function renderTeams(){
   const el=document.getElementById('tl');
-  if(!el)return;
-  if(!G.teams.length){el.innerHTML='<div style="color:var(--gray3);font-size:13px;font-weight:700;padding:8px 0">No teams added yet</div>';return;}
-  el.innerHTML='';
-  G.teams.forEach(t=>{
-    const span=document.createElement('span');
-    span.className='chip';
-    span.textContent=t;
-    const btn=document.createElement('button');
-    btn.className='chip-del';
-    btn.textContent='×';
-    btn.addEventListener('click',()=>removeTeam(t));
-    span.appendChild(btn);
-    el.appendChild(span);
-  });
+  if(!el) return;
+  el.innerHTML=G.teams.map(t=>`
+    <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r-pill);font-size:12px;font-weight:600">
+      ${esc(t)}
+      ${t===CROSSOVER?'<span style="font-size:10px;color:var(--muted)">(guest)</span>':''}
+      <button onclick="removeTeam('${t.replace(/'/g,"\\'")}')}" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:0;line-height:1;margin-left:2px">×</button>
+    </span>`).join('');
 }
 
-// ── DIAMOND MANAGEMENT ────────────────────────────────────────────────────────
-function addDiamond(){
-  const newId=Math.max(0,...G.diamonds.map(d=>d.id))+1;
-  G.diamonds.push({id:newId,name:'Diamond '+newId,lights:false,lightsCapable:true,active:true});
-  saveData();renderDiamonds();
-}
-function removeDiamond(id){
-  if(G.diamonds.filter(d=>d.active).length<=1){alert('Need at least one active diamond.');return;}
-  G.diamonds=G.diamonds.filter(d=>d.id!==id);
-  saveData();renderDiamonds();
-}
-function updateDiamondName(id,name){
-  const d=G.diamonds.find(d=>d.id===id);
-  if(d){d.name=name;saveData();}
-}
+// ── DIAMONDS ──────────────────────────────────────────────────────────────────
 function toggleDiamondActive(id){
-  const d=G.diamonds.find(d=>d.id===id);
-  if(!d)return;
-  if(d.active&&G.diamonds.filter(x=>x.active).length<=1){alert('Need at least one active diamond.');return;}
-  d.active=!d.active;
-  saveData();renderDiamonds();renderRulesDiamonds();updateGptNotice();
-}
-function toggleDiamondLights(id){
-  const d=G.diamonds.find(d=>d.id===id);
-  if(!d)return;
-  if(d.lightsCapable===false){alert(`${d.name} has no lights infrastructure and cannot be enabled.`);return;}
-  if(!d.active){alert(`${d.name} is inactive. Activate it first before toggling lights.`);return;}
-  d.lights=!d.lights;
-  saveData();renderDiamonds();renderRulesDiamonds();updateGptNotice();
+  const dm=G.diamonds.find(d=>d.id===id);
+  if(!dm) return;
+  dm.active=!dm.active;
+  saveData();
+  renderDiamonds();
+  updateGptNotice();
 }
 
-function renderRulesDiamonds(){
-  const rd=document.getElementById('rules-diamonds');
-  if(!rd)return;
-  rd.innerHTML=G.diamonds.filter(d=>d.active).map(d=>{
-    const capable=d.lightsCapable!==false;
-    if(!capable)return`<div style="font-size:13px;color:var(--text)">D${d.id} — ${esc(d.name)} — 🚫 No lights infrastructure (6:30 only)</div>`;
-    return`<div style="font-size:13px;color:var(--text)">D${d.id} — ${esc(d.name)} — ${d.lights?'💡 Lights (DH capable)':'🌙 No Lights (6:30 only)'}</div>`;
-  }).join('');
+function toggleDiamondLights(id){
+  const dm=G.diamonds.find(d=>d.id===id);
+  if(!dm||!dm.lightsCapable) return;
+  dm.lights=!dm.lights;
+  saveData();
+  renderDiamonds();
+  updateGptNotice();
 }
 
 function renderDiamonds(){
   const el=document.getElementById('dm');
-  if(!el)return;
+  if(!el) return;
   const active=G.diamonds.filter(d=>d.active);
   const inactive=G.diamonds.filter(d=>!d.active);
 
   function renderRow(d){
-    const capable=d.lightsCapable!==false;
-    const isActive=d.active;
-    const activeBtn=`<button onclick="toggleDiamondActive(${d.id})"
-      title="${isActive?'Click to deactivate':'Click to activate'}"
-      style="padding:6px 12px;border-radius:5px;border:1.5px solid ${isActive?'var(--success,#27ae60)':'var(--border)'};background:${isActive?'#edf7f0':'var(--gray2)'};color:${isActive?'var(--success,#27ae60)':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
-      ${isActive?'✅ Active':'⬜ Inactive'}
-    </button>`;
-    const lightsBtn=!isActive?'':capable
-      ?`<button onclick="toggleDiamondLights(${d.id})"
-          style="padding:6px 12px;border-radius:5px;border:1.5px solid ${d.lights?'var(--navy)':'var(--border)'};background:${d.lights?'var(--navy)':'var(--white)'};color:${d.lights?'#fff':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font)">
-          ${d.lights?'💡 Lights ON':'🌙 Lights OFF'}
-        </button>`
-      :`<span style="font-size:12px;color:var(--muted);font-weight:600;padding:6px 0">🚫 No lights</span>`;
-    const nameInput=`<input value="${esc(d.name)}" onchange="updateDiamondName(${d.id},this.value)"
-      style="border:1.5px solid var(--border);border-radius:5px;padding:5px 8px;font-size:13px;font-weight:700;font-family:var(--font);width:130px"/>`;
-    const delBtn=`<button onclick="removeDiamond(${d.id})" title="Remove diamond"
-      style="padding:5px 9px;border-radius:5px;border:1.5px solid var(--border);background:var(--white);color:var(--muted);font-size:13px;cursor:pointer;font-family:var(--font)">✕</button>`;
-    return`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:13px;font-weight:800;color:var(--navy);min-width:24px">D${d.id}</span>
-      ${nameInput}${activeBtn}${lightsBtn}${delBtn}
+    const locked=!d.lightsCapable;
+    const lightsLabel=locked?'🚫 No lights infrastructure':(d.lights?'💡 Lights ON':'🌙 Lights OFF');
+    const lightsColor=locked?'var(--muted)':(d.lights?'var(--gold)':'var(--text3)');
+    return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <button onclick="toggleDiamondActive(${d.id})" style="padding:3px 10px;font-size:11px;font-weight:700;border-radius:var(--r-pill);border:1.5px solid ${d.active?'var(--green)':'var(--border)'};background:${d.active?'var(--green-bg)':'var(--surface2)'};color:${d.active?'var(--green)':'var(--muted)'};cursor:pointer;white-space:nowrap">
+        ${d.active?'✓ Active':'Inactive'}
+      </button>
+      <span style="font-size:13px;font-weight:600;flex:1">${esc(d.name)}</span>
+      <button onclick="${locked?'':` toggleDiamondLights(${d.id})`}" ${locked?'disabled':''} style="padding:3px 10px;font-size:11px;font-weight:600;border-radius:var(--r-pill);border:1.5px solid var(--border);background:var(--surface2);color:${lightsColor};cursor:${locked?'default':'pointer'};white-space:nowrap;opacity:${locked?'0.6':'1'}">
+        ${lightsLabel}
+      </button>
     </div>`;
   }
 
-  let html='';
-  if(active.length){
-    html+=`<div style="margin-bottom:10px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted);margin-bottom:6px">✅ Active Diamonds (${active.length}) — used in scheduling</div>
-      ${active.map(renderRow).join('')}
-    </div>`;
-  }
+  let html=`<div style="display:flex;flex-direction:column;gap:0;margin-bottom:10px">${active.map(renderRow).join('')}</div>`;
   if(inactive.length){
     html+=`<div>
-      <button onclick="(function(b){const body=document.getElementById('inactive-dm-body');body.style.display=body.style.display==='none'?'flex':'none';b.querySelector('.dm-arr').textContent=body.style.display==='none'?'▼':'▲'})(this)"
+      <button onclick="(function(btn){const body=document.getElementById('inactive-dm-body');const arr=btn.querySelector('.dm-arr');if(body.style.display==='none'){body.style.display='flex';arr.textContent='▲';}else{body.style.display='none';arr.textContent='▼';}})(this)"
         style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:4px 0;cursor:pointer;text-align:left">
         <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:var(--muted)">⬜ Inactive Diamonds (${inactive.length}) — not used in scheduling</span>
         <span class="dm-arr" style="font-size:10px;color:var(--muted)">▼</span>
@@ -241,145 +219,61 @@ function renderDiamonds(){
   el.innerHTML=html;
 }
 
-// ── DAYS OF WEEK ──────────────────────────────────────────────────────────────
-const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-function initDayChecks(){
-  const el=document.getElementById('day-checks');
-  if(!el)return;
-  let savedDays=[2];
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw){const d=JSON.parse(raw);if(d.days&&d.days.length)savedDays=d.days;}
-  }catch(e){}
-  el.innerHTML=DAY_NAMES.map((name,i)=>{
-    const checked=savedDays.includes(i)?'checked':'';
-    const activeStyle='border-color:var(--sys-blue);background:var(--sys-blue);color:#fff';
-    const inactiveStyle='border-color:var(--sep-opaque);background:var(--surface);color:var(--text2)';
-    return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${checked?activeStyle:inactiveStyle}">
-      <input type="checkbox" value="${i}" ${checked} onchange="onDayChange(${i},this)" style="display:none"> ${name}
-    </label>`;
-  }).join('');
-}
-
-function onDayChange(i,cb){
-  const lbl=document.getElementById('daylabel-'+i);
-  if(lbl){
-    if(cb.checked){lbl.style.borderColor='var(--sys-blue)';lbl.style.background='var(--sys-blue)';lbl.style.color='#fff';}
-    else{lbl.style.borderColor='var(--sep-opaque)';lbl.style.background='var(--surface)';lbl.style.color='var(--text2)';}
-  }
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    const d=raw?JSON.parse(raw):{};
-    d.days=getSelectedDays();
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(d));
-  }catch(e){}
-  updateGptNotice();
-}
-
-function getSelectedDays(){
-  const checks=document.querySelectorAll('#day-checks input[type=checkbox]:checked');
-  return Array.from(checks).map(c=>parseInt(c.value));
-}
-
-function getGameNights(startStr,endStr,days){
-  if(!days||!days.length)return[];
-  const[sy,sm,sd]=startStr.split('-').map(Number);
-  const[ey,em,ed]=endStr.split('-').map(Number);
-  const result=[];
-  const cur=new Date(sy,sm-1,sd);
-  const end=new Date(ey,em-1,ed);
-  while(cur<=end){
-    if(days.includes(cur.getDay()))result.push(toDateStr(cur));
-    cur.setDate(cur.getDate()+1);
-  }
-  return result;
-}
-
 // ── SCHEDULE CALCULATOR ───────────────────────────────────────────────────────
 function updateGptNotice(){
-  const noticeEl=document.getElementById('gpt-notice');
-  if(!noticeEl)return;
-  const ssEl=document.getElementById('ss');
-  const seEl=document.getElementById('se');
-  if(!ssEl||!seEl)return;
+  const el=document.getElementById('gpt-notice');
+  if(!el) return;
+  const ss=document.getElementById('ss')?.value;
+  const se=document.getElementById('se')?.value;
+  const tfaced=parseInt(document.getElementById('tfaced')?.value)||2;
+  const gptVal=parseInt(document.getElementById('gpt')?.value)||null;
+  const t1=document.getElementById('time1')?.value||'6:30 PM';
+  const t2=document.getElementById('time2')?.value||'8:15 PM';
 
-  const selectedDays=getSelectedDays();
-  const leagueN=G.teams.filter(t=>t!==CROSSOVER).length;
-  const nights=getGameNights(ssEl.value,seEl.value,selectedDays).length;
-
-  if(nights<1||selectedDays.length<1){
-    noticeEl.innerHTML=`<div class="notice" style="color:var(--muted)">Select at least one game day.</div>`;
-    return;
-  }
+  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
+  const n=leagueTeams.length;
+  if(!ss||!se||!n){el.innerHTML='<div style="color:var(--muted);font-size:13px">Configure teams and dates to see projections.</div>';return;}
 
   const activeDiamonds=G.diamonds.filter(d=>d.active);
   const d9=activeDiamonds.find(d=>d.id===9);
   const dhDiamonds=activeDiamonds.filter(d=>d.id!==9&&d.lights);
   const singleDiamonds=activeDiamonds.filter(d=>d.id!==9&&!d.lights);
-  const dhCount=dhDiamonds.length;
-  const singleCount=singleDiamonds.length;
 
-  const tfacedEl=document.getElementById('tfaced');
-  const tfaced=tfacedEl?parseInt(tfacedEl.value)||2:2;
+  const days=getSelectedDays();
+  const nights=days.length?getGameNights(ss,se,days):[];
 
-  const gptEl=document.getElementById('gpt');
-  const gptVal=gptEl?parseInt(gptEl.value)||null:null;
+  const gamesPerNightLeague=dhDiamonds.length*2+singleDiamonds.length;
+  const gamesPerNightCO=d9?2:0;
+  const totalGamesPerNight=gamesPerNightLeague+gamesPerNightCO;
 
-  const uniquePairs=leagueN*(leagueN-1)/2;
-  const lgPairSlotsPerNight=dhCount+singleCount;
-
-  // Min nights needed for every pair to play tfaced times
-  const requiredNights=lgPairSlotsPerNight>0?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight):0;
-
-  // Games/team the algorithm naturally produces
-  const lgGamesPerNight=dhCount*2+singleCount;
-  const gamesPerTeamAlgo=lgPairSlotsPerNight>0
-    ? Math.round((requiredNights*lgGamesPerNight)/leagueN)
-    : 0;
-
+  const uniquePairs=n*(n-1)/2;
+  const lgGamesFromFaced=uniquePairs*tfaced;
+  const gamesPerTeamAlgo=n>1?Math.round((lgGamesFromFaced*2)/n):0;
   const displayedGpt=gptVal||gamesPerTeamAlgo;
 
-  // nightsOk = have at least enough nights (more is fine — algo fills remaining nights)
-  const nightsOk=nights>=requiredNights&&requiredNights>0;
+  const requiredNights=gamesPerNightLeague>0?Math.ceil(lgGamesFromFaced/gamesPerNightLeague*2):0;
+  const nightsMatch=nights.length>=requiredNights;
 
-  const lgGamesFromFaced=uniquePairs*tfaced;
-  const totalGamesPerNight=lgGamesPerNight+(d9?2:0);
-  const totalGames=totalGamesPerNight*(nightsOk?nights:0);
-  const coTotalGames=d9?2*(nightsOk?nights:0):0;
-  const lgTotalGames=totalGames-coTotalGames;
+  const coTotalGames=d9?nights.length*2:0;
+  const lgTotalGames=gamesPerNightLeague*nights.length;
+  const totalGames=nightsMatch?coTotalGames+lgTotalGames:0;
 
-  const t1=`${lgPairSlotsPerNight} league slot${lgPairSlotsPerNight!==1?'s':''}/night`;
-  const t2=d9?'1 CrossOver DH':'no D9';
+  const gptWarning=gptVal&&gptVal!==gamesPerTeamAlgo
+    ?`<div style="padding:8px 12px;background:#fef3c7;border-bottom:1px solid var(--border);font-size:12px;color:#92400e">⚠ GPT cap ${gptVal} differs from algorithm's natural ${gamesPerTeamAlgo} — generator will enforce the cap hard</div>`
+    :'';
 
-  let gptWarning='';
-  if(gptVal&&gptVal!==gamesPerTeamAlgo){
-    gptWarning=`<div style="padding:6px 12px;background:#fff8e6;border-top:1px solid var(--border);font-size:12px;color:#b45309">
-      ⚠ Algorithm produces <strong>${gamesPerTeamAlgo} games/team</strong> from current settings.
-      GPT set to <strong>${gptVal}</strong> — schedule generator will cap each league team at ${gptVal} games.
-    </div>`;
-  }
+  const statusOk=nightsMatch&&nights.length>0&&activeDiamonds.length>0&&n>=2;
+  const statusBg=statusOk?'var(--green-bg)':'#fff0f0';
+  const statusHtml=statusOk
+    ?`<span style="color:var(--green);font-weight:700">✓ Ready to generate</span> — ${nights.length} nights · ${totalGamesPerNight} games/night · ${displayedGpt} games/team`
+    :`<span style="color:var(--red);font-weight:700">⚠ Not ready</span>${!activeDiamonds.length?' — activate at least one diamond':''}${n<2?' — need at least 2 league teams':''}${!nights.length&&ss&&se?' — no game nights in range':''}${nights.length&&nights.length<requiredNights?` — need ${requiredNights} nights, have ${nights.length}`:''}`;
 
-  let statusHtml,statusBg;
-  if(!nightsOk){
-    const diff=requiredNights-nights;
-    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Not enough nights</span> — ≥${tfaced}× per pair needs at least <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. Add ${diff} more game night${diff!==1?'s':''}.`;
-    statusBg='#fff0f0';
-  }else{
-    const extra=nights-requiredNights;
-    const extraNote=extra>0?` · ${extra} extra night${extra!==1?'s':''} will add matchups`:'';
-    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ~${displayedGpt} games/team, every pair plays ≥${tfaced}×${extraNote}</span>`;
-    statusBg='#edf7f0';
-  }
-
-  noticeEl.innerHTML=`
-  <div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;margin-top:4px">
-    <div style="background:var(--navy);color:#fff;padding:7px 12px;font-weight:800;font-size:11px;letter-spacing:0.8px;text-transform:uppercase">📊 Schedule Calculator</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border)">
+  el.innerHTML=`<div style="border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--border)">
       <div style="padding:8px 12px;border-right:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Game Nights</div>
-        <div style="font-size:22px;font-weight:800;color:${nightsOk?'var(--navy)':'var(--red)'};line-height:1.2">${nights}</div>
-        <div style="font-size:11px;color:var(--muted)">Min ${requiredNights}</div>
+        <div style="font-size:22px;font-weight:800;color:${nightsMatch?'var(--navy)':'var(--red)'};line-height:1.2">${nights.length}</div>
+        <div style="font-size:11px;color:var(--muted)">Need ${requiredNights}</div>
       </div>
       <div style="padding:8px 12px;border-right:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Games/Team</div>
@@ -388,8 +282,8 @@ function updateGptNotice(){
       </div>
       <div style="padding:8px 12px">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
-        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsOk?totalGames:'—'}</div>
-        <div style="font-size:11px;color:var(--muted)">${nightsOk&&d9?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${nightsMatch&&d9?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
       </div>
     </div>
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
@@ -405,7 +299,7 @@ function updateGptNotice(){
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Opponent Matchups</div>
       <div style="display:grid;gap:2px;font-size:12px">
         <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × ${tfaced}× each</span><strong>${lgGamesFromFaced} league games</strong></div>
-        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Min nights for ${tfaced}× floor</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
+        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
       </div>
     </div>
     ${gptWarning}
@@ -415,6 +309,100 @@ function updateGptNotice(){
 
 // ── SEASON HEADER ─────────────────────────────────────────────────────────────
 function updateSeasonHeader(){
-  const el=document.querySelector('.header-badge');
-  if(el&&G.currentSeason)el.textContent=G.currentSeason+' Season';
+  const badge=document.querySelector('.header-badge');
+  if(badge) badge.textContent=`${G.currentSeason||2026} Season`;
+}
+
+// ── NEXT GAME ID ──────────────────────────────────────────────────────────────
+function nextGameId(dateStr){
+  const yr=dateStr.slice(2,4);
+  const existing=G.sched.filter(g=>g.id.startsWith(yr));
+  const maxSeq=existing.reduce((m,g)=>{const n=parseInt(g.id.slice(2));return n>m?n:m;},0);
+  return`${yr}${String(maxSeq+1).padStart(3,'0')}`;
+}
+
+// ── DAYS OF WEEK ──────────────────────────────────────────────────────────────
+const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function initDayChecks(){
+  const el=document.getElementById('day-checks');
+  if(!el)return;
+  let savedDays=[2];
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){const d=JSON.parse(raw);if(d.days&&d.days.length)savedDays=d.days;}
+  }catch(e){}
+  el.innerHTML=DAY_NAMES.map((name,i)=>{
+    const checked=savedDays.includes(i)?'checked':'';
+    const activeStyle='border-color:var(--navy);background:var(--navy);color:#fff';
+    const inactiveStyle='border-color:var(--border);background:var(--white);color:var(--text)';
+    return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${checked?activeStyle:inactiveStyle}">
+      <input type="checkbox" value="${i}" ${checked} onchange="onDayChange(${i},this)" style="display:none"> ${name}
+    </label>`;
+  }).join('');
+}
+
+function onDayChange(i,cb){
+  const lbl=document.getElementById('daylabel-'+i);
+  if(lbl){
+    if(cb.checked){lbl.style.borderColor='var(--navy)';lbl.style.background='var(--navy)';lbl.style.color='#fff';}
+    else{lbl.style.borderColor='var(--border)';lbl.style.background='var(--white)';lbl.style.color='var(--text)';}
+  }
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    const d=raw?JSON.parse(raw):{};
+    d.days=getSelectedDays();
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(d));
+  }catch(e){}
+  updateGptNotice();
+}
+
+// ── GENERATE SCHEDULE (wrapper) ───────────────────────────────────────────────
+function generateSchedule(){
+  if(!checkAdmin()) return;
+  if(!confirm('Generate a new schedule? This will replace the current schedule and clear all scores.')) return;
+  genSched();
+}
+
+// ── HEADER WEATHER (Turner Park, Hamilton ON · Open-Meteo, no API key) ────────
+// Coords: 43.2557, -79.8711
+async function initHeaderWeather(){
+  const dateEl=document.getElementById('hw-date');
+  const wxEl=document.getElementById('hw-weather');
+  if(!dateEl||!wxEl) return;
+
+  // Display today's date
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'});
+  dateEl.textContent=dateStr;
+
+  // WMO weather interpretation codes → emoji + short label
+  const WMO={
+    0:['☀️','Clear'],
+    1:['🌤','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],
+    45:['🌫','Fog'],48:['🌫','Icy Fog'],
+    51:['🌦','Lt Drizzle'],53:['🌦','Drizzle'],55:['🌧','Hvy Drizzle'],
+    61:['🌧','Lt Rain'],63:['🌧','Rain'],65:['🌧','Hvy Rain'],
+    71:['🌨','Lt Snow'],73:['🌨','Snow'],75:['❄️','Hvy Snow'],77:['🌨','Snow Grains'],
+    80:['🌦','Showers'],81:['🌧','Showers'],82:['⛈','Hvy Showers'],
+    85:['🌨','Snow Showers'],86:['❄️','Hvy Snow Showers'],
+    95:['⛈','Thunderstorm'],96:['⛈','T-Storm+Hail'],99:['⛈','T-Storm+Hail']
+  };
+
+  try{
+    const url='https://api.open-meteo.com/v1/forecast?latitude=43.2557&longitude=-79.8711&current=temperature_2m,weathercode,windspeed_10m&temperature_unit=celsius&windspeed_unit=kmh&timezone=America%2FToronto';
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    const c=data.current;
+    const temp=Math.round(c.temperature_2m);
+    const code=c.weathercode;
+    const wind=Math.round(c.windspeed_10m);
+    const[icon,label]=WMO[code]||['🌡','Unknown'];
+    wxEl.innerHTML=`<span title="${label}">${icon}</span><span style="font-size:13px;font-weight:700">${temp}°C</span><span style="opacity:0.45;font-weight:400;font-size:10px">${wind}km/h</span>`;
+    wxEl.title=`${label} · ${temp}°C · Wind ${wind} km/h · Turner Park, Hamilton`;
+  }catch(e){
+    wxEl.innerHTML=`<span style="opacity:0.3;font-size:11px;font-weight:400">—</span>`;
+    console.warn('Weather fetch failed:',e);
+  }
 }
