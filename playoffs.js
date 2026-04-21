@@ -315,13 +315,13 @@ function schedBtn(plyId, home, away){
   const entry=getPlayoffSchedEntry(plyId);
   if(entry){
     return `<td style="padding:4px 6px;white-space:nowrap">
-      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:6px;padding:4px 10px">
+      <div style="display:inline-flex;align-items:center;gap:8px;background:var(--navy);border-radius:6px;padding:5px 10px">
         <span style="font-size:12px">📅</span>
-        <div style="line-height:1.3">
-          <div style="font-size:12px;font-weight:700;color:var(--navy)">${fmtDate(entry.date)}</div>
-          <div style="font-size:11px;color:var(--muted)">${entry.time} · ${getDiamondName(entry.diamond)}</div>
+        <div style="line-height:1.4">
+          <div style="font-size:12px;font-weight:700;color:#fff">${fmtDate(entry.date)}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6)">${entry.time} · ${getDiamondName(entry.diamond)}</div>
         </div>
-        <button onclick="removePlayoffSchedule('${plyId}')" title="Remove scheduled date" style="margin-left:4px;background:none;border:1.5px solid var(--border);border-radius:4px;cursor:pointer;color:var(--muted);font-size:11px;padding:1px 5px;line-height:1">✕</button>
+        <button onclick="removePlayoffSchedule('${plyId}')" title="Remove scheduled date" style="margin-left:2px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:4px;cursor:pointer;color:rgba(255,255,255,0.7);font-size:11px;padding:2px 6px;line-height:1">✕</button>
       </div>
     </td>`;
   }
