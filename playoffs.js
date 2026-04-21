@@ -435,7 +435,7 @@ function podRRStandings(teams,pfx){
         for(const g of(h2h[a][b]?.games||[]))
           allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
       }
-    allGames.sort((a,b)=>b.date.localeCompare(a.date));
+    allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
     return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
   }
