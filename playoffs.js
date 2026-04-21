@@ -1,65 +1,56 @@
 // ── PLAYOFFS ──────────────────────────────────────────────────────────────────
 
+// ── REGULAR SEASON RANKING (for seeding) ─────────────────────────────────────
 function getRegularSeasonRanking(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
-  for(const t of leagueTeams) stats[t]={gp:0,w:0,l:0,tie:0,pts:0,rf:0,ra:0};
+  for(const t of leagueTeams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
+  const h2h={};
+  for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]={pts:0,games:[]};}
 
-  const h2hStats={};
-  for(const t of leagueTeams){
-    h2hStats[t]={};
-    for(const u of leagueTeams) h2hStats[t][u]={pts:0,games:[]};
-  }
-
-  const scoredGames=[...G.sched].filter(g=>
-    !g.playoff&&
-    G.scores[g.id]&&
-    stats[g.home]!==undefined&&
-    stats[g.away]!==undefined&&
-    g.home!==CROSSOVER&&g.away!==CROSSOVER
-  );
-  scoredGames.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
-
-  for(const g of scoredGames){
+  const regularGames=G.sched.filter(g=>!g.playoff&&!g.open&&!g.crossover&&G.scores[g.id]);
+  for(const g of regularGames){
+    if(!stats[g.home]||!stats[g.away]) continue;
     const sc=G.scores[g.id];
     const{ch,ca}=capRuns(sc.h,sc.a);
     stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
-    if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
-    else if(sc.a>sc.h)stats[g.home].l++;
-    else{stats[g.home].tie++;stats[g.home].pts++;}
-
     stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
-    if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
-    else if(sc.h>sc.a)stats[g.away].l++;
-    else{stats[g.away].tie++;stats[g.away].pts++;}
-
-    const homePts=sc.h>sc.a?2:sc.h===sc.a?1:0;
-    const awayPts=sc.a>sc.h?2:sc.h===sc.a?1:0;
-    h2hStats[g.home][g.away].pts+=homePts;
-    h2hStats[g.home][g.away].games.push({date:g.date,homePts});
-    h2hStats[g.away][g.home].pts+=awayPts;
-    h2hStats[g.away][g.home].games.push({date:g.date,homePts:awayPts});
+    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
+    if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
+    else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
+    else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
+    const homePts=hw?2:tie?1:0;
+    const awayPts=aw?2:tie?1:0;
+    h2h[g.home][g.away].pts+=homePts;
+    h2h[g.home][g.away].games.push({date:g.date,homePts});
+    h2h[g.away][g.home].pts+=awayPts;
+    h2h[g.away][g.home].games.push({date:g.date,homePts:awayPts});
   }
 
-  function stableRand(a,b){return(a+b).split('').reduce((n,c)=>n+c.charCodeAt(0),0)%2===0;}
+  function stableRand(a,b){
+    const s=a<b?a+b:b+a;
+    let h=0;for(let i=0;i<s.length;i++){h=(Math.imul(31,h)+s.charCodeAt(i))|0;}
+    return h%2===0;
+  }
 
   function tiebreak(group){
     if(group.length===1) return group[0];
+    // a) head-to-head points among tied teams
     const h2hPts={};
-    for(const t of group){
-      h2hPts[t]=0;
-      for(const u of group) if(u!==t) h2hPts[t]+=(h2hStats[t][u]?.pts||0);
-    }
+    for(const t of group) h2hPts[t]=0;
+    for(const t of group)
+      for(const u of group)
+        if(t!==u) h2hPts[t]+=h2h[t][u]?.pts||0;
     const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
     const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
     if(afterH2H.length===1) return afterH2H[0];
+    // b) winner of last matchup among tied teams
     const allGames=[];
-    for(let i=0;i<afterH2H.length;i++)
-      for(let j=i+1;j<afterH2H.length;j++){
-        const a=afterH2H[i],b=afterH2H[j];
-        for(const g of(h2hStats[a][b]?.games||[]))
-          allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
-      }
+    for(const t of afterH2H)
+      for(const u of afterH2H)
+        if(t!==u)
+          for(const g of (h2h[t][u]?.games||[]))
+            allGames.push({...g,winner:g.homePts===2?t:g.homePts===0?u:null});
     allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
     return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
@@ -87,264 +78,7 @@ function getRegularSeasonRanking(){
   return ranked.map((r,i)=>({...r,seed:i+1,...stats[r.team]}));
 }
 
-function seedPlayoffs(){
-  if(!checkAdmin()) return;
-  const ranked=getRegularSeasonRanking();
-  if(ranked.length<4){alert('Need at least 4 league teams to seed playoffs.');return;}
-  const podA=ranked.slice(0,5).map(r=>r.team);
-  const podB=ranked.slice(5).map(r=>r.team);
-  function recStr(r){const t=r.tie?`-${r.tie}`:'';return `(${r.w}-${r.l}${t}) ${r.pts}pts`;}
-  const msg=`Seed playoffs from current standings?\n\nPOD A (Top 5):\n${ranked.slice(0,5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}\n\nPOD B (Bottom ${podB.length}):\n${ranked.slice(5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}\n\nThis will reset any existing playoff data.`;
-  if(!confirm(msg)) return;
-  function rrGames(teams,pfx){
-    const games={};let n=1;
-    for(let i=0;i<teams.length;i++)
-      for(let j=i+1;j<teams.length;j++){
-        const id=`${pfx}RR${String(n).padStart(2,'0')}`;
-        games[id]={id,phase:'rr',home:teams[i],away:teams[j],score:null};n++;
-      }
-    return games;
-  }
-  G.playoffs={
-    seeded:true,podA,podB,
-    games:{...rrGames(podA,'PA'),...rrGames(podB,'PB')},
-    semis:{podA:{},podB:{}},
-    finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}
-  };
-  saveData();renderPlayoffs();renderPlayoffsAdmin();showToast('🏆 Playoffs seeded!');
-}
-
-function resetPlayoffs(){
-  if(!checkAdmin()) return;
-  if(!confirm('Reset all playoff data? This cannot be undone.')) return;
-  G.playoffs={seeded:false,podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
-  saveData();renderPlayoffs();renderPlayoffsAdmin();showToast('Playoffs reset');
-}
-
-function _clampScore(val){
-  const n=parseInt(val);
-  return isNaN(n)?null:Math.max(0,n);
-}
-
-function savePlayoffScore(gameId){
-  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
-  const hEl=document.getElementById('ph_'+gameId);
-  const aEl=document.getElementById('pa_'+gameId);
-  const hRaw=hEl?.value;
-  const aRaw=aEl?.value;
-  const g=G.playoffs.games[gameId];
-  if(!g) return;
-  if(hRaw===''&&aRaw===''){g.score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
-  const h=_clampScore(hRaw??'');
-  const a=_clampScore(aRaw??'');
-  if(h===null||a===null) return;
-  g.score={h,a};
-  saveData();renderPlayoffs();renderPlayoffsAdmin();
-}
-
-function saveSemiScore(pod,key){
-  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
-  const hEl=document.getElementById(`psh_${pod}_${key}`);
-  const aEl=document.getElementById(`psa_${pod}_${key}`);
-  const hRaw=hEl?.value;
-  const aRaw=aEl?.value;
-  if(!G.playoffs.semis[pod][key]) G.playoffs.semis[pod][key]={home:null,away:null,score:null};
-  if(hRaw===''&&aRaw===''){G.playoffs.semis[pod][key].score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
-  const h=_clampScore(hRaw??'');
-  const a=_clampScore(aRaw??'');
-  if(h===null||a===null) return;
-  G.playoffs.semis[pod][key].score={h,a};
-  saveData();renderPlayoffs();renderPlayoffsAdmin();
-}
-
-function saveFinalScore(pod){
-  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
-  const hEl=document.getElementById('pfh_'+pod);
-  const aEl=document.getElementById('pfa_'+pod);
-  const hRaw=hEl?.value;
-  const aRaw=aEl?.value;
-  if(hRaw===''&&aRaw===''){G.playoffs.finals[pod].score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
-  const h=_clampScore(hRaw??'');
-  const a=_clampScore(aRaw??'');
-  if(h===null||a===null) return;
-  G.playoffs.finals[pod].score={h,a};
-  saveData();renderPlayoffs();renderPlayoffsAdmin();
-}
-
-// ── ANALOG CLOCK PICKER ───────────────────────────────────────────────────────
-function _plyRenderClock(){
-  const state=window._plyModalState;
-  const el=document.getElementById('_pm_clock_face');
-  if(!el) return;
-  const isHour=state.clockStep==='hour';
-  const size=220;
-  const cx=size/2,cy=size/2,r=size/2-10;
-  let items=[];
-  if(isHour){for(let h=1;h<=12;h++) items.push({label:String(h),val:h});}
-  else{['00','05','10','15','20','25','30','35','40','45','50','55'].forEach((m,i)=>items.push({label:m,val:m}));}
-  const hands=items.map((item,i)=>{
-    const angle=(i/items.length)*2*Math.PI-Math.PI/2;
-    const hr=r*0.72;
-    const x=cx+hr*Math.cos(angle);
-    const y=cy+hr*Math.sin(angle);
-    const selected=isHour?(state.hour===item.val):(state.min===item.val);
-    return{...item,x,y,selected};
-  });
-  const sel=hands.find(h=>h.selected);
-  const handLine=sel?`<line x1="${cx}" y1="${cy}" x2="${sel.x}" y2="${sel.y}" stroke="#0d1b2e" stroke-width="2.5" stroke-linecap="round"/>`:'';
-  const centerDot=`<circle cx="${cx}" cy="${cy}" r="4" fill="#0d1b2e"/>`;
-  const circles=hands.map(h=>`
-    <g onclick="_plyClockTap('${h.val}')" style="cursor:pointer">
-      <circle cx="${h.x}" cy="${h.y}" r="18" fill="${h.selected?'#0d1b2e':'transparent'}"/>
-      <text x="${h.x}" y="${h.y}" text-anchor="middle" dominant-baseline="central"
-        font-size="13" font-weight="${h.selected?'800':'600'}" fill="${h.selected?'#fff':'#0d1b2e'}"
-        font-family="sans-serif">${h.label}</text>
-    </g>`).join('');
-  el.innerHTML=`
-    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;margin:0 auto">
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#f7f8fb" stroke="#e2e6ec" stroke-width="1.5"/>
-      ${handLine}${centerDot}${circles}
-    </svg>
-    <div style="text-align:center;margin-top:8px;font-size:22px;font-weight:800;color:#0d1b2e;letter-spacing:1px">
-      ${state.hour}:${state.min}
-      <span onclick="_plySetAmpm('AM')" style="font-size:14px;font-weight:700;cursor:pointer;color:${state.ampm==='AM'?'#0d1b2e':'#9aacbf'}">AM</span>
-      <span style="color:#e2e6ec;margin:0 2px">/</span>
-      <span onclick="_plySetAmpm('PM')" style="font-size:14px;font-weight:700;cursor:pointer;color:${state.ampm==='PM'?'#0d1b2e':'#9aacbf'}">PM</span>
-    </div>
-    <div style="text-align:center;margin-top:4px;font-size:11px;font-weight:600;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px">
-      ${isHour?'Tap hour → then tap minutes':'Tap minutes'}
-    </div>`;
-}
-
-function _plyClockTap(val){
-  const state=window._plyModalState;
-  if(state.clockStep==='hour'){state.hour=parseInt(val);state.clockStep='minute';}
-  else{state.min=String(val).padStart(2,'0');state.clockStep='hour';}
-  const el=document.getElementById('_pm_time');
-  if(el) el.value=`${state.hour}:${state.min} ${state.ampm}`;
-  _plyRenderClock();_plyModalRefresh();
-}
-
-function _plySetAmpm(ap){
-  window._plyModalState.ampm=ap;
-  const el=document.getElementById('_pm_time');
-  if(el) el.value=`${window._plyModalState.hour}:${window._plyModalState.min} ${ap}`;
-  _plyRenderClock();_plyModalRefresh();
-}
-
-function _plySelectDiamond(id){
-  window._plyModalState.diamond=id;
-  _plyModalRefresh();
-}
-
-function _plyModalRefresh(){
-  const date=document.getElementById('_pm_date')?.value||'';
-  const time=document.getElementById('_pm_time')?.value?.trim()||'';
-  const state=window._plyModalState;
-  const existingPly=state?.existingPly||[];
-  const dmEl=document.getElementById('_pm_diamonds');
-  if(!dmEl) return;
-  const diamonds=G.diamonds.filter(d=>d.active);
-  const bookedDiamonds=new Set(existingPly.filter(g=>g.date===date&&g.time===time).map(g=>g.diamond));
-  const busyTeams=new Set(existingPly.filter(g=>g.date===date&&g.time===time).flatMap(g=>[g.home,g.away]));
-  const teamConflict=busyTeams.has(state.home)||busyTeams.has(state.away);
-  dmEl.innerHTML=diamonds.map(d=>{
-    const booked=bookedDiamonds.has(d.id);
-    const isSelected=state.diamond===d.id;
-    const bg=isSelected?'#0d1b2e':booked?'#fee2e2':'#f7f8fb';
-    const color=isSelected?'#fff':booked?'#b91c1c':'#0d1b2e';
-    const border=isSelected?'#0d1b2e':booked?'#fca5a5':'#e2e6ec';
-    return`<button type="button" ${booked?'disabled':''} onclick="_plySelectDiamond(${d.id})"
-      style="padding:5px 12px;border-radius:6px;border:1.5px solid ${border};background:${bg};font-size:12px;font-weight:600;color:${color};cursor:${booked?'not-allowed':'pointer'};font-family:sans-serif">
-      D${d.id}${d.lights?' 💡':' 🌙'}${booked?' ✗':''}</button>`;
-  }).join('');
-  const conflictEl=document.getElementById('_pm_conflicts');
-  if(conflictEl){
-    const msgs=[];
-    if(teamConflict){
-      const who=[state.home,state.away].filter(t=>busyTeams.has(t));
-      msgs.push(`⚠ ${who.join(' and ')} already ha${who.length>1?'ve':'s'} a game at this date and time.`);
-    }
-    if(msgs.length){conflictEl.style.display='block';conflictEl.innerHTML=msgs.join('<br>');}
-    else conflictEl.style.display='none';
-  }
-}
-
-function _plyModalSubmit(){
-  const{plyId,home,away}=window._plyModalState;
-  const date=document.getElementById('_pm_date')?.value;
-  const time=document.getElementById('_pm_time')?.value?.trim();
-  const dmId=window._plyModalState?.diamond;
-  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Please enter a valid date.');return;}
-  if(!time){alert('Please select a time.');return;}
-  if(!dmId){alert('Please select a diamond.');return;}
-  const dm=G.diamonds.find(d=>d.id===dmId);
-  const existingPly=G.sched.filter(g=>g.playoff&&g.plyId!==plyId);
-  const busyTeams=new Set(existingPly.filter(g=>g.date===date&&g.time===time).flatMap(g=>[g.home,g.away]));
-  const teamConflict=[home,away].filter(t=>busyTeams.has(t));
-  if(teamConflict.length){
-    if(!confirm(`⚠ ${teamConflict.join(' and ')} already ha${teamConflict.length>1?'ve':'s'} a game at this time.\n\nSchedule anyway?`)) return;
-  }
-  G.sched=G.sched.filter(g=>g.plyId!==plyId);
-  const yr=date.slice(2,4);
-  const maxSeq=G.sched.reduce((max,g)=>{if(!g.id.startsWith(yr))return max;return Math.max(max,parseInt(g.id.slice(2))||0);},0);
-  const newId=`${yr}${String(maxSeq+1).padStart(3,'0')}`;
-  G.sched.push({id:newId,date,time,diamond:dmId,lights:dm?.lights||false,home,away,bye:'',crossover:false,playoff:true,plyId});
-  G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||'')||(a.diamond-b.diamond));
-  document.getElementById('_ply_modal')?.remove();
-  saveData();renderPlayoffs();renderPlayoffsAdmin();renderSched();renderScores();
-  showToast(`📅 Playoff game scheduled — ${home} vs ${away}`);
-}
-
-function schedulePlayoffGame(plyId,home,away){
-  if(!checkAdmin()) return;
-  const existingPly=G.sched.filter(g=>g.playoff&&g.plyId!==plyId);
-  document.getElementById('_ply_modal')?.remove();
-  const modal=document.createElement('div');
-  modal.id='_ply_modal';
-  modal.style.cssText='position:fixed;inset:0;background:rgba(13,27,46,0.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px';
-  window._plyModalState={plyId,home,away,hour:6,min:'30',ampm:'PM',diamond:null,existingPly,clockStep:'hour'};
-  modal.innerHTML=`
-    <div style="background:#fff;border-radius:12px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.25);font-family:sans-serif;max-height:90vh;overflow-y:auto">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7d94;margin-bottom:4px">Schedule Playoff Game</div>
-      <div style="font-size:16px;font-weight:800;color:#0d1b2e;margin-bottom:18px">${esc(home)} <span style="color:#6b7d94;font-weight:400">vs</span> ${esc(away)}</div>
-      <div style="display:grid;gap:16px">
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Date</label>
-          <input type="date" id="_pm_date" value="2026-10-06" style="width:100%;font-size:13px;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:sans-serif;box-sizing:border-box;outline:none" oninput="_plyModalRefresh()"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Time</label>
-          <input type="text" id="_pm_time" placeholder="Tap clock to set time" readonly style="width:100%;font-size:15px;font-weight:700;padding:8px 12px;border:1.5px solid #e2e6ec;border-radius:8px;font-family:sans-serif;box-sizing:border-box;outline:none;text-align:center;cursor:default;color:#0d1b2e;background:#f7f8fb"/>
-          <div id="_pm_clock_face" style="margin-top:12px"></div>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#6b7d94;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px">Diamond</label>
-          <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-        </div>
-        <div id="_pm_conflicts" style="display:none;background:#fff3bf;border:1px solid #ffe066;border-radius:6px;padding:8px 12px;font-size:12px;color:#7c5c00"></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:20px">
-        <button type="button" onclick="_plyModalSubmit()" style="flex:1;padding:10px;background:#0d1b2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">✓ Confirm</button>
-        <button type="button" onclick="document.getElementById('_ply_modal').remove()" style="padding:10px 16px;background:none;border:1.5px solid #e2e6ec;border-radius:8px;font-size:13px;color:#6b7d94;cursor:pointer;font-family:sans-serif">Cancel</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
-  _plyRenderClock();_plyModalRefresh();
-}
-
-function removePlayoffSchedule(plyId){
-  if(!checkAdmin()) return;
-  G.sched=G.sched.filter(g=>g.plyId!==plyId);
-  saveData();renderPlayoffs();renderPlayoffsAdmin();renderSched();renderScores();
-  showToast('📅 Playoff game unscheduled');
-}
-
-function getPlayoffSchedEntry(plyId){
-  return G.sched.find(g=>g.plyId===plyId)||null;
-}
-
+// ── POD ROUND ROBIN STANDINGS ─────────────────────────────────────────────────
 function podRRStandings(teams,pfx){
   const stats={};
   for(const t of teams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
@@ -368,79 +102,74 @@ function podRRStandings(teams,pfx){
     h2h[g.away][g.home].pts+=awayPts;
     h2h[g.away][g.home].games.push({date:g.date,homePts:awayPts});
   }
-  function stableRand(a,b){return(a+b).split('').reduce((n,c)=>n+c.charCodeAt(0),0)%2===0;}
+  function stableRand(a,b){const s=a<b?a+b:b+a;let h=0;for(let i=0;i<s.length;i++){h=(Math.imul(31,h)+s.charCodeAt(i))|0;}return h%2===0;}
   function tiebreak(group){
-    if(group.length===1) return group[0];
-    const h2hPts={};
-    for(const t of group){h2hPts[t]=0;for(const u of group)if(u!==t)h2hPts[t]+=(h2h[t][u]?.pts||0);}
+    if(group.length===1)return group[0];
+    const h2hPts={};for(const t of group)h2hPts[t]=0;
+    for(const t of group)for(const u of group)if(t!==u)h2hPts[t]+=h2h[t][u]?.pts||0;
     const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
     const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
-    if(afterH2H.length===1) return afterH2H[0];
+    if(afterH2H.length===1)return afterH2H[0];
     const allGames=[];
-    for(let i=0;i<afterH2H.length;i++)
-      for(let j=i+1;j<afterH2H.length;j++){
-        const a=afterH2H[i],b=afterH2H[j];
-        for(const g of(h2h[a][b]?.games||[]))
-          allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
-      }
+    for(const t of afterH2H)for(const u of afterH2H)if(t!==u)for(const g of(h2h[t][u]?.games||[]))allGames.push({...g,winner:g.homePts===2?t:g.homePts===0?u:null});
     allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
+    for(const g of allGames)if(g.winner&&afterH2H.includes(g.winner))return g.winner;
     return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
   }
   const sorted=teams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
-  const ranked=[];
-  let i=0;
+  const ranked=[];let i=0;
   while(i<sorted.length){
     let j=i+1;
-    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
+    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts)j++;
     const group=sorted.slice(i,j);
-    if(group.length===1){ranked.push({team:group[0],...stats[group[0]]});}
+    if(group.length===1){ranked.push({team:group[0],tied:false});}
     else{
-      const rankGroup=(g)=>{
-        if(!g.length) return[];
-        const winner=tiebreak(g);
-        return[{team:winner,...stats[winner]},...rankGroup(g.filter(t=>t!==winner))];
-      };
-      ranked.push(...rankGroup(group));
+      const rankGroup=(g)=>{if(!g.length)return[];const winner=tiebreak(g);return[{team:winner,tied:g.length>1},...rankGroup(g.filter(t=>t!==winner))];};
+      ranked.push(...rankGroup(group).map((r,idx)=>({...r,tied:idx>0||group.length>1})));
     }
     i=j;
   }
-  return ranked.map((r,i)=>({...r,rank:i+1}));
+  return ranked.map((r,i)=>({...r,seed:i+1,...stats[r.team]}));
 }
 
-function scoreInput(idH,idA,valH,valA,onChange){
-  return `<td class="g-si"><input type="number" min="0" class="si" id="${idH}" value="${valH}" placeholder="–" onchange="${onChange}"/></td><td class="g-sep">–</td><td class="g-si"><input type="number" min="0" class="si" id="${idA}" value="${valA}" placeholder="–" onchange="${onChange}"/></td>`;
+// ── WINNER HELPER ─────────────────────────────────────────────────────────────
+function winnerOf(score,home,away){
+  if(!score) return null;
+  if(score.h>score.a) return home;
+  if(score.a>score.h) return away;
+  return null; // tie
 }
 
-function schedBtn(plyId,home,away){
-  const entry=getPlayoffSchedEntry(plyId);
-  const safeHome=(home||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  const safeAway=(away||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-  if(entry){
-    return `<td style="padding:4px 6px;white-space:nowrap">
-      <div style="display:inline-flex;align-items:center;gap:8px;background:#0d1b2e;border-radius:6px;padding:5px 10px">
-        <span style="font-size:12px">📅</span>
-        <div style="line-height:1.4">
-          <div style="font-size:12px;font-weight:700;color:#fff">${entry.date} · ${entry.time}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.6)">${getDiamondName(entry.diamond)}</div>
-        </div>
-        <button onclick="removePlayoffSchedule('${plyId}')" title="Remove" style="margin-left:2px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:4px;cursor:pointer;color:rgba(255,255,255,0.7);font-size:11px;padding:2px 6px;line-height:1">✕</button>
-      </div>
-    </td>`;
-  }
-  return `<td style="padding:4px 6px">
-    <button onclick="schedulePlayoffGame('${plyId}','${safeHome}','${safeAway}')" style="font-size:11px;padding:4px 10px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:5px;cursor:pointer;color:#0d1b2e;font-weight:600;white-space:nowrap;font-family:sans-serif">📅 Schedule</button>
-  </td>`;
+// ── CAP RUNS ─────────────────────────────────────────────────────────────────
+function capRuns(h,a){
+  const diff=Math.abs(h-a);
+  const cap=7;
+  if(h>a) return{ch:a+Math.min(diff,cap),ca:a};
+  if(a>h) return{ch:h,ca:h+Math.min(diff,cap)};
+  return{ch:h,ca:a};
 }
 
-function winnerOf(sc,home,away){
-  if(!sc) return null;
-  if(sc.h>sc.a) return home;
-  if(sc.a>sc.h) return away;
-  return null;
+// ── STANDINGS TABLE (shared by public + admin) ────────────────────────────────
+function _buildStandingsTable(standing,rrPlayed,rrTotal,isPodA,rrDone){
+  let h=`<div style="font-size:11px;color:var(--muted);margin-bottom:10px">${rrPlayed}/${rrTotal} round robin games played</div>`;
+  h+=`<table class="st" style="margin-bottom:12px"><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>RF</th><th>RA</th><th>Diff</th></tr></thead><tbody>`;
+  h+=standing.map((s,i)=>{
+    const diff=s.rf-s.ra;
+    const elim=isPodA&&i===4&&rrDone;
+    return`<tr style="${elim?'opacity:0.45;text-decoration:line-through':''}${i===0?';background:#f0f9ff':''}">
+      <td class="rank">${i+1}</td>
+      <td style="font-weight:600">${esc(s.team)}</td>
+      <td class="rec">${s.w}-${s.l}${s.tie?'-'+s.tie:''}</td>
+      <td class="mono" style="font-weight:700;color:var(--navy)">${s.pts}</td>
+      <td class="mono">${s.rf}</td><td class="mono">${s.ra}</td>
+      <td class="mono">${(diff>0?'+':'')+diff}</td>
+    </tr>`;
+  }).join('');
+  h+=`</tbody></table>`;
+  return h;
 }
 
-// ── SHARED HELPERS ────────────────────────────────────────────────────────────
+// ── BRACKET TEAM CHIP (admin view) ───────────────────────────────────────────
 function _bracketTeam(team,score,isWinner,isEmpty){
   const bg=isWinner?'#0d1b2e':isEmpty?'#f7f8fb':'#fff';
   const color=isWinner?'#fff':isEmpty?'#9aacbf':'#0d1b2e';
@@ -451,6 +180,7 @@ function _bracketTeam(team,score,isWinner,isEmpty){
   </div>`;
 }
 
+// ── BRACKET GAME CARD (admin view) ───────────────────────────────────────────
 function _bracketGame(label,g,podKey,key,plyId,inputIdH,inputIdA,onChange){
   const w=winnerOf(g.score,g.home,g.away);
   const entry=getPlayoffSchedEntry(plyId);
@@ -477,23 +207,23 @@ function _bracketGame(label,g,podKey,key,plyId,inputIdH,inputIdA,onChange){
   </div>`;
 }
 
-function _buildStandingsTable(standing,rrPlayed,rrTotal,isPodA,rrDone){
-  let h=`<div style="font-size:11px;color:var(--muted);margin-bottom:10px">${rrPlayed}/${rrTotal} round robin games played</div>`;
-  h+=`<table class="st" style="margin-bottom:12px"><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>RF</th><th>RA</th><th>Diff</th></tr></thead><tbody>`;
-  h+=standing.map((s,i)=>{
-    const diff=s.rf-s.ra;
-    const elim=isPodA&&i===4&&rrDone;
-    return`<tr style="${elim?'opacity:0.45;text-decoration:line-through':''}${i===0?';background:#f0f9ff':''}">
-      <td class="rank">${i+1}</td>
-      <td style="font-weight:600">${esc(s.team)}</td>
-      <td class="rec">${s.w}-${s.l}${s.tie?'-'+s.tie:''}</td>
-      <td class="mono" style="font-weight:700;color:var(--navy)">${s.pts}</td>
-      <td class="mono">${s.rf}</td><td class="mono">${s.ra}</td>
-      <td class="mono">${(diff>0?'+':'')+diff}</td>
-    </tr>`;
-  }).join('');
-  h+=`</tbody></table>`;
-  return h;
+// ── SCORE INPUT CELL (admin tables) ──────────────────────────────────────────
+function scoreInput(idH,idA,valH,valA,onChange){
+  return`<td class="g-si"><input type="number" min="0" class="si" id="${idH}" value="${valH}" placeholder="–" onchange="${onChange}" style="width:42px;text-align:center"/></td>
+    <td class="g-si"><span style="color:var(--muted);font-size:11px">–</span></td>
+    <td class="g-si"><input type="number" min="0" class="si" id="${idA}" value="${valA}" placeholder="–" onchange="${onChange}" style="width:42px;text-align:center"/></td>`;
+}
+
+// ── SCHEDULE BUTTON (admin tables) ───────────────────────────────────────────
+function schedBtn(plyId,home,away){
+  const sh=(home||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const sa=(away||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return`<td class="g-sc" style="width:28px"><button onclick="schedulePlayoffGame('${plyId}','${sh}','${sa}')" style="font-size:11px;padding:2px 6px;background:#f7f8fb;border:1.5px solid #cdd3dd;border-radius:4px;cursor:pointer;color:#0d1b2e;font-weight:600;white-space:nowrap;font-family:sans-serif">📅</button></td>`;
+}
+
+// ── GET PLAYOFF SCHED ENTRY ───────────────────────────────────────────────────
+function getPlayoffSchedEntry(plyId){
+  return G.sched.find(g=>g.plyId===plyId)||null;
 }
 
 // ── PUBLIC READ-ONLY POD ──────────────────────────────────────────────────────
@@ -512,94 +242,92 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
   const semi2winner=winnerOf(sm2.score,sm2.home,sm2.away);
   const champion=winnerOf(fin.score,fin.home,fin.away);
 
+  // ── Unified row renderer — 5 fixed columns, all game rows identical ────────
+  // col 1: game id badge (70px)  col 2: home (right-align)  col 3: score center
+  // col 4: away (left-align)     col 5: result tick (20px)
+  function pubGameRow(id,home,away,score,label){
+    const w=winnerOf(score,home,away);
+    const hmW=w===home,awW=w===away;
+    const scHtml=score
+      ?`<span style="font-family:var(--mono);font-size:13px;font-weight:800;color:${hmW?'var(--navy)':awW?'var(--muted)':'var(--text)'}">${score.h}</span><span style="color:var(--muted);margin:0 5px;font-size:12px">–</span><span style="font-family:var(--mono);font-size:13px;font-weight:800;color:${awW?'var(--navy)':hmW?'var(--muted)':'var(--text)'}">${score.a}</span>`
+      :`<span style="color:var(--muted);font-size:12px;font-weight:500">vs</span>`;
+    const entry=id?getPlayoffSchedEntry(id):null;
+    const schedNote=!score&&entry?`<span style="font-size:10px;color:var(--muted);margin-left:4px">📅 ${entry.date}</span>`:'';
+    return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:9px 8px 9px 0;width:72px;white-space:nowrap;vertical-align:middle">
+        <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:3px;white-space:nowrap">${esc(label||id||'')}</span>
+      </td>
+      <td style="padding:9px 8px;text-align:right;font-size:13px;font-weight:${hmW?'800':'500'};color:${hmW?'var(--navy)':'var(--text2)'};vertical-align:middle">${esc(home||'TBD')}</td>
+      <td style="padding:9px 6px;text-align:center;white-space:nowrap;vertical-align:middle">${scHtml}${schedNote}</td>
+      <td style="padding:9px 8px;text-align:left;font-size:13px;font-weight:${awW?'800':'500'};color:${awW?'var(--navy)':'var(--text2)'};vertical-align:middle">${esc(away||'TBD')}</td>
+      <td style="padding:9px 0 9px 4px;width:20px;text-align:center;font-size:12px;color:var(--green);vertical-align:middle">${w?'✓':score?'≡':''}</td>
+    </tr>`;
+  }
+
+  // ── Final row — navy background treatment ─────────────────────────────────
+  function finalRow(home,away,score){
+    const w=winnerOf(score,home,away);
+    const hmW=w===home,awW=w===away;
+    const scHtml=score
+      ?`<span style="font-family:var(--mono);font-size:14px;font-weight:800;color:${hmW?'#fff':'rgba(255,255,255,0.55)'}">${score.h}</span><span style="color:rgba(255,255,255,0.35);margin:0 5px">–</span><span style="font-family:var(--mono);font-size:14px;font-weight:800;color:${awW?'#fff':'rgba(255,255,255,0.55)'}">${score.a}</span>`
+      :`<span style="color:rgba(255,255,255,0.45);font-size:12px">vs</span>`;
+    const entry=getPlayoffSchedEntry(podKey+'_final');
+    const schedNote=!score&&entry?`<span style="font-size:10px;color:rgba(255,255,255,0.4);margin-left:4px">📅 ${entry.date}</span>`:'';
+    return`<tr style="background:var(--navy)">
+      <td style="padding:11px 8px 11px 0;width:72px;vertical-align:middle">
+        <span style="font-family:var(--mono);font-size:10px;font-weight:800;color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.12);padding:2px 6px;border-radius:3px">FINAL</span>
+      </td>
+      <td style="padding:11px 8px;text-align:right;font-size:14px;font-weight:${hmW?'800':'600'};color:${hmW?'#fff':'rgba(255,255,255,0.6)'};vertical-align:middle">${esc(home||'TBD')}</td>
+      <td style="padding:11px 6px;text-align:center;white-space:nowrap;vertical-align:middle">${scHtml}${schedNote}</td>
+      <td style="padding:11px 8px;text-align:left;font-size:14px;font-weight:${awW?'800':'600'};color:${awW?'#fff':'rgba(255,255,255,0.6)'};vertical-align:middle">${esc(away||'TBD')}</td>
+      <td style="padding:11px 0 11px 4px;width:20px;text-align:center;font-size:14px;vertical-align:middle">${w?'🏆':''}</td>
+    </tr>`;
+  }
+
   let h=`<div class="card"><div class="card-title">${esc(podLabel)}</div>`;
   h+=_buildStandingsTable(standing,rrPlayed,rrTotal,isPodA,rrDone);
 
-  h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Round Robin Results</div>`;
-  h+=`<table class="gt" style="margin-bottom:12px">`;
+  // ── Round robin results ───────────────────────────────────────────────────
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Round Robin Results</div>`;
+  h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">`;
   for(const g of games){
-    const sc=g.score;
-    const winner=winnerOf(sc,g.home,g.away);
     const entry=getPlayoffSchedEntry(g.id);
-    h+=`<tr class="${sc?'':'empty-slot'}">
-      <td class="g-num"><span class="gnum">${g.id}</span></td>
-      <td class="g-home" style="font-weight:600${winner===g.home?';color:var(--navy)':''}">${esc(g.home)}</td>
-      <td class="g-vs">vs</td>
-      <td class="g-away" style="font-weight:600${winner===g.away?';color:var(--navy)':''}">${esc(g.away)}</td>
-      <td class="g-sc" colspan="3" style="color:var(--text2)">${sc?`${sc.h}–${sc.a}${winner?' · ✓ '+esc(winner):''}`:entry?`📅 ${entry.date} · ${entry.time}`:'—'}</td>
-    </tr>`;
+    h+=pubGameRow(g.id,g.home,g.away,g.score,g.id);
   }
   h+=`</table>`;
 
-  h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Elimination Bracket</div>`;
+  // ── Elimination bracket ───────────────────────────────────────────────────
+  h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Elimination Bracket</div>`;
+
   if(!rrDone){
     h+=`<div class="notice">Round robin in progress — ${rrPlayed}/${rrTotal} games complete.</div>`;
   } else {
     if(isPodA){
-      h+=`<div class="notice" style="background:#fff0f0;border-color:var(--red)">⛔ ${esc(standing[4]?.team||'5th')} eliminated after round robin.</div>`;
-      [[sm1,'Semi 1 · 1 vs 4',podKey+'_s1'],[sm2,'Semi 2 · 2 vs 3',podKey+'_s2']].forEach(([g,label,pid])=>{
-        const w=winnerOf(g.score,g.home,g.away);
-        const entry=getPlayoffSchedEntry(pid);
-        h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:${g.score?'#f0f9ff':'var(--surface)'}">
-          <span style="font-size:11px;font-weight:700;color:var(--muted);min-width:80px">${label}</span>
-          <span style="font-weight:${w===g.home?'800':'600'};color:${w===g.home?'var(--navy)':'var(--text)'}">${esc(g.home||'TBD')}</span>
-          <span style="font-family:var(--mono);font-size:13px;color:var(--muted);margin:0 8px">${g.score?`${g.score.h} – ${g.score.a}`:'vs'}</span>
-          <span style="font-weight:${w===g.away?'800':'600'};color:${w===g.away?'var(--navy)':'var(--text)'}">${esc(g.away||'TBD')}</span>
-          ${entry&&!g.score?`<span style="font-size:11px;color:var(--muted);margin-left:8px">📅 ${entry.date}</span>`:''}
-        </div>`;
-      });
-      if(fin.home){
-        const entry=getPlayoffSchedEntry(podKey+'_final');
-        h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:2px solid var(--navy);border-radius:6px;margin-bottom:6px;background:var(--surface)">
-          <span style="font-size:11px;font-weight:800;color:var(--navy);min-width:80px">FINAL</span>
-          <span style="font-weight:${champion===fin.home?'800':'600'};color:${champion===fin.home?'var(--navy)':'var(--text)'}">${esc(fin.home)}</span>
-          <span style="font-family:var(--mono);font-size:14px;font-weight:800;color:var(--navy);margin:0 8px">${fin.score?`${fin.score.h} – ${fin.score.a}`:'vs'}</span>
-          <span style="font-weight:${champion===fin.away?'800':'600'};color:${champion===fin.away?'var(--navy)':'var(--text)'}">${esc(fin.away)}</span>
-          ${entry&&!fin.score?`<span style="font-size:11px;color:var(--muted);margin-left:8px">📅 ${entry.date}</span>`:''}
-        </div>`;
-      } else {
-        h+=`<div class="notice">Complete both semi-finals to determine finalists.</div>`;
-      }
-    } else {
-      // POD B read-only bracket
-      const finGame={home:fin.home||(semi1winner||'TBD'),away:fin.away||(semi2winner||'TBD'),score:fin.score};
-      const connector=`<svg width="48" height="200" viewBox="0 0 48 200" style="flex-shrink:0">
-        <path d="M0 50 H24 V150 H0" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
-        <path d="M24 100 H48" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
-      </svg>`;
-      function roGame(label,g,pid){
-        const w=winnerOf(g.score,g.home,g.away);
-        const entry=getPlayoffSchedEntry(pid);
-        return`<div style="display:flex;flex-direction:column;gap:3px;min-width:160px">
-          <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#9aacbf;text-align:center;margin-bottom:2px">${label}</div>
-          ${_bracketTeam(g.home,g.score?g.score.h:'',w===g.home,!g.home)}
-          <div style="text-align:center;font-size:12px;color:var(--muted);padding:2px 0">${g.score?`${g.score.h} – ${g.score.a}`:'vs'}</div>
-          ${_bracketTeam(g.away,g.score?g.score.a:'',w===g.away,!g.away)}
-          ${entry?`<div style="font-size:10px;color:#6b7d94;text-align:center;margin-top:4px">📅 ${entry.date} · ${entry.time} · ${getDiamondName(entry.diamond)}</div>`:''}
-        </div>`;
-      }
-      h+=`<div style="overflow-x:auto;padding-bottom:8px"><div style="display:inline-flex;align-items:center;gap:0;min-width:420px">
-        <div style="display:flex;flex-direction:column;gap:24px">
-          ${roGame('Semi-Final 1 · 1 vs 4',sm1,podKey+'_s1')}
-          ${roGame('Semi-Final 2 · 2 vs 3',sm2,podKey+'_s2')}
-        </div>
-        ${connector}
-        <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-          ${roGame(`${podLabel} Final`,finGame,podKey+'_final')}
-          ${champion?`<div style="margin-top:4px;padding:10px 16px;background:linear-gradient(135deg,#0d1b2e,#1e3057);border-radius:8px;color:#fff;text-align:center;min-width:160px">
-            <div style="font-size:10px;opacity:0.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Champion</div>
-            <div style="font-size:18px;font-weight:800">🏆 ${esc(champion)}</div>
-          </div>`:''}
-        </div>
-      </div></div>`;
+      h+=`<div class="notice" style="background:#fff0f0;border-color:var(--red);margin-bottom:10px">⛔ ${esc(standing[4]?.team||'5th')} eliminated after round robin.</div>`;
     }
-    if(champion){
-      h+=`<div style="padding:14px 16px;background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);color:#fff;text-align:center;margin-top:12px">
-        <div style="font-size:11px;font-weight:600;opacity:0.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">${podLabel} Champion</div>
-        <div style="font-size:24px;font-weight:800">🏆 ${esc(champion)}</div>
-      </div>`;
+
+    h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Semi-Finals</div>`;
+    h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:10px">`;
+    h+=pubGameRow(podKey+'_s1',sm1.home,sm1.away,sm1.score,'Semi 1 · 1v4');
+    h+=pubGameRow(podKey+'_s2',sm2.home,sm2.away,sm2.score,'Semi 2 · 2v3');
+    h+=`</table>`;
+
+    h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Final</div>`;
+    if(!semi1winner||!semi2winner){
+      h+=`<div class="notice">Complete both semi-finals to unlock the Final.</div>`;
+    } else {
+      h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:10px;border-radius:8px;overflow:hidden">`;
+      h+=finalRow(fin.home||semi1winner,fin.away||semi2winner,fin.score);
+      h+=`</table>`;
+      if(champion){
+        h+=`<div style="padding:14px 16px;background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);color:#fff;text-align:center;margin-top:8px">
+          <div style="font-size:10px;font-weight:600;opacity:0.55;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">${podLabel} Champion</div>
+          <div style="font-size:22px;font-weight:800">🏆 ${esc(champion)}</div>
+        </div>`;
+      }
     }
   }
+
   h+=`</div>`;
   return h;
 }
@@ -695,6 +423,7 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
       }
     }
   } else {
+    // POD B bracket (no elimination notice)
     const finGame={home:fin.home||(semi1winner||'TBD'),away:fin.away||(semi2winner||'TBD'),score:fin.score};
     const connector=`<svg width="48" height="240" viewBox="0 0 48 240" style="flex-shrink:0">
       <path d="M0 60 H24 V180 H0" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
@@ -715,6 +444,12 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
       </div>
     </div></div>`;
   }
+  if(champion){
+    h+=`<div style="padding:14px 16px;background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);color:#fff;text-align:center;margin-top:12px">
+      <div style="font-size:11px;font-weight:600;opacity:0.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">${podLabel} Champion</div>
+      <div style="font-size:24px;font-weight:800">🏆 ${esc(champion)}</div>
+    </div>`;
+  }
   h+=`</div>`;
   return h;
 }
@@ -729,16 +464,16 @@ function renderPlayoffs(){
     el.innerHTML=`
       <div class="card">
         <div class="card-title">Playoffs</div>
-        <div class="notice">Playoffs have not been seeded yet. Standings will determine seeding once the regular season is complete.</div>
+        <div class="notice">Playoffs have not been seeded yet. Make sure all regular season scores are entered first.</div>
         ${ranked.length>=9?`
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
           <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD A — Top 5</div>
-            ${ranked.slice(0,5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">${r.pts}pts</span></div>`;}).join('')}
+            ${ranked.slice(0,5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
           </div>
           <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
             <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD B — Bottom 4</div>
-            ${ranked.slice(5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">${r.pts}pts</span></div>`;}).join('')}
+            ${ranked.slice(5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
           </div>
         </div>`:''}
       </div>
@@ -807,4 +542,196 @@ function renderPlayoffsAdmin(){
   html+=renderPodAdmin('POD A — Top 5','PA','podA',p.podA);
   html+=renderPodAdmin('POD B — Bottom 4','PB','podB',p.podB);
   el.innerHTML=html;
+}
+
+// ── SEED PLAYOFFS ─────────────────────────────────────────────────────────────
+function seedPlayoffs(){
+  if(!checkAdmin()) return;
+  const ranked=getRegularSeasonRanking();
+  if(ranked.length<4){alert('Need at least 4 league teams to seed playoffs.');return;}
+  const podA=ranked.slice(0,5).map(r=>r.team);
+  const podB=ranked.slice(5).map(r=>r.team);
+  function recStr(r){const t=r.tie?`-${r.tie}`:'';return `(${r.w}-${r.l}${t}) ${r.pts}pts`;}
+  const msg=`Seed playoffs from current standings?\n\nPOD A (Top 5):\n${ranked.slice(0,5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}\n\nPOD B (Bottom ${podB.length}):\n${ranked.slice(5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}\n\nThis will reset any existing playoff data.`;
+  if(!confirm(msg)) return;
+  function rrGames(teams,pfx){
+    const games={};let n=1;
+    for(let i=0;i<teams.length;i++)
+      for(let j=i+1;j<teams.length;j++){
+        const id=`${pfx}RR${String(n).padStart(2,'0')}`;
+        games[id]={id,phase:'rr',home:teams[i],away:teams[j],score:null};n++;
+      }
+    return games;
+  }
+  G.playoffs={
+    seeded:true,podA,podB,
+    games:{...rrGames(podA,'PA'),...rrGames(podB,'PB')},
+    semis:{podA:{},podB:{}},
+    finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}
+  };
+  saveData();renderPlayoffs();renderPlayoffsAdmin();showToast('🏆 Playoffs seeded!');
+}
+
+function resetPlayoffs(){
+  if(!checkAdmin()) return;
+  if(!confirm('Reset all playoff data? This cannot be undone.')) return;
+  G.playoffs={seeded:false,podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
+  saveData();renderPlayoffs();renderPlayoffsAdmin();showToast('Playoffs reset');
+}
+
+function _clampScore(val){
+  const n=parseInt(val);
+  return isNaN(n)?null:Math.max(0,n);
+}
+
+function savePlayoffScore(gameId){
+  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
+  const hEl=document.getElementById('ph_'+gameId);
+  const aEl=document.getElementById('pa_'+gameId);
+  const hRaw=hEl?.value;
+  const aRaw=aEl?.value;
+  const g=G.playoffs.games[gameId];
+  if(!g) return;
+  if(hRaw===''&&aRaw===''){g.score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
+  const h=_clampScore(hRaw??'');
+  const a=_clampScore(aRaw??'');
+  if(h===null||a===null) return;
+  g.score={h,a};
+  saveData();renderPlayoffs();renderPlayoffsAdmin();
+}
+
+function saveSemiScore(pod,key){
+  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
+  const hEl=document.getElementById(`psh_${pod}_${key}`);
+  const aEl=document.getElementById(`psa_${pod}_${key}`);
+  const hRaw=hEl?.value;
+  const aRaw=aEl?.value;
+  if(!G.playoffs.semis[pod][key]) G.playoffs.semis[pod][key]={home:null,away:null,score:null};
+  if(hRaw===''&&aRaw===''){G.playoffs.semis[pod][key].score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
+  const h=_clampScore(hRaw??'');
+  const a=_clampScore(aRaw??'');
+  if(h===null||a===null) return;
+  G.playoffs.semis[pod][key].score={h,a};
+  saveData();renderPlayoffs();renderPlayoffsAdmin();
+}
+
+function saveFinalScore(pod){
+  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
+  const hEl=document.getElementById('pfh_'+pod);
+  const aEl=document.getElementById('pfa_'+pod);
+  const hRaw=hEl?.value;
+  const aRaw=aEl?.value;
+  if(hRaw===''&&aRaw===''){G.playoffs.finals[pod].score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
+  const h=_clampScore(hRaw??'');
+  const a=_clampScore(aRaw??'');
+  if(h===null||a===null) return;
+  G.playoffs.finals[pod].score={h,a};
+  saveData();renderPlayoffs();renderPlayoffsAdmin();
+}
+
+// ── SCHEDULE A PLAYOFF GAME (modal) ──────────────────────────────────────────
+function schedulePlayoffGame(plyId,home,away){
+  if(!checkAdmin()) return;
+  const existingPly=G.sched.filter(g=>g.playoff);
+  if(document.getElementById('_ply_modal')) document.getElementById('_ply_modal').remove();
+  window._plyModalState={plyId,home,away,diamond:null,hour:6,min:'30',ampm:'PM',clockStep:'hour',existingPly};
+  const modal=document.createElement('div');
+  modal.id='_ply_modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML=`<div style="background:#fff;border-radius:12px;padding:20px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto">
+    <div style="font-size:15px;font-weight:800;color:#0d1b2e;margin-bottom:4px">📅 Schedule Playoff Game</div>
+    <div style="font-size:12px;color:#6b7d94;margin-bottom:16px">${esc(home)} vs ${esc(away)}</div>
+    <div style="display:grid;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Date</div>
+        <input type="date" id="_pm_date" style="width:100%;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-size:14px;font-family:sans-serif"/>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Time</div>
+        <input type="text" id="_pm_time" placeholder="6:30 PM" value="6:30 PM" style="width:100%;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-size:14px;font-family:sans-serif"/>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Diamond</div>
+        <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div id="_pm_conflicts" style="font-size:12px;color:#e03131"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="confirmSchedulePlayoffGame()" style="padding:10px 20px;background:#0d1b2e;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:sans-serif">✓ Schedule</button>
+      <button onclick="document.getElementById('_ply_modal').remove()" style="padding:10px 16px;background:none;border:1.5px solid #e2e6ec;border-radius:8px;font-size:13px;color:#6b7d94;cursor:pointer;font-family:sans-serif">Cancel</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  _plyModalRefresh();
+}
+
+function _plyModalRefresh(){
+  const date=document.getElementById('_pm_date')?.value||'';
+  const time=document.getElementById('_pm_time')?.value?.trim()||'';
+  const state=window._plyModalState;
+  const existingPly=state?.existingPly||[];
+  const dmEl=document.getElementById('_pm_diamonds');
+  if(!dmEl) return;
+  const diamonds=G.diamonds.filter(d=>d.active);
+  const bookedDiamonds=new Set(existingPly.filter(g=>g.date===date&&g.time===time).map(g=>g.diamond));
+  const busyTeams=new Set(existingPly.filter(g=>g.date===date&&g.time===time).flatMap(g=>[g.home,g.away]));
+  const teamConflict=busyTeams.has(state.home)||busyTeams.has(state.away);
+  dmEl.innerHTML=diamonds.map(d=>{
+    const booked=bookedDiamonds.has(d.id);
+    const isSelected=state.diamond===d.id;
+    const bg=isSelected?'#0d1b2e':booked?'#fee2e2':'#f7f8fb';
+    const color=isSelected?'#fff':booked?'#b91c1c':'#0d1b2e';
+    const border=isSelected?'#0d1b2e':booked?'#fca5a5':'#e2e6ec';
+    return`<button type="button" ${booked?'disabled':''} onclick="_plySelectDiamond(${d.id})"
+      style="padding:5px 12px;border-radius:6px;border:1.5px solid ${border};background:${bg};font-size:12px;font-weight:600;color:${color};cursor:${booked?'not-allowed':'pointer'};font-family:sans-serif">
+      D${d.id}${d.lights?' 💡':' 🌙'}${booked?' ✗':''}</button>`;
+  }).join('');
+  const conflictEl=document.getElementById('_pm_conflicts');
+  if(conflictEl){
+    const msgs=[];
+    if(teamConflict){
+      const who=[state.home,state.away].filter(t=>busyTeams.has(t));
+      msgs.push(`⚠ ${who.join(' and ')} already ha${who.length>1?'ve':'s'} a game at this time`);
+    }
+    conflictEl.textContent=msgs.join(' · ');
+  }
+}
+
+function _plySelectDiamond(id){
+  window._plyModalState.diamond=id;
+  _plyModalRefresh();
+}
+
+function confirmSchedulePlayoffGame(){
+  const state=window._plyModalState;
+  const date=document.getElementById('_pm_date')?.value;
+  const time=document.getElementById('_pm_time')?.value?.trim();
+  if(!date){alert('Please select a date.');return;}
+  if(!time){alert('Please enter a time.');return;}
+  if(!state.diamond){alert('Please select a diamond.');return;}
+  const dm=G.diamonds.find(d=>d.id===state.diamond);
+  const yr=date.slice(2,4);
+  const existing=G.sched.filter(g=>g.id.startsWith(yr));
+  const maxSeq=existing.reduce((m,g)=>{const n=parseInt(g.id.slice(2));return n>m?n:m;},0);
+  const newId=`${yr}${String(maxSeq+1).padStart(3,'0')}`;
+  const newGame={
+    id:newId,date,time,
+    diamond:state.diamond,lights:dm?.lights||false,
+    home:state.home,away:state.away,
+    bye:'',crossover:false,playoff:true,
+    plyId:state.plyId
+  };
+  G.sched.push(newGame);
+  G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  document.getElementById('_ply_modal')?.remove();
+  saveData();renderPlayoffs();renderPlayoffsAdmin();renderSched();renderScores();
+  showToast(`📅 Playoff game scheduled — ${state.home} vs ${state.away} · ${date}`);
+}
+
+function removePlayoffSchedule(plyId){
+  if(!checkAdmin()) return;
+  G.sched=G.sched.filter(g=>g.plyId!==plyId);
+  saveData();renderPlayoffs();renderPlayoffsAdmin();renderSched();renderScores();
+  showToast('📅 Playoff game unscheduled');
 }
