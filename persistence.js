@@ -198,6 +198,9 @@ document.addEventListener('DOMContentLoaded',async function(){
   const activeTab=window._activeTab||'schedule';
   try{_renderActiveTab(activeTab);}catch(e){}
 
+  // Fetch and display current weather for Turner Park, Hamilton ON
+  try{initHeaderWeather();}catch(e){}
+
   if(restored&&G.sched.length){
     setTimeout(()=>showToast(`✓ Loaded — ${G.sched.length} games · ${Object.keys(G.scores).length} scores`),200);
   }
