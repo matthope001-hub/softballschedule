@@ -7,7 +7,7 @@ function genSched(){
   const T2=document.getElementById('time2')?.value||'8:15 PM';
   const tfaced=parseInt(document.getElementById('tfaced')?.value)||2;
   const cobyes=Math.max(0,parseInt(document.getElementById('cobyes')?.value)||0);
-  const gptInput=parseInt(document.getElementById('gpt')?.value)||null; // league teams cap only
+  const gptInput=parseInt(document.getElementById('gpt')?.value)||null;
 
   if(!ss||!se){alert('Set season start and end dates first.');return;}
   const days=getSelectedDays();
@@ -29,7 +29,6 @@ function genSched(){
   for(const t of leagueTeams) teamGames[t]=0;
 
   const gamesLeft=(t)=>gptInput!=null?Math.max(0,gptInput-(teamGames[t]||0)):999;
-  const teamAtCap=(t)=>gptInput!=null&&(teamGames[t]||0)>=gptInput;
 
   // ── CrossOver bye nights: evenly distributed ─────────────────────────────
   const coByeSet=new Set();
@@ -45,9 +44,6 @@ function genSched(){
   }
 
   // ── Cap-driven pair pool ──────────────────────────────────────────────────
-  // Initial pool: tfaced rounds of all unique pairs, shuffled.
-  // findPair() also generates on-demand extra-round pairs when pool is exhausted
-  // so every team can reach gptInput exactly.
   function freshPool(){
     const pool=[];
     for(let i=0;i<leagueTeams.length;i++)
@@ -57,16 +53,12 @@ function genSched(){
     return shuffle(pool);
   }
 
-  // Find and remove the best pair from pool for a slot needing `needed` games each.
-  // Falls back to an on-demand extra-round pair when pool is empty.
   function findPair(pool,busy,needed){
     const idx=pool.findIndex(([t1,t2])=>{
       if(busy.has(t1)||busy.has(t2)) return false;
       return gamesLeft(t1)>=needed&&gamesLeft(t2)>=needed;
     });
     if(idx!==-1) return pool.splice(idx,1)[0];
-
-    // Pool exhausted — try extra-round pair on demand (only when GPT set)
     if(gptInput==null) return null;
     const eligible=shuffle(leagueTeams.filter(t=>gamesLeft(t)>=needed&&!busy.has(t)));
     for(let i=0;i<eligible.length;i++)
@@ -77,14 +69,12 @@ function genSched(){
 
   let pool=freshPool();
 
-  // hcMap: home-game count per team, used to balance H/A assignment
   const hcMap={};
   for(const t of G.teams) hcMap[t]=0;
 
   const sched=[];
   const gameSeq={};
 
-  // FIX: use leagueTeams length for modulo safety; coIdx always kept in-bounds
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
@@ -95,14 +85,15 @@ function genSched(){
 
     const busy=new Set();
 
-    // ── D9: CrossOver DH (+2 games for league opponent) ──────────────────────
+    // ── D9: CrossOver DH ─────────────────────────────────────────────────────
+    // RULE: League team is HOME for game 1; CrossOver is VISITING (away).
+    //       CrossOver is HOME for game 2 (the return match).
     if(d9&&!coByeSet.has(ni)){
       let opp=null;
       for(let attempt=0;attempt<coOpponents.length;attempt++){
         const c=coOpponents[(coIdx+attempt)%coOpponents.length];
         if(gamesLeft(c)>=2&&!busy.has(c)){
           opp=c;
-          // FIX: always apply modulo to prevent unbounded growth
           coIdx=(coIdx+attempt+1)%coOpponents.length;
           break;
         }
@@ -111,9 +102,11 @@ function genSched(){
         busy.add(opp);
         teamGames[opp]=(teamGames[opp]||0)+2;
         gameSeq[yr]++;
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:9,lights:true,home:CROSSOVER,away:opp,bye:'',crossover:true});
+        // Game 1 — league team HOME, CrossOver AWAY (visiting)
+        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:9,lights:true,home:opp,away:CROSSOVER,bye:'',crossover:true});
         gameSeq[yr]++;
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:9,lights:true,home:opp,away:CROSSOVER,bye:'',crossover:true});
+        // Game 2 — CrossOver HOME, league team AWAY
+        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:9,lights:true,home:CROSSOVER,away:opp,bye:'',crossover:true});
       }
     }
 
@@ -137,8 +130,7 @@ function genSched(){
         continue;
       }
 
-      // Attempt 2: single fallback — one pair needs exactly 1 game each.
-      // 6:30 gets a real game; 8:15 becomes an open slot.
+      // Attempt 2: single fallback — 6:30 gets a real game; 8:15 becomes open slot
       const sPair=findPair(pool,busy,1);
       if(sPair){
         const [t1,t2]=sPair;
@@ -149,7 +141,6 @@ function genSched(){
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:h,away:a,bye:'',crossover:false});
         hcMap[h]=(hcMap[h]||0)+1;
-        // FIX: do NOT increment hcMap[a] here — the 8:15 slot is open, not a real game for `a`
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
         continue;
@@ -205,7 +196,7 @@ function genSched(){
   const violations=Object.entries(nightCount).filter(([,c])=>c>2);
   if(violations.length){
     console.error('Validation failed — >2 games/night:',violations);
-    alert(`⚠ Schedule error: ${violations.length} team/night(s) exceed 2 games. Please regenerate.`);
+    alert(`⚠ Schedule error: ${violations.length} team/night(s) exceed 2 games. Check console. Please regenerate.`);
     return;
   }
 
@@ -218,22 +209,20 @@ function genSched(){
     finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}
   };
   saveData();
-  renderSched();renderScores();renderStandings();renderStats();renderEdit();
-
+  renderSched();
+  renderScores();
+  renderStandings();
+  renderStats();
+  renderEdit();
   const byeNote=cobyes>0?` · CrossOver plays ${coNights}/${nights.length} nights`:'';
-  const actualMin=Math.min(...leagueTeams.map(t=>teamGames[t]||0));
-  const actualMax=Math.max(...leagueTeams.map(t=>teamGames[t]||0));
-  const rangeNote=actualMin===actualMax?`all teams: ${actualMin} games`:`range: ${actualMin}–${actualMax} games`;
-  showToast(`✓ Schedule generated — ${sched.length} games · ${rangeNote}${byeNote}`);
+  const gptNote=gptInput?` · League teams capped at ${gptInput} games`:'';
+  showToast(`✓ Schedule generated — ${sched.length} games across ${nights.length} nights${byeNote}${gptNote}`);
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-// 3-arg pickHA: hcMap passed explicitly — no global dependency
-function pickHA(t1,t2,hcMap){
-  const h1=hcMap[t1]||0,h2=hcMap[t2]||0;
+function pickHA(t1,t2,hc){
+  const h1=hc[t1]||0,h2=hc[t2]||0;
   if(h1<h2) return[t1,t2];
   if(h2<h1) return[t2,t1];
   return Math.random()<0.5?[t1,t2]:[t2,t1];
 }
-
-function generateSchedule(){ if(typeof checkAdmin==='function'&&!checkAdmin())return; genSched(); }
