@@ -100,6 +100,14 @@ function showAdminTab(t,btn){
   if(panel)panel.classList.add('active');
   refreshActiveAdminTab();
 }
+function fmt12(t){
+  if(!t||!t.includes(':')) return t;
+  if(t.toLowerCase().includes('am')||t.toLowerCase().includes('pm')) return t;
+  const [h,m]=t.split(':').map(Number);
+  const ampm=h>=12?'PM':'AM';
+  const h12=h%12||12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
 
 function refreshActiveAdminTab(){
   if(activeAdminTab==='scores'){try{renderScores();}catch(e){}}
