@@ -55,26 +55,30 @@ function renderEdit(){
       for(const g of nightGames){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const isLate=g.time===T2;
-        inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
-          <span class="time-lbl${isLate?' late':''}" style="width:54px;flex-shrink:0">${g.time}</span>
-          <span class="gnum" style="flex-shrink:0;margin-right:4px">#${g.id}</span>
-          <select onchange="editGame('${g.id}','home',this.value)" class="sel">
-            ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.home?' selected':''}>${esc(t)}</option>`).join('')}
-          </select>
-          <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
-          <select onchange="editGame('${g.id}','away',this.value)" class="sel">
-            ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
-          </select>
-          <select onchange="editGame('${g.id}','diamond',this.value)" class="sel" style="min-width:110px;font-size:12px">
-            ${allDiamondIds.map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>${getDiamondName(d)}${isDiamondLit(d)?' 💡':' 🌙'}</option>`).join('')}
-          </select>
-          <select onchange="editGame('${g.id}','time',this.value)" class="sel" style="min-width:80px">
-            <option value="${T1}"${g.time===T1?' selected':''}>${T1}</option>
-            <option value="${T2}"${g.time===T2?' selected':''}>${T2}</option>
-          </select>
-          <button onclick="removeGame('${g.id}')" title="Remove game #${g.id}" style="flex-shrink:0;padding:4px 8px;background:none;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;color:var(--red);font-size:14px;line-height:1">🗑</button>
-        </div>`;
-      }
+inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
+  <div class="edit-row-meta">
+    <span class="time-lbl${isLate?' late':''}">${g.time}</span>
+    <span class="gnum">#${g.id}</span>
+    <span style="font-size:11px;color:var(--muted)">${getDiamondName(g.diamond)}${isDiamondLit(g.diamond)?' 💡':' 🌙'}</span>
+    <button onclick="removeGame('${g.id}')" title="Remove game #${g.id}" style="margin-left:auto;padding:2px 7px;background:none;border:1.5px solid var(--border);border-radius:5px;cursor:pointer;color:var(--red);font-size:13px;line-height:1">🗑</button>
+  </div>
+  <div class="edit-row-controls">
+    <select onchange="editGame('${g.id}','home',this.value)" class="sel">
+      ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.home?' selected':''}>${esc(t)}</option>`).join('')}
+    </select>
+    <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
+    <select onchange="editGame('${g.id}','away',this.value)" class="sel">
+      ${G.teams.map(t=>`<option value="${esc(t)}"${t===g.away?' selected':''}>${esc(t)}</option>`).join('')}
+    </select>
+    <select onchange="editGame('${g.id}','diamond',this.value)" class="sel" style="min-width:110px">
+      ${allDiamondIds.map(d=>`<option value="${d}"${d===g.diamond?' selected':''}>${getDiamondName(d)}${isDiamondLit(d)?' 💡':' 🌙'}</option>`).join('')}
+    </select>
+    <select onchange="editGame('${g.id}','time',this.value)" class="sel" style="min-width:80px">
+      <option value="${T1}"${g.time===T1?' selected':''}>${T1}</option>
+      <option value="${T2}"${g.time===T2?' selected':''}>${T2}</option>
+    </select>
+  </div>
+</div>`;
 
       for(const dmId of openAt1){
         const dm=G.diamonds.find(d=>d.id===dmId);
