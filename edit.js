@@ -55,7 +55,7 @@ function renderEdit(){
       for(const g of nightGames){
         const isCO=g.home===CROSSOVER||g.away===CROSSOVER;
         const isLate=g.time===T2;
-inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
+        inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid ${isCO?'#27ae60':'var(--navy2)'}">
   <div class="edit-row-meta">
     <span class="time-lbl${isLate?' late':''}">${g.time}</span>
     <span class="gnum">#${g.id}</span>
@@ -79,6 +79,7 @@ inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid $
     </select>
   </div>
 </div>`;
+      }
 
       for(const dmId of openAt1){
         const dm=G.diamonds.find(d=>d.id===dmId);
@@ -107,12 +108,12 @@ inner+=`<div class="edit-row${isLate?' late':''}" style="border-left:3px solid $
           <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
           <select class="sel" id="${slotId}_a" style="font-size:12px"><option value="">— Away —</option>${teamOpts}</select>
           <button onclick="addSlotGame('${slotId}','${dateStr}','${T2}',${dmId},${dm?.lights?'true':'false'})" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
-</div>`;
-        }
+        </div>`;
       }
     }
     html+=monthAccordion(month,inner,mi,'em',monthOpenSlots);
   });
+
   el.innerHTML=html;
   const now=new Date();
   const currentMonth=MONTH_NAMES[now.getMonth()]+' '+now.getFullYear();
@@ -145,7 +146,6 @@ function editGame(id,field,value){
   renderSched();
   renderScores();
   renderStandings();
-  // FIX #9: skip renderStats on inline edits — expensive and unnecessary
 }
 
 function removeGame(id){
@@ -214,7 +214,6 @@ function clearScheduleOnly(){
   if(!confirm(`Final confirmation — delete all ${gameCount} games?`)) return;
   G.sched=[];
   G.scores={};
-  // FIX #6: full semis structure prevents renderPlayoffs crash
   G.playoffs={
     seeded:false,podA:[],podB:[],games:{},
     semis:{podA:{},podB:{}},
