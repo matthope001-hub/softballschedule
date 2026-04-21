@@ -129,43 +129,46 @@ function _clampScore(val){
 
 function savePlayoffScore(gameId){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
-  const hRaw=document.getElementById('ph_'+gameId)?.value;
-  const aRaw=document.getElementById('pa_'+gameId)?.value;
+  const hEl=document.getElementById('ph_'+gameId);
+  const aEl=document.getElementById('pa_'+gameId);
+  const hRaw=hEl?.value;
+  const aRaw=aEl?.value;
   const g=G.playoffs.games[gameId];
   if(!g) return;
-  if(hRaw===''||aRaw==='') g.score=null;
-  else{
-    const h=_clampScore(hRaw),a=_clampScore(aRaw);
-    if(h===null||a===null) return;
-    g.score={h,a};
-  }
+  if(hRaw===''&&aRaw===''){g.score=null;saveData();renderPlayoffs();return;}
+  const h=_clampScore(hRaw??'');
+  const a=_clampScore(aRaw??'');
+  if(h===null||a===null) return; // wait until both sides have values
+  g.score={h,a};
   saveData();renderPlayoffs();
 }
 
 function saveSemiScore(pod,key){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
-  const hRaw=document.getElementById(`psh_${pod}_${key}`)?.value;
-  const aRaw=document.getElementById(`psa_${pod}_${key}`)?.value;
+  const hEl=document.getElementById(`psh_${pod}_${key}`);
+  const aEl=document.getElementById(`psa_${pod}_${key}`);
+  const hRaw=hEl?.value;
+  const aRaw=aEl?.value;
   if(!G.playoffs.semis[pod][key]) G.playoffs.semis[pod][key]={home:null,away:null,score:null};
-  if(hRaw===''||aRaw==='') G.playoffs.semis[pod][key].score=null;
-  else{
-    const h=_clampScore(hRaw),a=_clampScore(aRaw);
-    if(h===null||a===null) return;
-    G.playoffs.semis[pod][key].score={h,a};
-  }
+  if(hRaw===''&&aRaw===''){G.playoffs.semis[pod][key].score=null;saveData();renderPlayoffs();return;}
+  const h=_clampScore(hRaw??'');
+  const a=_clampScore(aRaw??'');
+  if(h===null||a===null) return;
+  G.playoffs.semis[pod][key].score={h,a};
   saveData();renderPlayoffs();
 }
 
 function saveFinalScore(pod){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
-  const hRaw=document.getElementById('pfh_'+pod)?.value;
-  const aRaw=document.getElementById('pfa_'+pod)?.value;
-  if(hRaw===''||aRaw==='') G.playoffs.finals[pod].score=null;
-  else{
-    const h=_clampScore(hRaw),a=_clampScore(aRaw);
-    if(h===null||a===null) return;
-    G.playoffs.finals[pod].score={h,a};
-  }
+  const hEl=document.getElementById('pfh_'+pod);
+  const aEl=document.getElementById('pfa_'+pod);
+  const hRaw=hEl?.value;
+  const aRaw=aEl?.value;
+  if(hRaw===''&&aRaw===''){G.playoffs.finals[pod].score=null;saveData();renderPlayoffs();return;}
+  const h=_clampScore(hRaw??'');
+  const a=_clampScore(aRaw??'');
+  if(h===null||a===null) return;
+  G.playoffs.finals[pod].score={h,a};
   saveData();renderPlayoffs();
 }
 
