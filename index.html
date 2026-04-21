@@ -68,7 +68,7 @@
     <div id="sta"><div class="empty">Generate a schedule to view stats</div></div>
   </div>
 
-  <!-- ─── PLAYOFFS TAB ──────────────────────────────────────────────────────── -->
+  <!-- ─── PLAYOFFS TAB (public, display only) ──────────────────────────────── -->
   <div id="tab-playoffs" class="section">
     <div id="ply"><div class="empty">Loading playoffs…</div></div>
   </div>
@@ -189,6 +189,7 @@
       <div class="admin-subtabs">
         <button class="admin-subtab active" onclick="showAdminTab('scores',this)">Scores</button>
         <button class="admin-subtab" onclick="showAdminTab('edit',this)">Edit Games</button>
+        <button class="admin-subtab" onclick="showAdminTab('playoffs',this)">Edit Playoffs</button>
         <button class="admin-subtab" onclick="showAdminTab('settings',this)">Settings</button>
       </div>
 
@@ -198,6 +199,10 @@
 
       <div id="admin-edit" class="admin-panel">
         <div id="edi"><div class="empty">Generate a schedule to edit games</div></div>
+      </div>
+
+      <div id="admin-playoffs" class="admin-panel">
+        <div id="ply-admin"><div class="empty">Seed playoffs to manage scores and scheduling</div></div>
       </div>
 
       <div id="admin-settings" class="admin-panel">
@@ -233,8 +238,8 @@
             <div id="day-checks" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px"></div>
           </div>
           <div class="row" style="margin-top:10px">
-<div class="field"><label>Game Time 1</label><input type="text" id="time1" value="6:30 PM" placeholder="6:30 PM"/></div>
-<div class="field"><label>Game Time 2 (DH)</label><input type="text" id="time2" value="8:15 PM" placeholder="8:15 PM"/></div>
+            <div class="field"><label>Game Time 1</label><input type="text" id="time1" value="6:30 PM" placeholder="6:30 PM"/></div>
+            <div class="field"><label>Game Time 2 (DH)</label><input type="text" id="time2" value="8:15 PM" placeholder="8:15 PM"/></div>
           </div>
           <div class="field" style="margin-top:10px">
             <label>Times Faced (min opponent matchups)</label>
@@ -244,7 +249,7 @@
               <option value="3">3× — face each opponent three times</option>
               <option value="4">4× — face each opponent four times</option>
               <option value="5">5× — face each opponent five times</option>
-          </select>
+            </select>
           </div>
           <div class="row" style="margin-top:10px">
             <div class="field">
