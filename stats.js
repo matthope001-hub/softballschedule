@@ -8,6 +8,12 @@ const TEAM_COLOURS=[
 function renderStats(){
   const el=document.getElementById('sta');
   if(!el)return;
+  // OPT 6: stale guard — skip expensive render when tab is not visible.
+  // Marked stale by _markStaleAndRenderActive(); re-renders on tab switch.
+  const tabActive=document.getElementById('tab-stats')?.classList.contains('active');
+  if(!tabActive){el.dataset.stale='1';return;}
+  if(el.dataset.stale) delete el.dataset.stale;
+
   if(!G.sched.length){
     el.innerHTML='<div class="empty">Generate a schedule to view stats<br><br><span style="font-size:12px;color:var(--muted)">Schedule data is needed for team statistics, head-to-head matchups, and diamond usage charts.</span></div>';
     return;
@@ -29,7 +35,7 @@ function renderStats(){
   schedDiamondIds.forEach(d=>dGameCount[d]=0);
 
   const nightCount={};
-  const dhNights={}; // Track which nights each team plays a DH
+  const dhNights={};
 
   for(const g of G.sched){
     if(g.open)continue;
@@ -65,54 +71,68 @@ function renderStats(){
     }
   }
 
-  // Count byes per team (game nights where team doesn't play)
-  const gameNights=[...new Set(G.sched.filter(g=>!g.open).map(g=>g.date))].sort();
-  for(const t of allTeams){
-    ts[t].byes=0;
-    for(const date of gameNights){
-      const playsOnNight=G.sched.some(g=>!g.open&&g.date===date&&(g.home===t||g.away===t));
-      if(!playsOnNight) ts[t].byes++;
+  // Count byes per team (game nights with no game scheduled)
+  const ss=document.getElementById('ss')?.value||'';
+  const se=document.getElementById('se')?.value||'';
+  const days=getSelectedDays();
+  const allNights=ss&&se&&days.length?getGameNights(ss,se,days):[];
+  for(const t of allTeams) ts[t].byes=0;
+  for(const night of allNights){
+    const playingThatNight=new Set();
+    for(const g of G.sched){
+      if(g.date===night&&!g.open){
+        if(g.home)playingThatNight.add(g.home);
+        if(g.away)playingThatNight.add(g.away);
+      }
+    }
+    if(playingThatNight.size>0){
+      for(const t of allTeams){
+        if(!playingThatNight.has(t))ts[t].byes++;
+      }
     }
   }
 
-  const scored=G.sched.filter(g=>!g.open&&G.scores[g.id]&&!g.playoff);
-  const teamW={},teamL={},teamRF={},teamRA={};
-  let totalRuns=0,shutouts=0,biggestMargin=0,biggestGame=null,highestTotal=0,highestGame=null;
-  for(const t of leagueTeams){teamW[t]=0;teamL[t]=0;teamRF[t]=0;teamRA[t]=0;}
-  for(const g of scored){
+  // Scored game highlights
+  const scoredGames=G.sched.filter(g=>G.scores[g.id]&&!g.playoff&&!g.open);
+  const total=G.sched.filter(g=>!g.playoff&&!g.open).length;
+  const played=scoredGames.length;
+
+  let totalRuns=0,shutouts=0;
+  const teamRF={},teamRA={},teamW={},teamL={};
+  for(const t of leagueTeams){teamRF[t]=0;teamRA[t]=0;teamW[t]=0;teamL[t]=0;}
+  let biggestMargin=0,biggestGame=null,highestTotal=0,highestGame=null;
+  for(const g of scoredGames){
     const sc=G.scores[g.id];
-    const tot=sc.h+sc.a;
-    totalRuns+=tot;
-    if(sc.h===0||sc.a===0)shutouts++;
+    totalRuns+=sc.h+sc.a;
     const margin=Math.abs(sc.h-sc.a);
     if(margin>biggestMargin){biggestMargin=margin;biggestGame=g;}
+    const tot=sc.h+sc.a;
     if(tot>highestTotal){highestTotal=tot;highestGame=g;}
+    if(sc.h===0||sc.a===0)shutouts++;
     if(leagueTeams.includes(g.home)){teamRF[g.home]+=sc.h;teamRA[g.home]+=sc.a;if(sc.h>sc.a)teamW[g.home]++;else if(sc.a>sc.h)teamL[g.home]++;}
     if(leagueTeams.includes(g.away)){teamRF[g.away]+=sc.a;teamRA[g.away]+=sc.h;if(sc.a>sc.h)teamW[g.away]++;else if(sc.h>sc.a)teamL[g.away]++;}
   }
-  const avgRuns=scored.length?(Math.round(totalRuns/scored.length*10)/10):0;
+  const avgRuns=played?(totalRuns/played).toFixed(1):'—';
   const mostRF=leagueTeams.slice().sort((a,b)=>(teamRF[b]||0)-(teamRF[a]||0));
-  const bestDef=leagueTeams.slice().sort((a,b)=>(teamRA[a]||0)-(teamRA[b]||0));
+  const bestDef=leagueTeams.slice().sort((a,b)=>(teamRA[a]||999)-(teamRA[b]||999));
   const mostW=leagueTeams.slice().sort((a,b)=>(teamW[b]||0)-(teamW[a]||0));
   const mostL=leagueTeams.slice().sort((a,b)=>(teamL[b]||0)-(teamL[a]||0));
+  const bwSc=biggestGame?G.scores[biggestGame.id]:null;
+  const hsSc=highestGame?G.scores[highestGame.id]:null;
 
-  function hCard(icon,label,value,sub){
-    return`<div style="padding:12px 14px;background:var(--white);border:1.5px solid var(--border);border-radius:6px;display:flex;flex-direction:column;gap:2px;min-width:0">
-      <div style="font-size:18px;line-height:1">${icon}</div>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-top:4px">${label}</div>
-      <div style="font-size:13px;font-weight:800;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(value)}</div>
-      ${sub?`<div style="font-size:11px;color:var(--muted)">${sub}</div>`:''}
+  function hCard(icon,label,val,sub){
+    return`<div style="background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;min-width:120px">
+      <div style="font-size:18px;margin-bottom:4px">${icon}</div>
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">${label}</div>
+      <div style="font-size:13px;font-weight:800;color:var(--navy)">${val}</div>
+      ${sub?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${sub}</div>`:''}
     </div>`;
   }
 
-  const bwSc=biggestGame?G.scores[biggestGame.id]:null;
-  const hsSc=highestGame?G.scores[highestGame.id]:null;
-  const played=scored.length;
-  const total=G.sched.filter(g=>!g.open&&!g.playoff).length;
-
-  if(!document.getElementById('_stats_css')){
+  // Inject styles once
+  if(!document.getElementById('_stats_styles')){
     const s=document.createElement('style');
-    s.id='_stats_css';
+    s.id='_stats_styles';
     s.textContent=`
       .st2{border-collapse:collapse;width:100%;font-size:13px}
       .st2 th,.st2 td{padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -205,7 +225,7 @@ function renderStats(){
       ${hCard('🛡','Best Defense',bestDef[0]||'—',bestDef[0]?`${teamRA[bestDef[0]]} allowed`:'')}
       ${hCard('🥇','Most Wins',mostW[0]||'—',mostW[0]?`${teamW[mostW[0]]} wins`:'')}
       ${hCard('📉','Most Losses',mostL[0]||'—',mostL[0]?`${teamL[mostL[0]]} losses`:'')}
-      ${hCard('💥','Biggest Win',biggestGame?(bwSc.h>bwSc.a?biggestGame.home:biggestGame.away):'—',biggestGame?`${Math.max(bwSc.h,bwSc.a)}–${Math.min(bwSc.h,bwSc.a)} (+${biggestMargin} runs)`:'')}
+      ${hCard('💥','Biggest Win',biggestGame?(sc=>sc.h>sc.a?biggestGame.home:biggestGame.away)(bwSc):'—',biggestGame?`${Math.max(bwSc.h,bwSc.a)}–${Math.min(bwSc.h,bwSc.a)} (+${biggestMargin} runs)`:'')}
       ${hCard('🔥','Highest Scoring',highestGame?`${highestGame.home} vs ${highestGame.away}`:'—',highestGame?`${hsSc.h}–${hsSc.a} (${highestTotal} runs)`:'')}
       ${hCard('🦺','Shutouts',String(shutouts),'combined')}
       ${hCard('⚾','Total Runs',String(totalRuns),'this season')}
