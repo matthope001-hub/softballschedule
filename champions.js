@@ -251,6 +251,17 @@ function updateSeasonHeader(){
 function renderChampions(){
   const el=document.getElementById('champ-content');
   if(!el)return;
+  // OPT 6: stale guard — skip render when tab is not visible.
+  // Marked stale by _markStaleAndRenderActive(); re-renders on tab switch.
+  const tabActive=document.getElementById('tab-champions')?.classList.contains('active');
+  if(!tabActive){el.dataset.stale='1';return;}
+  if(el.dataset.stale) delete el.dataset.stale;
+ 
+  // ── Loading guard: only show loading if we haven't attempted load yet ──
+  if(G.champions===null&&!window._dataLoadAttempted){
+    el.innerHTML='<div class="empty">⏳ Loading…</div>';
+    return;
+  }
 
   // ── Loading guard: only show loading if we haven't attempted load yet ──
   if(G.champions===null && !window._dataLoadAttempted){
