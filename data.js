@@ -327,17 +327,25 @@ const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function initDayChecks(){
   const el=document.getElementById('day-checks');
   if(!el)return;
-  let savedDays=[2];
+  let savedDays=[2]; // Default to Tuesday
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw){const d=JSON.parse(raw);if(d.days&&d.days.length)savedDays=d.days;}
-  }catch(e){}
+    if(raw){
+      const d=JSON.parse(raw);
+      if(d.days&&Array.isArray(d.days)&&d.days.length>0){
+        // Filter to only valid day indices (0-6)
+        savedDays=d.days.filter(day=>Number.isInteger(day)&&day>=0&&day<=6);
+      }
+    }
+  }catch(e){/* ignore parse errors */}
   el.innerHTML=DAY_NAMES.map((name,i)=>{
-    const checked=savedDays.includes(i)?'checked':'';
+    const isChecked=savedDays.includes(i);
+    const checkedAttr=isChecked?'checked':'';
     const activeStyle='border-color:var(--navy);background:var(--navy);color:#fff';
     const inactiveStyle='border-color:var(--border);background:var(--white);color:var(--text)';
-    return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${checked?activeStyle:inactiveStyle}">
-      <input type="checkbox" value="${i}" ${checked} onchange="onDayChange(${i},this)" style="display:none"> ${name}
+    const currentStyle=isChecked?activeStyle:inactiveStyle;
+    return`<label id="daylabel-${i}" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:6px 13px;border-radius:6px;border:1.5px solid;cursor:pointer;user-select:none;transition:all 0.15s;${currentStyle}">
+      <input type="checkbox" value="${i}" ${checkedAttr} onchange="onDayChange(${i},this)" style="display:none"> ${name}
     </label>`;
   }).join('');
 }
@@ -405,4 +413,116 @@ async function initHeaderWeather(){
     wxEl.innerHTML=`<span style="opacity:0.3;font-size:11px;font-weight:400">—</span>`;
     console.warn('Weather fetch failed:',e);
   }
+}
+
+// ── SCHEDULE CALCULATOR ───────────────────────────────────────────────────────
+function updateGptNotice(){
+  const noticeEl=document.getElementById('gpt-notice');
+  if(!noticeEl)return;
+  const ssEl=document.getElementById('ss');
+  const seEl=document.getElementById('se');
+  if(!ssEl||!seEl)return;
+
+  const selectedDays=getSelectedDays();
+  const leagueN=G.teams.filter(t=>t!==CROSSOVER).length;
+  const nights=getGameNights(ssEl.value,seEl.value,selectedDays).length;
+
+  if(nights<1||selectedDays.length<1){
+    noticeEl.innerHTML=`<div class="notice" style="color:var(--muted)">Select at least one game day.</div>`;
+    return;
+  }
+
+  const activeDiamonds=G.diamonds.filter(d=>d.active);
+  const d9=activeDiamonds.find(d=>d.id===9);
+  const dhDiamonds=activeDiamonds.filter(d=>d.id!==9&&d.lights);
+  const singleDiamonds=activeDiamonds.filter(d=>d.id!==9&&!d.lights);
+  const dhCount=dhDiamonds.length;
+  const singleCount=singleDiamonds.length;
+
+  const tfacedEl=document.getElementById('tfaced');
+  const tfaced=tfacedEl?parseInt(tfacedEl.value)||2:2;
+  const targetDhEl=document.getElementById('targetDh');
+  const targetDh=targetDhEl?parseInt(targetDhEl.value)||0:0;
+
+  const uniquePairs=leagueN*(leagueN-1)/2;
+  const lgPairSlotsPerNight=dhCount+singleCount;
+  
+  // Calculate required nights based on target DH or auto mode
+  let requiredNights,coEach,dhBonus;
+  if(targetDh>0){
+    // Target mode: use specified DH nights per team
+    // Games per team = (CO nights × 2) + target DH + remaining single games
+    requiredNights=Math.ceil(uniquePairs*tfaced/lgPairSlotsPerNight);
+    coEach=requiredNights>0?requiredNights/leagueN:tfaced;
+    dhBonus=targetDh; // Use target instead of auto-calc
+  }else{
+    // Auto mode: calculate from available DH diamonds
+    requiredNights=lgPairSlotsPerNight>0?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight):0;
+    coEach=requiredNights>0?requiredNights/leagueN:tfaced;
+    dhBonus=coEach*dhCount;
+  }
+  
+  const lgGamesFromFaced=uniquePairs*tfaced;
+  const nightsMatch=nights===requiredNights&&requiredNights>0;
+  const league630=requiredNights-coEach;
+  const gamesPerTeam=Math.round(coEach+coEach+dhBonus+league630);
+
+  const lgGamesPerNight=dhCount*2+singleCount;
+  const totalGamesPerNight=lgGamesPerNight+2;
+  const totalGames=totalGamesPerNight*(nightsMatch?requiredNights:nights);
+  const coTotalGames=2*(nightsMatch?requiredNights:nights);
+  const lgTotalGames=totalGames-coTotalGames;
+
+  const t1=`${lgPairSlotsPerNight} league slot${lgPairSlotsPerNight!==1?'s':''}/night`;
+  const t2=d9?'1 CrossOver DH':'no D9';
+  const dhMode=targetDh>0?`Target: ${targetDh} DH`:`Auto: ${Math.round(dhBonus)} DH`;
+
+  let statusHtml,statusBg;
+  if(!nightsMatch){
+    const diff=requiredNights-nights;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — ${tfaced}× times faced needs exactly <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. ${diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`}`;
+    statusBg='#fff0f0';
+  }else{
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${gamesPerTeam} games per team, every pair plays ${tfaced}×</span>`;
+    statusBg='#edf7f0';
+  }
+
+  noticeEl.innerHTML=`
+  <div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;margin-top:4px">
+    <div style="background:var(--navy);color:#fff;padding:7px 12px;font-weight:800;font-size:11px;letter-spacing:0.8px;text-transform:uppercase">📊 Schedule Calculator</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border)">
+      <div style="padding:8px 12px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Game Nights</div>
+        <div style="font-size:22px;font-weight:800;color:${nightsMatch?'var(--navy)':'var(--red)'};line-height:1.2">${nights}</div>
+        <div style="font-size:11px;color:var(--muted)">Need ${requiredNights}</div>
+      </div>
+      <div style="padding:8px 12px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Games/Team</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${gamesPerTeam}</div>
+        <div style="font-size:11px;color:var(--muted)">${tfaced}× · ${dhMode}</div>
+      </div>
+      <div style="padding:8px 12px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
+        <div style="font-size:11px;color:var(--muted)">${nightsMatch?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Night · ${t1} / ${t2} · ${activeDiamonds.length} diamonds · ${dhMode}</div>
+      <div style="display:grid;gap:3px">
+        <div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH</span><strong>2 games</strong></div>
+        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>D${d.id} — ${esc(d.name)} — 💡 Doubleheader</span><strong>2 games</strong></div>`).join('')}
+        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>D${d.id} — ${esc(d.name)} — 🌙 Single only</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalGamesPerNight} games</span></div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Opponent Matchups</div>
+      <div style="display:grid;gap:2px;font-size:12px">
+        <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × ${tfaced}× each</span><strong>${lgGamesFromFaced} league games</strong></div>
+        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
+  </div>`;
 }

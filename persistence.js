@@ -8,11 +8,19 @@ const ADMIN_PIN = '2026';
 let isAdmin = false;
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
+// checkAdmin now shows PIN modal if not authenticated
+// The PIN modal functions (showPinModal, submitPin, etc.) are defined in index.html
 function checkAdmin() {
   if (isAdmin) return true;
-  const pin = prompt('Enter admin PIN to make changes:');
-  if (pin === ADMIN_PIN) { isAdmin = true; showToast('🔓 Admin mode on'); return true; }
-  if (pin !== null) showToast('✗ Wrong PIN');
+  // Show PIN modal - will set isAdmin=true on success via submitPin()
+  if(typeof showPinModal === 'function'){
+    showPinModal();
+  } else {
+    // Fallback if PIN modal not loaded yet
+    const pin = prompt('Enter admin PIN to make changes:');
+    if (pin === ADMIN_PIN) { isAdmin = true; showToast('🔓 Admin mode on'); return true; }
+    if (pin !== null) showToast('✗ Wrong PIN');
+  }
   return false;
 }
 
@@ -20,23 +28,17 @@ function adminGuard(fn) {
   return function(...args) { if (checkAdmin()) fn(...args); };
 }
 
+// unlockAdmin is defined in index.html with PIN modal support
+// This stub prevents errors if called before index.html loads
 function unlockAdmin(){
   if(isAdmin){
     document.getElementById('admin-locked').style.display='none';
     document.getElementById('admin-unlocked').style.display='block';
-    refreshActiveAdminTab();
+    if(typeof refreshActiveAdminTab === 'function') refreshActiveAdminTab();
     return;
   }
-  const pin=prompt('Enter admin PIN:');
-  if(pin===ADMIN_PIN){
-    isAdmin=true;
-    showToast('🔓 Admin mode on');
-    document.getElementById('admin-locked').style.display='none';
-    document.getElementById('admin-unlocked').style.display='block';
-    refreshActiveAdminTab();
-  } else if(pin!==null){
-    showToast('✗ Wrong PIN');
-  }
+  // Delegate to PIN modal in index.html
+  if(typeof showPinModal === 'function') showPinModal();
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────

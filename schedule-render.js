@@ -52,21 +52,36 @@ function renderLastResults(){
   if(!el)return;
   const scored=G.sched.filter(g=>G.scores[g.id]&&!g.playoff)
     .sort((a,b)=>b.date.localeCompare(a.date)||(b.time||'').localeCompare(a.time||''))
-    .slice(0,5);
+    .slice(0,10);
   if(!scored.length){el.innerHTML='';return;}
-  el.innerHTML=`<div style="margin-bottom:10px">
-    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin-bottom:6px">Recent Results</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">
-    ${scored.map(g=>{
-      const sc=G.scores[g.id];
-      const hw=sc.h>sc.a,aw=sc.a>sc.h;
-      return`<div style="padding:6px 10px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px">
-        <div style="font-weight:${hw?'800':'400'};color:${hw?'var(--navy)':'var(--muted)'}">${esc(g.home)} ${sc.h}</div>
-        <div style="font-weight:${aw?'800':'400'};color:${aw?'var(--navy)':'var(--muted)'}">${esc(g.away)} ${sc.a}</div>
-      </div>`;
-    }).join('')}
-    </div>
-  </div>`;
+
+  // Calculate team records
+  const records={};
+  for(const t of G.teams){records[t]={w:0,l:0};}
+  for(const g of G.sched){
+    const sc=G.scores[g.id];
+    if(!sc||g.playoff||g.open)continue;
+    if(sc.h>sc.a){records[g.home].w++;records[g.away].l++;}
+    else if(sc.a>sc.h){records[g.away].w++;records[g.home].l++;}
+  }
+  const fmtRec=t=>{const r=records[t]||{w:0,l:0};return`${r.w}-${r.l}`;};
+
+  const tickerItems=scored.map(g=>{
+    const sc=G.scores[g.id];
+    const hw=sc.h>sc.a,aw=sc.a>sc.h;
+    const homeClass=hw?'winner':'loser';
+    const awayClass=aw?'winner':'loser';
+    return`<span class="ticker-item">
+      <span class="${homeClass}">${esc(g.home)} (${fmtRec(g.home)})</span>
+      <span class="score">${sc.h}-${sc.a}</span>
+      <span class="${awayClass}">${esc(g.away)} (${fmtRec(g.away)})</span>
+      <span style="opacity:0.5">|</span>
+      <span style="opacity:0.7;font-size:11px">${g.date}</span>
+    </span>`;
+  }).join('');
+
+  // Duplicate items for seamless loop
+  el.innerHTML=`<div class="ticker-content">${tickerItems}${tickerItems}</div>`;
 }
 
 // ── FILTER ────────────────────────────────────────────────────────────────────

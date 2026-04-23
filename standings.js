@@ -39,7 +39,7 @@ function renderStandings(){
     h2hStats[t]={};
     for(const u of leagueTeams)h2hStats[t][u]={pts:0,games:[]};
   }
-  const scoredGames=[...G.sched].filter(g=>G.scores[g.id]&&stats[g.home]!==undefined&&stats[g.away]!==undefined&&g.home!==CROSSOVER&&g.away!==CROSSOVER);
+  const scoredGames=[...G.sched].filter(g=>G.scores[g.id]&&!g.playoff&&stats[g.home]!==undefined&&stats[g.away]!==undefined&&g.home!==CROSSOVER&&g.away!==CROSSOVER);
   scoredGames.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   for(const g of scoredGames){
     const sc=G.scores[g.id];
@@ -94,12 +94,15 @@ function renderStandings(){
     i=j;
   }
 
-  const gp=Object.values(G.scores).length;
+  // Only count regular season games (exclude playoffs)
+  const regularSeasonGames=G.sched.filter(g=>!g.playoff);
+  const regularSeasonScores=regularSeasonGames.filter(g=>G.scores[g.id]);
+  const gp=regularSeasonScores.length;
   const homeStats={},awayStats={};
   for(const t of leagueTeams){homeStats[t]={w:0,l:0,tie:0};awayStats[t]={w:0,l:0,tie:0};}
   const teamResults={};
   for(const t of leagueTeams)teamResults[t]=[];
-  const chronoGames=[...G.sched].filter(g=>G.scores[g.id]).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  const chronoGames=regularSeasonScores.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   for(const g of chronoGames){
     const sc=G.scores[g.id];
     if(homeStats[g.home]!==undefined){
@@ -120,12 +123,16 @@ function renderStandings(){
   function gb(t){if(t===leader)return'—';const ls=stats[leader],ts2=stats[t];const gbVal=((ls.w-ts2.w)+(ts2.l-ls.l))/2;return gbVal<=0?'—':gbVal%1===0?String(gbVal):`${gbVal}`;}
   function winPct(t){const s=stats[t];if(s.gp===0)return'—';return(s.pts/(s.gp*2)).toFixed(3).replace(/^0/,'');}
 
+  // Calculate regular season metrics only (no playoffs)
+  const remainingRegular=regularSeasonGames.filter(g=>!G.scores[g.id]).length;
+  const totalRegular=regularSeasonGames.length;
+
   el.innerHTML=`
   <div class="metric-grid">
     <div class="metric"><div class="metric-label">Teams</div><div class="metric-value">${leagueTeams.length}</div></div>
     <div class="metric"><div class="metric-label">Played</div><div class="metric-value">${gp}</div></div>
-    <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${G.sched.filter(g=>!G.scores[g.id]).length}</div></div>
-    <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${G.sched.length}</div></div>
+    <div class="metric"><div class="metric-label">Remaining</div><div class="metric-value">${remainingRegular}</div></div>
+    <div class="metric"><div class="metric-label">Total Games</div><div class="metric-value">${totalRegular}</div></div>
   </div>
   <div class="notice">W=2 · T=1 · L=0 · Tiebreakers: a) H2H points · b) Last matchup · c) Coin toss · RF/RA capped at +7</div>
   <div class="st-wrap"><table class="st">

@@ -26,6 +26,7 @@ function renderStats(){
   schedDiamondIds.forEach(d=>dGameCount[d]=0);
 
   const nightCount={};
+  const dhNights={}; // Track which nights each team plays a DH
 
   for(const g of G.sched){
     if(g.open)continue;
@@ -49,13 +50,15 @@ function renderStats(){
     const key=`${g.date}§${g.diamond}`;
     nightCount[key]=(nightCount[key]||0)+1;
   }
-
+  // Count DH nights (1 per night per team, not 1 per game)
   for(const g of G.sched){
     if(g.open)continue;
     const key=`${g.date}§${g.diamond}`;
     if((nightCount[key]||0)>=2){
-      if(ts[g.home])ts[g.home].dh++;
-      if(ts[g.away])ts[g.away].dh++;
+      const homeKey=`${g.home}§${g.date}`;
+      const awayKey=`${g.away}§${g.date}`;
+      if(ts[g.home]&&!dhNights[homeKey]){ts[g.home].dh++;dhNights[homeKey]=true;}
+      if(ts[g.away]&&!dhNights[awayKey]){ts[g.away].dh++;dhNights[awayKey]=true;}
     }
   }
 

@@ -8,6 +8,7 @@ function genSched(){
   const tfaced=parseInt(document.getElementById('tfaced')?.value)||2;
   const cobyes=Math.max(0,parseInt(document.getElementById('cobyes')?.value)||0);
   const gptInput=parseInt(document.getElementById('gpt')?.value)||null;
+  const targetDh=parseInt(document.getElementById('targetDh')?.value)||0;
 
   if(!ss||!se){alert('Set season start and end dates first.');return;}
   const days=getSelectedDays();
@@ -74,6 +75,17 @@ function genSched(){
     return null;
   }
 
+  // Find pair respecting DH limit when targetDh is set
+  function findPairWithDhLimit(pool,busy,needed,targetDh,teamDhCount){
+    const idx=pool.findIndex(([t1,t2])=>{
+      if(busy.has(t1)||busy.has(t2)) return false;
+      if(teamDhCount[t1]>=targetDh || teamDhCount[t2]>=targetDh) return false;
+      return gamesLeft(t1)>=needed&&gamesLeft(t2)>=needed;
+    });
+    if(idx!==-1) return pool.splice(idx,1)[0];
+    return null;
+  }
+
   let pool=freshPool();
 
   // hcMap: home-game count per team, used to balance H/A assignment
@@ -82,6 +94,10 @@ function genSched(){
 
   const sched=[];
   const gameSeq={};
+  
+  // Track DH nights per team when using target mode
+  const teamDhCount={};
+  for(const t of leagueTeams) teamDhCount[t]=0;
 
   // Use leagueTeams length for modulo safety; coIdx always kept in-bounds
   const coOpponents=shuffle([...leagueTeams]);
@@ -121,10 +137,19 @@ function genSched(){
     }
 
     // ── DH league diamonds (lights=true, e.g. D12) ───────────────────────────
+    // With targetDh support: limit DH nights per team when target is set
     for(const dm of dhDiamonds){
 
-      // Attempt 1: full DH — both teams need ≥2 games
-      const dhPair=findPair(pool,busy,2);
+      // When targetDh is set, try to find a pair where both teams have capacity
+      let dhPair=null;
+      if(targetDh>0){
+        dhPair=findPairWithDhLimit(pool,busy,2,targetDh,teamDhCount);
+      }
+      // If no target or no pair with capacity, fall back to standard findPair
+      if(!dhPair){
+        dhPair=findPair(pool,busy,2);
+      }
+      
       if(dhPair){
         const [t1,t2]=dhPair;
         const [h,a]=pickHA(t1,t2,hcMap);
@@ -137,6 +162,11 @@ function genSched(){
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:a,away:h,bye:'',crossover:false});
         hcMap[a]=(hcMap[a]||0)+1;
+        // Track DH nights for both teams
+        if(targetDh>0){
+          teamDhCount[h]++;
+          teamDhCount[a]++;
+        }
         continue;
       }
 
