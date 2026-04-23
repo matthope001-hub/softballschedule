@@ -7,15 +7,11 @@ const JSONBIN_URL       = () => `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 // ADMIN_PIN and isAdmin are defined in index.html (needed early for PIN modal)
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
-// checkAdmin now shows PIN modal if not authenticated
-// The PIN modal functions (showPinModal, submitPin, etc.) are defined in index.html
 function checkAdmin() {
   if (isAdmin) return true;
-  // Show PIN modal - will set isAdmin=true on success via submitPin()
   if(typeof showPinModal === 'function'){
     showPinModal();
   } else {
-    // Fallback if PIN modal not loaded yet
     const pin = prompt('Enter admin PIN to make changes:');
     if (pin === ADMIN_PIN) { isAdmin = true; showToast('🔓 Admin mode on'); return true; }
     if (pin !== null) showToast('✗ Wrong PIN');
@@ -27,8 +23,6 @@ function adminGuard(fn) {
   return function(...args) { if (checkAdmin()) fn(...args); };
 }
 
-// unlockAdmin is defined in index.html with PIN modal support
-// This stub prevents errors if called before index.html loads
 function unlockAdmin(){
   if(isAdmin){
     document.getElementById('admin-locked').style.display='none';
@@ -36,7 +30,6 @@ function unlockAdmin(){
     if(typeof refreshActiveAdminTab === 'function') refreshActiveAdminTab();
     return;
   }
-  // Delegate to PIN modal in index.html
   if(typeof showPinModal === 'function') showPinModal();
 }
 
@@ -52,10 +45,18 @@ function showToast(msg, duration=2800) {
 }
 
 // ── SAVE ──────────────────────────────────────────────────────────────────────
+// FIX BUG 2: payload is built at flush time (inside _flushToCloud), not at
+// saveData() call time. This ensures rapid admin actions don't flush a stale
+// snapshot captured 600ms earlier.
 let _saveDebounceTimer=null;
 
 function saveData() {
-  const payload={
+  clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer=setTimeout(()=>_flushToCloud(),600);
+}
+
+function _buildPayload(){
+  return {
     teams:         G.teams,
     diamonds:      G.diamonds,
     sched:         G.sched,
@@ -68,11 +69,10 @@ function saveData() {
     champions:     G.champions||null,
     seasonArchive: G.seasonArchive||{}
   };
-  clearTimeout(_saveDebounceTimer);
-  _saveDebounceTimer=setTimeout(()=>_flushToCloud(payload),600);
 }
 
-async function _flushToCloud(payload) {
+async function _flushToCloud() {
+  const payload=_buildPayload();
   showToast('⏳ Syncing…');
   try {
     const res=await fetch(JSONBIN_URL(),{
@@ -85,22 +85,22 @@ async function _flushToCloud(payload) {
       body:JSON.stringify(payload)
     });
     if(res.ok){
-      // Also save to localStorage as backup
       try{localStorage.setItem(STORAGE_KEY+'_backup',JSON.stringify(payload));}catch(e){}
       showToast(`✓ Saved — ${payload.sched?.length||0} games · ${Object.keys(payload.scores||{}).length} scores ☁`);
     } else {
       const body=await res.text().catch(()=>'');
       console.error(`JSONBin save failed: HTTP ${res.status}`,body);
-      // Fallback to localStorage
-      try{localStorage.setItem(STORAGE_KEY+'_backup',JSON.stringify(payload));showToast('⚠ Cloud failed — saved locally');}catch(e){showToast(`⚠ Cloud save failed (${res.status})`);}
+      try{
+        localStorage.setItem(STORAGE_KEY+'_backup',JSON.stringify(payload));
+        showToast('⚠ Cloud failed — saved locally');
+      }catch(e){
+        showToast(`⚠ Cloud save failed (${res.status})`);
+      }
     }
   } catch(e) {
     console.warn('JSONBin save error:',e);
-    // Fallback to localStorage
     try{
-      console.log('Attempting localStorage backup...',STORAGE_KEY);
       localStorage.setItem(STORAGE_KEY+'_backup',JSON.stringify(payload));
-      console.log('localStorage backup saved successfully');
       showToast('⚠ Offline mode — saved locally');
     }catch(e2){
       console.error('localStorage backup failed:',e2);
@@ -124,7 +124,6 @@ async function loadData() {
     const d=json.record;
     if(d&&(d.sched?.length||Array.isArray(d.teams))){
       applyData(d);
-      // Also update localStorage backup
       try{localStorage.setItem(STORAGE_KEY+'_backup',JSON.stringify(d));}catch(e){}
       return true;
     }
@@ -132,14 +131,10 @@ async function loadData() {
     return false;
   } catch(e) {
     console.warn('JSONBin load error:',e);
-    // Try to load from localStorage backup
     try{
-      console.log('Attempting to load from localStorage backup...');
       const backup=localStorage.getItem(STORAGE_KEY+'_backup');
-      console.log('localStorage backup found:',!!backup);
       if(backup){
         const d=JSON.parse(backup);
-        console.log('Backup data teams:',d?.teams?.length,'sched:',d?.sched?.length);
         if(d&&(d.sched?.length||Array.isArray(d.teams))){
           applyData(d);
           showToast('⚠ Offline mode — loaded from backup');
@@ -165,18 +160,22 @@ function applyData(d) {
     }));
   }
   if(d.sched){
-    // Remove duplicates based on game ID (keep first occurrence)
     const seenIds=new Set();
     G.sched=d.sched.filter(g=>{
       if(seenIds.has(g.id)) return false;
       seenIds.add(g.id);
       return true;
     });
-    // Normalize any legacy 24hr times (e.g. "18:30") to 12hr format ("6:30 PM")
     G.sched.forEach(g=>{ if(g.time) g.time=fmt12(g.time); });
   }
   if(d.scores)   G.scores=d.scores;
-  if(d.playoffs) G.playoffs=d.playoffs;
+  // FIX BUG 3: guard playoffs.format — old JSONBin records won't have it.
+  // Preserve existing format if the incoming record lacks it.
+  if(d.playoffs){
+    const existingFormat=G.playoffs?.format||'podrr';
+    G.playoffs=d.playoffs;
+    if(!G.playoffs.format) G.playoffs.format=existingFormat;
+  }
   if(d.ss){const el=document.getElementById('ss');if(el)el.value=d.ss;}
   if(d.se){const el=document.getElementById('se');if(el)el.value=d.se;}
   if(d.days&&d.days.length) applyDays(d.days);
@@ -207,7 +206,7 @@ function clearData(){
   if(!confirm('Clear schedule & scores for the current season?\n\nChampions history and season archives are preserved.\n\nThis cannot be undone.')) return;
   const{champions,seasonArchive,currentSeason}=G;
   G.sched=[];G.scores={};
-  G.playoffs={seeded:false,podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
+  G.playoffs={seeded:false,format:'podrr',podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
   G.teams=['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers','One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'];
   G.champions=champions;
   G.seasonArchive=seasonArchive;
@@ -231,11 +230,9 @@ document.addEventListener('DOMContentLoaded',async function(){
   try{updateGptNotice();}catch(e){}
   try{renderChampionAdminUI();}catch(e){}
 
-  // Re-render whichever tab is currently active now that data is loaded
   const activeTab=window._activeTab||'schedule';
   try{_renderActiveTab(activeTab);}catch(e){}
 
-  // Fetch and display current weather for Turner Park, Hamilton ON
   try{initHeaderWeather();}catch(e){}
 
   if(restored&&G.sched.length){
