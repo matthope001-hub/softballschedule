@@ -1,4 +1,36 @@
 // ── EDIT GAMES ────────────────────────────────────────────────────────────────
+
+// OPT 7: Single render dispatcher for all edit actions.
+// After any schedule mutation, only the currently visible tab needs an immediate
+// re-render. All inactive tabs are marked stale and will re-render when the
+// user navigates to them. This replaces the pattern of blindly calling
+// renderSched()+renderScores()+renderStandings()+renderStats() after every edit.
+function _markStaleAndRenderActive(skipEdit){
+  // Mark heavy tabs stale — they rebuild lazily on next tab switch
+  const sto=document.getElementById('sto'); if(sto) sto.dataset.stale='1';
+  const sta=document.getElementById('sta'); if(sta) sta.dataset.stale='1';
+  const champ=document.getElementById('champ-content'); if(champ) champ.dataset.stale='1';
+
+  // Immediately re-render whatever tab the user is looking at
+  const active=window._activeTab||'schedule';
+  if     (active==='schedule')  { try{renderSched();}catch(e){} }
+  else if(active==='standings') { try{renderStandings();}catch(e){} }
+  else if(active==='stats')     { try{renderStats();}catch(e){} }
+  else if(active==='playoffs')  { try{renderPlayoffs();}catch(e){} }
+
+  // Edit tab always re-renders (it's the source of the action, always visible)
+  if(!skipEdit){ try{renderEdit();}catch(e){} }
+
+  // If admin scores subtab is active, keep it fresh
+  if(active==='admin'&&typeof activeAdminTab!=='undefined'&&activeAdminTab==='scores'){
+    try{renderScores();}catch(e){}
+  }
+
+  // Ticker + season banner are lightweight — always update
+  try{renderLastResults();}catch(e){}
+  try{renderSeasonBanner();}catch(e){}
+}
+
 function byeTeamsEdit(dateStr){
   const playing=new Set();
   for(const g of G.sched){
@@ -13,6 +45,7 @@ function byeTeamsEdit(dateStr){
 
 function renderEdit(){
   const el=document.getElementById('edi');
+  if(!el)return;
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
 
   const ssEl=document.getElementById('ss');
@@ -23,7 +56,7 @@ function renderEdit(){
   const ssVal=ssEl?.value||'2026-05-19';
   const seVal=seEl?.value||'2026-09-29';
 
-  const windowNights=getGameNights(ssVal, seVal, days);
+  const windowNights=getGameNights(ssVal,seVal,days);
   const schedDates=new Set(G.sched.map(g=>g.date));
   const extraDates=[...schedDates].filter(d=>!windowNights.includes(d)).sort();
   const allNights=[...new Set([...windowNights,...extraDates])].sort();
@@ -93,34 +126,33 @@ function renderEdit(){
 </div>`;
       }
 
+      // Open slots at T1
       for(const dmId of openAt1){
-        const dm=G.diamonds.find(d=>d.id===dmId);
-        const badge=dm?.lights?`💡 ${getDiamondName(dmId)}`:`🌙 ${getDiamondName(dmId)}`;
         const slotId=`slot_${dateStr}_${dmId}_1`;
-        const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+        monthOpenSlots;
         inner+=`<div class="edit-row open-slot">
-          <span class="time-lbl" style="width:54px;flex-shrink:0">${T1}</span>
-          <span style="font-size:11px;color:var(--gray3);flex-shrink:0;min-width:50px">${badge}</span>
-          <select class="sel" id="${slotId}_h" style="font-size:12px"><option value="">— Home —</option>${teamOpts}</select>
-          <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
-          <select class="sel" id="${slotId}_a" style="font-size:12px"><option value="">— Away —</option>${teamOpts}</select>
-          <button onclick="addSlotGame('${slotId}','${dateStr}','${T1}',${dmId},${dm?.lights?'true':'false'})" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
-        </div>`;
+  <span class="time-lbl">${T1}</span>
+  <span style="font-size:11px;color:var(--muted)">${getDiamondName(dmId)}${isDiamondLit(dmId)?' 💡':' 🌙'} — Open</span>
+  <div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap">
+    <select id="${slotId}_h" class="sel" style="min-width:130px"><option value="">Home…</option>${G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+    <select id="${slotId}_a" class="sel" style="min-width:130px"><option value="">Away…</option>${G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+    <button onclick="addSlotGame('${slotId}','${dateStr}','${T1}',${dmId},${isDiamondLit(dmId)})" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
+  </div>
+</div>`;
       }
 
+      // Open slots at T2 (lit diamonds only)
       for(const dmId of openAt2){
-        const dm=G.diamonds.find(d=>d.id===dmId);
-        const badge=`💡 ${getDiamondName(dmId)}`;
         const slotId=`slot_${dateStr}_${dmId}_2`;
-        const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
         inner+=`<div class="edit-row open-slot late">
-          <span class="time-lbl late" style="width:54px;flex-shrink:0">${T2}</span>
-          <span style="font-size:11px;color:var(--gray3);flex-shrink:0;min-width:50px">${badge}</span>
-          <select class="sel" id="${slotId}_h" style="font-size:12px"><option value="">— Home —</option>${teamOpts}</select>
-          <span style="font-size:11px;color:var(--muted);flex-shrink:0">vs</span>
-          <select class="sel" id="${slotId}_a" style="font-size:12px"><option value="">— Away —</option>${teamOpts}</select>
-          <button onclick="addSlotGame('${slotId}','${dateStr}','${T2}',${dmId},${dm?.lights?'true':'false'})" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
-        </div>`;
+  <span class="time-lbl late">${T2}</span>
+  <span style="font-size:11px;color:var(--muted)">${getDiamondName(dmId)} 💡 — Open</span>
+  <div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap">
+    <select id="${slotId}_h" class="sel" style="min-width:130px"><option value="">Home…</option>${G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+    <select id="${slotId}_a" class="sel" style="min-width:130px"><option value="">Away…</option>${G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select>
+    <button onclick="addSlotGame('${slotId}','${dateStr}','${T2}',${dmId},true)" style="flex-shrink:0;padding:4px 10px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">+ Add</button>
+  </div>
+</div>`;
       }
     }
     html+=monthAccordion(month,inner,mi,'em',monthOpenSlots);
@@ -141,7 +173,6 @@ function renderEdit(){
   el.dataset.openMonth=lastOpenMonth;
 }
 
-// FIX #5: gate on isAdmin, FIX #11: validate home !== away
 function editGame(id,field,value){
   if(!isAdmin){showToast('🔒 Admin PIN required to edit games');return;}
   const g=G.sched.find(x=>x.id===id);
@@ -155,9 +186,8 @@ function editGame(id,field,value){
   else if(field==='time') g.time=value;
   g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
   saveData();
-  renderSched();
-  renderScores();
-  renderStandings();
+  // OPT 7: skipEdit=true — we're inside renderEdit's onChange, no full rebuild needed
+  _markStaleAndRenderActive(true);
 }
 
 function removeGame(id){
@@ -169,28 +199,15 @@ function removeGame(id){
   const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
   G.sched=G.sched.filter(x=>x.id!==id);
   delete G.scores[id];
-  saveData();
   const edi=document.getElementById('edi');
   if(edi) edi.dataset.openMonth=openMonth;
-  renderEdit();
-  renderSched();
-  renderScores();
-  renderStandings();
-  renderStats();
+  saveData();
+  // OPT 7: single dispatch — only active tab + edit tab re-render
+  _markStaleAndRenderActive();
   showToast(`🗑 Game #${id} removed — slot is open`);
 }
 
-// FIX #3: safe ID generation — no collision after deletions
-function nextGameId(dateStr){
-  const YEAR=new Date(dateStr+'T12:00:00').getFullYear().toString().slice(-2);
-  const maxSeq=G.sched.reduce((max,g)=>{
-    if(!g.id.startsWith(YEAR)) return max;
-    return Math.max(max, parseInt(g.id.slice(2))||0);
-  },0);
-  return `${YEAR}${String(maxSeq+1).padStart(3,'0')}`;
-}
-
-function addSlotGame(slotId, dateStr, time, dmId, lights){
+function addSlotGame(slotId,dateStr,time,dmId,lights){
   if(!checkAdmin()) return;
   const home=document.getElementById(slotId+'_h')?.value;
   const away=document.getElementById(slotId+'_a')?.value;
@@ -209,15 +226,11 @@ function addSlotGame(slotId, dateStr, time, dmId, lights){
   const edi=document.getElementById('edi');
   if(edi) edi.dataset.openMonth=openMonth;
   saveData();
-  renderEdit();
-  renderSched();
-  renderScores();
-  renderStandings();
-  renderStats();
+  // OPT 7: single dispatch
+  _markStaleAndRenderActive();
   showToast(`✓ Game #${newId} added — ${home} vs ${away}`);
 }
 
-// ── CLEAR SCHEDULE ONLY ───────────────────────────────────────────────────────
 function clearScheduleOnly(){
   if(!checkAdmin()) return;
   const gameCount=G.sched.length;
@@ -232,15 +245,11 @@ function clearScheduleOnly(){
     finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}
   };
   saveData();
-  renderEdit();
-  renderSched();
-  renderScores();
-  renderStandings();
-  renderStats();
+  // OPT 7: single dispatch
+  _markStaleAndRenderActive();
   showToast('🗑 Schedule cleared — teams and diamonds preserved');
 }
 
-// ── ADD GAME FORM (any date, any diamond) ─────────────────────────────────────
 function showAddGameForm(){
   if(!checkAdmin()) return;
   const form=document.getElementById('add-game-form');
@@ -249,55 +258,31 @@ function showAddGameForm(){
 
   const teamOpts=G.teams.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
   const dmOpts=G.diamonds.map(d=>`<option value="${d.id}">${esc(d.name)}${d.lights?' 💡':' 🌙'}</option>`).join('');
-  const gameTypes=[
-    {value:'regular',label:'Regular Season'},
-    {value:'playoff',label:'🏆 Playoff'},
-    {value:'exhibition',label:'Exhibition / Makeup'},
-  ];
-  const typeOpts=gameTypes.map(t=>`<option value="${t.value}">${t.label}</option>`).join('');
+  const typeOpts=`<option value="regular">Regular Season</option><option value="playoff">🏆 Playoff</option><option value="exhibition">Exhibition</option>`;
 
-  form.innerHTML=`
-    <div style="background:var(--white);border:1.5px solid var(--navy);border-radius:var(--r);padding:16px;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">Add a Game</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">DATE</label>
-          <input type="date" id="agDate" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box" value="2026-10-06"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">TIME</label>
-          <input type="text" id="agTime" placeholder="6:30 PM" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box" value="6:30 PM"/>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">HOME TEAM</label>
-          <select id="agHome" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
-            <option value="">— Select —</option>${teamOpts}
-          </select>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">AWAY TEAM</label>
-          <select id="agAway" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
-            <option value="">— Select —</option>${teamOpts}
-          </select>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">DIAMOND</label>
-          <select id="agDiamond" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
-            ${dmOpts}
-          </select>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">GAME TYPE</label>
-          <select id="agType" style="width:100%;font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--font);box-sizing:border-box">
-            ${typeOpts}
-          </select>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="submitAddGame()" style="padding:8px 20px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;font-family:var(--font)">✓ Add Game</button>
-        <button onclick="document.getElementById('add-game-form').style.display='none'" style="padding:8px 14px;background:none;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--muted);font-family:var(--font)">Cancel</button>
-      </div>
-    </div>`;
+  form.innerHTML=`<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:14px 16px;margin:8px 0 12px">
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">Add Game</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+      <div><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Date</label>
+        <input type="date" id="agDate" class="sel" style="width:100%"/></div>
+      <div><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Time</label>
+        <input type="text" id="agTime" class="sel" placeholder="6:30 PM" style="width:100%"/></div>
+      <div><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Diamond</label>
+        <select id="agDiamond" class="sel" style="width:100%">${dmOpts}</select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Home</label>
+        <select id="agHome" class="sel" style="width:100%"><option value="">Select…</option>${teamOpts}</select></div>
+      <div><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Away</label>
+        <select id="agAway" class="sel" style="width:100%"><option value="">Select…</option>${teamOpts}</select></div>
+      <div><label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Type</label>
+        <select id="agType" class="sel" style="width:100%">${typeOpts}</select></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="submitAddGame()" style="padding:8px 20px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;font-family:var(--font)">✓ Add Game</button>
+      <button onclick="document.getElementById('add-game-form').style.display='none'" style="padding:8px 14px;background:none;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--muted);font-family:var(--font)">Cancel</button>
+    </div>
+  </div>`;
   form.style.display='block';
   document.getElementById('agDate').focus();
 }
@@ -319,7 +304,6 @@ function submitAddGame(){
 
   const dm=G.diamonds.find(d=>d.id===dmId);
   const newId=nextGameId(date);
-
   const newGame={
     id:newId, date, time,
     diamond:dmId, lights:dm?.lights||false,
@@ -328,7 +312,6 @@ function submitAddGame(){
     playoff:type==='playoff',
     exhibition:type==='exhibition',
   };
-
   G.sched.push(newGame);
   G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
 
@@ -336,14 +319,11 @@ function submitAddGame(){
   const openMonth=MONTH_NAMES[d.getMonth()]+' '+d.getFullYear();
   const edi=document.getElementById('edi');
   if(edi) edi.dataset.openMonth=openMonth;
+  document.getElementById('add-game-form').style.display='none';
 
   saveData();
-  renderEdit();
-  renderSched();
-  renderScores();
-  renderStandings();
-  renderStats();
-
+  // OPT 7: single dispatch
+  _markStaleAndRenderActive();
   const typeLabel=type==='playoff'?'🏆 Playoff game':type==='exhibition'?'Exhibition game':'Game';
   showToast(`✓ ${typeLabel} #${newId} added — ${home} vs ${away} · ${date}`);
 }
