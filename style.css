@@ -1196,4 +1196,4 @@ tr.empty-slot td:empty {
   .stat-grid-3 { grid-template-columns: 1fr 1fr; }
   .champ-summary-grid { grid-template-columns: 1fr; }
   .tabs { gap: 2px; }
-}
+}   
