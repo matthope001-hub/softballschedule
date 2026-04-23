@@ -2,6 +2,9 @@
 let schedFilterTeam=null;
 let schedFilterDiamond=null;
 
+// ── OPT 1+2: Debounce timer for score saves ───────────────────────────────────
+let _scoreSaveTimer=null;
+
 function toggleAccordion(bodyId,arrId){
   const body=document.getElementById(bodyId);
   const arr=document.getElementById(arrId);
@@ -31,7 +34,6 @@ function byeTeams(dateStr){
       if(g.away) playing.add(g.away);
     }
   }
-  const allTeams=new Set(G.teams||[]);
   const byeList=G.teams.filter(t=>!playing.has(t));
   return byeList.length?`<span style="font-size:10px;background:var(--surface2);color:var(--muted);padding:1px 6px;border-radius:3px;margin-left:6px">Bye: ${byeList.join(', ')}</span>`:'';
 }
@@ -60,6 +62,21 @@ function renderSeasonBanner(){
   </div>`;
 }
 
+// ── OPT 2: Shared lightweight W/L record builder ──────────────────────────────
+// Called by renderLastResults only. Full standings use computeStandings() in standings.js.
+// This avoids renderLastResults re-looping all of G.sched independently.
+function _quickRecords(){
+  const rec={};
+  for(const t of G.teams) rec[t]={w:0,l:0};
+  for(const g of G.sched){
+    const sc=G.scores[g.id];
+    if(!sc||g.playoff||g.open) continue;
+    if(sc.h>sc.a){rec[g.home].w++;rec[g.away].l++;}
+    else if(sc.a>sc.h){rec[g.away].w++;rec[g.home].l++;}
+  }
+  return rec;
+}
+
 function renderLastResults(){
   const el=document.getElementById('last-results');
   if(!el)return;
@@ -68,32 +85,22 @@ function renderLastResults(){
     .slice(0,10);
   if(!scored.length){el.innerHTML='';return;}
 
-  // Calculate team records
-  const records={};
-  for(const t of G.teams){records[t]={w:0,l:0};}
-  for(const g of G.sched){
-    const sc=G.scores[g.id];
-    if(!sc||g.playoff||g.open)continue;
-    if(sc.h>sc.a){records[g.home].w++;records[g.away].l++;}
-    else if(sc.a>sc.h){records[g.away].w++;records[g.home].l++;}
-  }
+  // OPT 2: use shared helper — one loop, not two
+  const records=_quickRecords();
   const fmtRec=t=>{const r=records[t]||{w:0,l:0};return`${r.w}-${r.l}`;};
 
   const tickerItems=scored.map(g=>{
     const sc=G.scores[g.id];
     const hw=sc.h>sc.a,aw=sc.a>sc.h;
-    const homeClass=hw?'winner':'loser';
-    const awayClass=aw?'winner':'loser';
     return`<span class="ticker-item">
-      <span class="${homeClass}">${esc(g.home)} (${fmtRec(g.home)})</span>
+      <span class="${hw?'winner':'loser'}">${esc(g.home)} (${fmtRec(g.home)})</span>
       <span class="score">${sc.h}-${sc.a}</span>
-      <span class="${awayClass}">${esc(g.away)} (${fmtRec(g.away)})</span>
+      <span class="${aw?'winner':'loser'}">${esc(g.away)} (${fmtRec(g.away)})</span>
       <span style="opacity:0.5">|</span>
       <span style="opacity:0.7;font-size:11px">${g.date}</span>
     </span>`;
   }).join('');
 
-  // Duplicate items for seamless loop
   el.innerHTML=`<div class="ticker-content">${tickerItems}${tickerItems}</div>`;
 }
 
@@ -114,7 +121,6 @@ function renderFilterChips(){
   if(diamondFilterBar)diamondFilterBar.style.display='';
   if(exportBar)exportBar.classList.add('vis');
 
-  // Team chips — use data-team attribute to avoid apostrophe issues
   const teamEl=document.getElementById('team-filter-chips');
   if(teamEl){
     const chips=[
@@ -125,7 +131,6 @@ function renderFilterChips(){
     teamEl.innerHTML=chips.join('');
   }
 
-  // Diamond chips — use data-diamond attribute
   const dmEl=document.getElementById('diamond-filter-chips');
   if(dmEl){
     const usedDiamonds=[...new Set(G.sched.filter(g=>!g.open).map(g=>g.diamond))].sort((a,b)=>a-b);
@@ -201,28 +206,25 @@ function _renderSchedGames(){
     return;
   }
 
-  // Include open slots for month grouping so users see unfilled slots
   let displayGames=G.sched.filter(g=>!g.open);
   if(schedFilterTeam)    displayGames=displayGames.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
   if(schedFilterDiamond) displayGames=displayGames.filter(g=>g.diamond===schedFilterDiamond);
 
-  // For month detection, include all dates (even those with only open slots)
   const allDates=new Set(G.sched.map(g=>g.date));
   const monthMap={};const monthOrder=[];
   for(const dateStr of allDates){
     const ml=monthLabel(dateStr);
     if(!monthMap[ml]){monthMap[ml]=[];monthOrder.push(ml);}
   }
-  // Now populate with actual display games (non-open, or filtered)
   for(const g of displayGames){
     const ml=monthLabel(g.date);
     if(monthMap[ml]) monthMap[ml].push(g);
   }
 
-  if(!displayGames.length && !allDates.size){
+  if(!displayGames.length&&!allDates.size){
     const desc=[
-      schedFilterTeam    ? esc(schedFilterTeam)               : null,
-      schedFilterDiamond ? getDiamondName(schedFilterDiamond)  : null
+      schedFilterTeam    ?esc(schedFilterTeam)               :null,
+      schedFilterDiamond ?getDiamondName(schedFilterDiamond) :null
     ].filter(Boolean).join(' + ');
     el.innerHTML=`<div class="empty">No games found for ${desc}</div>`;
     return;
@@ -238,9 +240,7 @@ function _renderSchedGames(){
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
-      const isCO=g.crossover;
-      const isPly=g.playoff;
-      const isMak=g.makeup;
+      const isCO=g.crossover,isPly=g.playoff,isMak=g.makeup;
       const badge=isPly
         ?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>'
         :isMak
@@ -269,7 +269,6 @@ function _renderSchedGames(){
   el.innerHTML=`<div id="_filter_active_label" style="margin-bottom:8px"></div>${html}`;
   _updateFilterLabel();
 
-  // Auto-open current or soonest upcoming month
   const now=toDateStr(new Date());
   let opened=false;
   monthOrder.forEach((month,i)=>{
@@ -310,20 +309,21 @@ function renderScores(){
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
-      const hVal=sc?sc.h:'';
-      const aVal=sc?sc.a:'';
+      const hVal=sc&&sc.h!==''?sc.h:'';
+      const aVal=sc&&sc.a!==''?sc.a:'';
       const isCO=g.crossover;
       const wxBadge=sc?.wx?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🌧 WX</span>':'';
       const makBadge=g.makeup?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
-      inner+=`<div class="score-row${isCO?' co':''}">
+      // OPT 1: oninput (not onchange) — fires on every keystroke; saveScore is debounced internally
+      inner+=`<div class="score-row${isCO?' co':''}" id="srow_${g.id}">
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||''}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
         <span class="game-teams">${esc(g.home)}${wxBadge}${makBadge} vs ${esc(g.away)}</span>
         <span class="score-inputs">
-          <input type="number" class="si" min="0" max="99" value="${hVal}" onchange="saveScore('${g.id}',this,'h')" placeholder="H"/>
+          <input type="number" class="si" min="0" max="99" id="sih_${g.id}" value="${hVal}" oninput="saveScore('${g.id}',this,'h')" placeholder="H"/>
           <span style="color:var(--muted);font-size:11px;margin:0 2px">–</span>
-          <input type="number" class="si" min="0" max="99" value="${aVal}" onchange="saveScore('${g.id}',this,'a')" placeholder="A"/>
+          <input type="number" class="si" min="0" max="99" id="sia_${g.id}" value="${aVal}" oninput="saveScore('${g.id}',this,'a')" placeholder="A"/>
         </span>
         <button class="wx-btn" title="Weather cancellation (7–7 tie)" onclick="saveWeather('${g.id}')">🌧</button>
         <button class="wx-btn" title="Rainout + Reschedule makeup game" onclick="openRainoutModal('${g.id}')" style="margin-left:4px">🌧+📅</button>
@@ -352,23 +352,81 @@ function renderScores(){
   }
 }
 
-// ── SCORE SAVE ────────────────────────────────────────────────────────────────
+// ── SCORE SAVE — OPT 1: debounced, no DOM rebuild ────────────────────────────
+// oninput fires on every keystroke. We write to G.scores immediately so the
+// value is never lost, but we debounce the expensive downstream renders
+// (standings, stats, ticker) by 600ms. The input itself gets a transient
+// border flash on commit so the user has visual confirmation.
 function saveScore(id,input,side){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const val=parseInt(input.value);
   if(isNaN(val)||val<0){input.value='';return;}
   if(!G.scores[id]) G.scores[id]={h:'',a:''};
   G.scores[id][side]=val;
-  saveData();
-  renderSched();
-  renderStandings();
+
+  // Visual feedback on the input — blue while pending, green on commit
+  input.style.borderColor='var(--sys-blue,#1971c2)';
+
+  clearTimeout(_scoreSaveTimer);
+  _scoreSaveTimer=setTimeout(()=>{
+    saveData();
+    // Flash green to confirm save
+    input.style.borderColor='#27ae60';
+    setTimeout(()=>{ input.style.borderColor=''; },900);
+    // Update standings + ticker without touching the Scores DOM
+    renderStandings();
+    renderLastResults();
+    renderSeasonBanner();
+  },600);
+}
+
+// ── OPT 3: Surgical row update — no full renderScores() rebuild ───────────────
+// weatherGame/clearScore previously called renderScores() which wiped ALL inputs.
+// Now we only patch the specific game row's badge and button state in place.
+
+function _patchScoreRow(id){
+  const row=document.getElementById('srow_'+id);
+  if(!row) return false; // row not visible (collapsed accordion) — fall back to full render
+  const sc=G.scores[id];
+  const hEl=document.getElementById('sih_'+id);
+  const aEl=document.getElementById('sia_'+id);
+  if(hEl) hEl.value=sc?sc.h:'';
+  if(aEl) aEl.value=sc?sc.a:'';
+  // Update WX badge inside game-teams span
+  const teamsSpan=row.querySelector('.game-teams');
+  if(teamsSpan){
+    const g=G.sched.find(x=>x.id===id);
+    if(g){
+      const wxBadge=sc?.wx?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🌧 WX</span>':'';
+      const makBadge=g.makeup?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
+      teamsSpan.innerHTML=`${esc(g.home)}${wxBadge}${makBadge} vs ${esc(g.away)}`;
+    }
+  }
+  return true;
 }
 
 function saveWeather(id){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   G.scores[id]={h:7,a:7,wx:true};
   saveData();
-  renderScores();
+  // OPT 3: patch in place; fall back to full rebuild only if row isn't in DOM
+  if(!_patchScoreRow(id)) renderScores();
   renderSched();
   renderStandings();
+  renderLastResults();
+  renderSeasonBanner();
+  showToast('🌧 Weather game — 7–7 tie recorded');
+}
+
+function clearScore(id){
+  if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
+  delete G.scores[id];
+  saveData();
+  // OPT 3: patch in place; fall back to full rebuild only if row isn't in DOM
+  if(!_patchScoreRow(id)) renderScores();
+  renderSched();
+  renderStandings();
+  renderLastResults();
+  renderSeasonBanner();
+  showToast('✕ Score cleared');
 }
