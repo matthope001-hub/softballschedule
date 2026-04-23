@@ -8,7 +8,10 @@ const TEAM_COLOURS=[
 function renderStats(){
   const el=document.getElementById('sta');
   if(!el)return;
-  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to view stats</div>';return;}
+  if(!G.sched.length){
+    el.innerHTML='<div class="empty">Generate a schedule to view stats<br><br><span style="font-size:12px;color:var(--muted)">Schedule data is needed for team statistics, head-to-head matchups, and diamond usage charts.</span></div>';
+    return;
+  }
 
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const allTeams=G.teams;
@@ -59,6 +62,16 @@ function renderStats(){
       const awayKey=`${g.away}§${g.date}`;
       if(ts[g.home]&&!dhNights[homeKey]){ts[g.home].dh++;dhNights[homeKey]=true;}
       if(ts[g.away]&&!dhNights[awayKey]){ts[g.away].dh++;dhNights[awayKey]=true;}
+    }
+  }
+
+  // Count byes per team (game nights where team doesn't play)
+  const gameNights=[...new Set(G.sched.filter(g=>!g.open).map(g=>g.date))].sort();
+  for(const t of allTeams){
+    ts[t].byes=0;
+    for(const date of gameNights){
+      const playsOnNight=G.sched.some(g=>!g.open&&g.date===date&&(g.home===t||g.away===t));
+      if(!playsOnNight) ts[t].byes++;
     }
   }
 
@@ -145,6 +158,7 @@ function renderStats(){
       <td class="num" style="padding:8px 12px;border-bottom:1px solid var(--border);text-align:center;font-family:var(--mono)">${s.home}</td>
       <td class="num" style="padding:8px 12px;border-bottom:1px solid var(--border);text-align:center;font-family:var(--mono)">${s.away}</td>
       <td class="num" style="padding:8px 12px;border-bottom:1px solid var(--border);text-align:center;font-family:var(--mono);color:var(--muted)">${s.dh}</td>
+      <td class="num" style="padding:8px 12px;border-bottom:1px solid var(--border);text-align:center;font-family:var(--mono);color:var(--muted)">${s.byes}</td>
       ${dCells}
     </tr>`;
   }).join('');
@@ -203,7 +217,7 @@ function renderStats(){
       <div class="card-title" style="margin:0">Games Per Team</div>
       ${dToggle}
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Total = games a team appears in (home or away) · Diamond cols = appearances on that diamond</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Total = games a team appears in (home or away) · Byes = game nights with no game · Diamond cols = appearances on that diamond</div>
     <div class="mat-wrap">
       <table class="st2">
         <thead><tr>
@@ -212,6 +226,7 @@ function renderStats(){
           <th style="min-width:52px;text-align:center">Home</th>
           <th style="min-width:52px;text-align:center">Away</th>
           <th style="min-width:68px;text-align:center">DH Nights</th>
+          <th style="min-width:52px;text-align:center">Byes</th>
           ${dHeadCells}
         </tr></thead>
         <tbody>${gptRows}</tbody>

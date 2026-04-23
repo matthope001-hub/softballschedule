@@ -252,8 +252,8 @@ function renderChampions(){
   const el=document.getElementById('champ-content');
   if(!el)return;
 
-  // ── Loading guard: data still async, DOMContentLoaded will re-render ──
-  if(G.champions===null&&G.sched.length===0){
+  // ── Loading guard: only show loading if we haven't attempted load yet ──
+  if(G.champions===null && !window._dataLoadAttempted){
     el.innerHTML='<div class="empty">⏳ Loading…</div>';
     return;
   }

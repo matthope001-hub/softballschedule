@@ -270,10 +270,15 @@ body::before {
 /* Fallback: card with padding (for settings/forms) */
 .card.padded,
 .card > *:first-child:not(.card-row):not(table):not(.st-wrap):not(.acc-wrap) {
-  padding: 16px 16px;
+  padding: 12px 14px;
 }
 /* Re-apply inner padding on card content that needs it */
-.card > .card-inner { padding: 16px; }
+.card > .card-inner { padding: 12px 14px; }
+/* Compact form cards */
+.card.compact,
+.card.compact > *:first-child:not(.card-row):not(table):not(.st-wrap):not(.acc-wrap) {
+  padding: 10px 12px;
+}
 
 /* ── INSET GROUPED LIST ROWS — iOS UITableView style ── */
 .card-row {
@@ -346,13 +351,14 @@ body::before {
 .btn-xs  { font-size: 12px; padding: 5px 10px; border-radius: 8px; }
 
 /* ── FORM ELEMENTS — iOS text field style ── */
-.row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-.field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
+.row { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 140px; }
 
 .field label {
   font-family: var(--font);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 1.2;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -365,18 +371,19 @@ input[type="time"],
 select,
 select.sel {
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--text);
   background: var(--surface);
   border: 0.5px solid var(--sep-opaque);
   border-radius: var(--r-xs);
-  padding: 10px 13px;
+  padding: 6px 10px;
   width: 100%;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
   -webkit-appearance: none;
   appearance: none;
+  height: 34px;
 }
 input[type="text"]:focus,
 input[type="date"]:focus,
@@ -917,7 +924,7 @@ tr.empty-slot td:empty {
 .edit-row { border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.1s; border-left-width: 3px; border-left-style: solid; }
 .edit-row:hover { background: var(--surface2); }
 .edit-row.late { background: #f5f7ff; }
-.edit-row.open-slot { background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(13,27,46,0.018) 6px, rgba(13,27,46,0.018) 12px); }
+.edit-row.open-slot { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(13,27,46,0.018) 6px, rgba(13,27,46,0.018) 12px); }
 .edit-row.open-slot:hover { background: var(--surface2); }
 .edit-row-meta { display: flex; align-items: center; gap: 8px; padding: 5px 14px 3px; }
 .edit-row-controls { display: flex; align-items: center; gap: 6px; padding: 3px 14px 6px; flex-wrap: nowrap; overflow-x: auto; }
@@ -1179,6 +1186,7 @@ tr.empty-slot td:empty {
   .stat-grid-2, .stat-grid-3 { grid-template-columns: 1fr 1fr; }
   .row { flex-direction: column; }
   .edit-row { padding: 8px 12px; }
+  .edit-row.open-slot { flex-wrap: wrap; gap: 4px; padding: 8px 12px; }
   .admin-subtabs { border-radius: var(--r-sm); }
 }
 @media (max-width: 420px) {

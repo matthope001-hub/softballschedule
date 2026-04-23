@@ -73,12 +73,24 @@ function showTab(t,btn){
 }
 
 function _renderActiveTab(t){
-  if(t==='schedule'  &&typeof renderSched==='function')     renderSched();
-  if(t==='standings' &&typeof renderStandings==='function') renderStandings();
-  if(t==='stats'     &&typeof renderStats==='function')     renderStats();
-  if(t==='playoffs'  &&typeof renderPlayoffs==='function')  renderPlayoffs();
-  if(t==='champions' &&typeof renderChampions==='function') renderChampions();
-  if(t==='admin'     &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
+  try{
+    if(t==='schedule'  &&typeof renderSched==='function')     renderSched();
+  }catch(e){console.error('renderSched error:',e);}
+  try{
+    if(t==='standings' &&typeof renderStandings==='function') renderStandings();
+  }catch(e){console.error('renderStandings error:',e);}
+  try{
+    if(t==='stats'     &&typeof renderStats==='function')     renderStats();
+  }catch(e){console.error('renderStats error:',e);}
+  try{
+    if(t==='playoffs'  &&typeof renderPlayoffs==='function')  renderPlayoffs();
+  }catch(e){console.error('renderPlayoffs error:',e);}
+  try{
+    if(t==='champions' &&typeof renderChampions==='function') renderChampions();
+  }catch(e){console.error('renderChampions error:',e);}
+  try{
+    if(t==='admin'     &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
+  }catch(e){console.error('refreshActiveAdminTab error:',e);}
 }
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
@@ -159,7 +171,7 @@ function renderTeams(){
     <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--r-pill);font-size:12px;font-weight:600">
       ${esc(t)}
       ${t===CROSSOVER?'<span style="font-size:10px;color:var(--muted)">(guest)</span>':''}
-      <button onclick="removeTeam('${t.replace(/'/g,"\\'")}')}" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:0;line-height:1;margin-left:2px">×</button>
+      <button onclick="removeTeam('${t.replace(/'/g,"\\'")}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:0;line-height:1;margin-left:2px">×</button>
     </span>`).join('');
 }
 
@@ -217,94 +229,6 @@ function renderDiamonds(){
     </div>`;
   }
   el.innerHTML=html;
-}
-
-// ── SCHEDULE CALCULATOR ───────────────────────────────────────────────────────
-function updateGptNotice(){
-  const el=document.getElementById('gpt-notice');
-  if(!el) return;
-  const ss=document.getElementById('ss')?.value;
-  const se=document.getElementById('se')?.value;
-  const tfaced=parseInt(document.getElementById('tfaced')?.value)||2;
-  const gptVal=parseInt(document.getElementById('gpt')?.value)||null;
-  const t1=document.getElementById('time1')?.value||'6:30 PM';
-  const t2=document.getElementById('time2')?.value||'8:15 PM';
-
-  const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
-  const n=leagueTeams.length;
-  if(!ss||!se||!n){el.innerHTML='<div style="color:var(--muted);font-size:13px">Configure teams and dates to see projections.</div>';return;}
-
-  const activeDiamonds=G.diamonds.filter(d=>d.active);
-  const d9=activeDiamonds.find(d=>d.id===9);
-  const dhDiamonds=activeDiamonds.filter(d=>d.id!==9&&d.lights);
-  const singleDiamonds=activeDiamonds.filter(d=>d.id!==9&&!d.lights);
-
-  const days=getSelectedDays();
-  const nights=days.length?getGameNights(ss,se,days):[];
-
-  const gamesPerNightLeague=dhDiamonds.length*2+singleDiamonds.length;
-  const gamesPerNightCO=d9?2:0;
-  const totalGamesPerNight=gamesPerNightLeague+gamesPerNightCO;
-
-  const uniquePairs=n*(n-1)/2;
-  const lgGamesFromFaced=uniquePairs*tfaced;
-  const gamesPerTeamAlgo=n>1?Math.round((lgGamesFromFaced*2)/n):0;
-  const displayedGpt=gptVal||gamesPerTeamAlgo;
-
-  const requiredNights=gamesPerNightLeague>0?Math.ceil(lgGamesFromFaced/gamesPerNightLeague*2):0;
-  const nightsMatch=nights.length>=requiredNights;
-
-  const coTotalGames=d9?nights.length*2:0;
-  const lgTotalGames=gamesPerNightLeague*nights.length;
-  const totalGames=nightsMatch?coTotalGames+lgTotalGames:0;
-
-  const gptWarning=gptVal&&gptVal!==gamesPerTeamAlgo
-    ?`<div style="padding:8px 12px;background:#fef3c7;border-bottom:1px solid var(--border);font-size:12px;color:#92400e">⚠ GPT cap ${gptVal} differs from algorithm's natural ${gamesPerTeamAlgo} — generator will enforce the cap hard</div>`
-    :'';
-
-  const statusOk=nightsMatch&&nights.length>0&&activeDiamonds.length>0&&n>=2;
-  const statusBg=statusOk?'var(--green-bg)':'#fff0f0';
-  const statusHtml=statusOk
-    ?`<span style="color:var(--green);font-weight:700">✓ Ready to generate</span> — ${nights.length} nights · ${totalGamesPerNight} games/night · ${displayedGpt} games/team`
-    :`<span style="color:var(--red);font-weight:700">⚠ Not ready</span>${!activeDiamonds.length?' — activate at least one diamond':''}${n<2?' — need at least 2 league teams':''}${!nights.length&&ss&&se?' — no game nights in range':''}${nights.length&&nights.length<requiredNights?` — need ${requiredNights} nights, have ${nights.length}`:''}`;
-
-  el.innerHTML=`<div style="border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden">
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--border)">
-      <div style="padding:8px 12px;border-right:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Game Nights</div>
-        <div style="font-size:22px;font-weight:800;color:${nightsMatch?'var(--navy)':'var(--red)'};line-height:1.2">${nights.length}</div>
-        <div style="font-size:11px;color:var(--muted)">Need ${requiredNights}</div>
-      </div>
-      <div style="padding:8px 12px;border-right:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Games/Team</div>
-        <div style="font-size:22px;font-weight:800;color:${gptVal&&gptVal!==gamesPerTeamAlgo?'#b45309':'var(--navy)'};line-height:1.2">${displayedGpt}</div>
-        <div style="font-size:11px;color:var(--muted)">${gptVal&&gptVal!==gamesPerTeamAlgo?`cap set · algo: ${gamesPerTeamAlgo}`:`${tfaced}× each opponent`}</div>
-      </div>
-      <div style="padding:8px 12px">
-        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
-        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
-        <div style="font-size:11px;color:var(--muted)">${nightsMatch&&d9?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
-      </div>
-    </div>
-    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Per Night · ${t1} / ${t2} · ${activeDiamonds.length} active diamonds</div>
-      <div style="display:grid;gap:3px">
-        ${d9?`<div style="display:flex;justify-content:space-between;font-size:12px"><span>D9 — CrossOver DH</span><strong>2 games</strong></div>`:''}
-        ${dhDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px"><span>D${d.id} — ${esc(d.name)} — 💡 Doubleheader</span><strong>2 games</strong></div>`).join('')}
-        ${singleDiamonds.map(d=>`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>D${d.id} — ${esc(d.name)} — 🌙 Single only</span><strong style="color:var(--text)">1 game</strong></div>`).join('')}
-        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;border-top:1px solid var(--border);padding-top:4px;margin-top:2px"><span>Total per night</span><span>${totalGamesPerNight} games</span></div>
-      </div>
-    </div>
-    <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Opponent Matchups</div>
-      <div style="display:grid;gap:2px;font-size:12px">
-        <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × ${tfaced}× each</span><strong>${lgGamesFromFaced} league games</strong></div>
-        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
-      </div>
-    </div>
-    ${gptWarning}
-    <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
-  </div>`;
 }
 
 // ── SEASON HEADER ─────────────────────────────────────────────────────────────
@@ -477,18 +401,27 @@ function updateGptNotice(){
   const t2=d9?'1 CrossOver DH':'no D9';
   const dhMode=targetDh>0?`Target: ${targetDh} DH`:`Auto: ${Math.round(dhBonus)} DH`;
 
+  // ── RECOMMENDATION CALCULATOR ───────────────────────────────────────────────
+  // Calculate max balanced games per team given constraints
+  const totalTeamGameSlots=nights*lgPairSlotsPerNight*2; // Each game serves 2 teams
+  const maxGamesPerTeam=leagueN>0?Math.floor(totalTeamGameSlots/leagueN):0;
+  // CrossOver plays 2 games per night, distributed across league teams
+  const coGamesPerTeam=leagueN>0?Math.floor((2*nights)/leagueN):0;
+  // Recommended: balanced games based on available slots
+  const recommendedGames=leagueN>0?Math.min(maxGamesPerTeam,Math.max(10,coGamesPerTeam+Math.floor((nights*lgPairSlotsPerNight)/leagueN*2))):0;
+  const recText=leagueN>0?`${recommendedGames} games (${coGamesPerTeam} vs CO + ${recommendedGames-coGamesPerTeam} league)`:'Add teams to calculate';
+
   let statusHtml,statusBg;
   if(!nightsMatch){
     const diff=requiredNights-nights;
-    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Season length mismatch</span> — ${tfaced}× times faced needs exactly <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. ${diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`}`;
+    statusHtml=`<span style="color:var(--red);font-weight:800">✗ Cannot meet minimum</span> — ${tfaced}× required matchups need exactly <strong>${requiredNights}</strong> nights. You have <strong>${nights}</strong>. ${diff>0?`Add ${diff} more game nights.`:`Remove ${-diff} game nights.`}`;
     statusBg='#fff0f0';
   }else{
-    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${gamesPerTeam} games per team, every pair plays ${tfaced}×</span>`;
+    statusHtml=`<span style="color:#27ae60;font-weight:800">✓ Ready — ${gamesPerTeam} games/team, every pair plays minimum ${tfaced}×</span>`;
     statusBg='#edf7f0';
   }
 
-  noticeEl.innerHTML=`
-  <div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;margin-top:4px">
+  noticeEl.innerHTML=`<div style="border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;margin-top:4px">
     <div style="background:var(--navy);color:#fff;padding:7px 12px;font-weight:800;font-size:11px;letter-spacing:0.8px;text-transform:uppercase">📊 Schedule Calculator</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--border)">
       <div style="padding:8px 12px;border-right:1px solid var(--border)">
@@ -503,8 +436,8 @@ function updateGptNotice(){
       </div>
       <div style="padding:8px 12px">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Total Games</div>
-        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${nightsMatch?totalGames:'—'}</div>
-        <div style="font-size:11px;color:var(--muted)">${nightsMatch?`CO: ${coTotalGames} · League: ${lgTotalGames}`:''}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--navy);line-height:1.2">${totalGames}</div>
+        <div style="font-size:11px;color:var(--muted)">CO: ${coTotalGames} · League: ${lgTotalGames}</div>
       </div>
     </div>
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
@@ -519,10 +452,29 @@ function updateGptNotice(){
     <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:4px">Opponent Matchups</div>
       <div style="display:grid;gap:2px;font-size:12px">
-        <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × ${tfaced}× each</span><strong>${lgGamesFromFaced} league games</strong></div>
-        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>${uniquePairs} unique pairs × minimum ${tfaced}× each</span><strong>${lgGamesFromFaced} league games minimum</strong></div>
+        <div style="display:flex;justify-content:space-between;color:var(--muted)"><span>Required season length</span><strong style="color:var(--text)">${requiredNights} nights needed</strong></div>
+      </div>
+    </div>
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border);background:var(--surface2)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px">Recommended Games/Team</div>
+          <div style="font-size:18px;font-weight:800;color:var(--navy);line-height:1.2">${recText}</div>
+        </div>
+        <button onclick="applyRecommendedGames(${recommendedGames})" style="padding:6px 14px;font-size:12px;font-weight:700;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer">Use ${recommendedGames}</button>
       </div>
     </div>
     <div style="padding:8px 12px;background:${statusBg};font-size:13px">${statusHtml}</div>
   </div>`;
+}
+
+function applyRecommendedGames(n){
+  if(n<1)return;
+  const gptEl=document.getElementById('gpt');
+  if(gptEl){
+    gptEl.value=n;
+    updateGptNotice();
+    showToast(`✓ Set to ${n} games per team`);
+  }
 }

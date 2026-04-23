@@ -36,16 +36,18 @@ function exportPrint(){
       <td>${type}</td>
     </tr>`;
   }).join('');
-  const win=window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><title>HCCSL ${G.currentSeason||2026} Schedule</title>
+  const html=`<!DOCTYPE html><html><head><title>HCCSL ${G.currentSeason||2026} Schedule</title>
   <style>body{font-family:sans-serif;font-size:12px;padding:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#1a2744;color:#fff}tr:nth-child(even){background:#f5f5f5}@media print{button{display:none}}</style>
   </head><body>
   <h2>HCCSL ${G.currentSeason||2026} — Full Schedule</h2>
   <p>Exported ${new Date().toLocaleDateString()}</p>
   <button onclick="window.print()">🖨 Print</button>
   <table><thead><tr><th>Game</th><th>Date</th><th>Time</th><th>Diamond</th><th>Home</th><th>Away</th><th>Score</th><th>Type</th></tr></thead>
-  <tbody>${rows}</tbody></table></body></html>`);
-  win.document.close();
+  <tbody>${rows}</tbody></table></body></html>`;
+  const blob=new Blob([html],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const win=window.open(url,'_blank');
+  if(!win)alert('Popup blocked — allow popups for print/PDF export');
 }
 
 function exportICal(){

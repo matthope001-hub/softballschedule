@@ -23,6 +23,19 @@ function monthAccordion(month,inner,idx,prefix,openSlots){
   </div>`;
 }
 
+function byeTeams(dateStr){
+  const playing=new Set();
+  for(const g of G.sched){
+    if(g.date===dateStr&&!g.open){
+      if(g.home) playing.add(g.home);
+      if(g.away) playing.add(g.away);
+    }
+  }
+  const allTeams=new Set(G.teams||[]);
+  const byeList=G.teams.filter(t=>!playing.has(t));
+  return byeList.length?`<span style="font-size:10px;background:var(--surface2);color:var(--muted);padding:1px 6px;border-radius:3px;margin-left:6px">Bye: ${byeList.join(', ')}</span>`:'';
+}
+
 function sunsetBadge(dateStr){
   const UNSAFE=['2026-09-15','2026-09-22','2026-09-29'];
   const CAUTION=['2026-09-08'];
@@ -86,16 +99,19 @@ function renderLastResults(){
 
 // ── FILTER ────────────────────────────────────────────────────────────────────
 function renderFilterChips(){
-  const filterBar=document.getElementById('filter-bar');
+  const teamFilterBar=document.getElementById('team-filter-bar');
+  const diamondFilterBar=document.getElementById('diamond-filter-bar');
   const exportBar=document.getElementById('export-bar');
 
   if(!G.sched.length){
-    if(filterBar)filterBar.style.display='none';
+    if(teamFilterBar)teamFilterBar.style.display='none';
+    if(diamondFilterBar)diamondFilterBar.style.display='none';
     if(exportBar)exportBar.classList.remove('vis');
     return;
   }
 
-  if(filterBar)filterBar.style.display='block';
+  if(teamFilterBar)teamFilterBar.style.display='';
+  if(diamondFilterBar)diamondFilterBar.style.display='';
   if(exportBar)exportBar.classList.add('vis');
 
   // Team chips — use data-team attribute to avoid apostrophe issues
@@ -185,11 +201,25 @@ function _renderSchedGames(){
     return;
   }
 
-  let filtered=G.sched.filter(g=>!g.open);
-  if(schedFilterTeam)    filtered=filtered.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
-  if(schedFilterDiamond) filtered=filtered.filter(g=>g.diamond===schedFilterDiamond);
+  // Include open slots for month grouping so users see unfilled slots
+  let displayGames=G.sched.filter(g=>!g.open);
+  if(schedFilterTeam)    displayGames=displayGames.filter(g=>g.home===schedFilterTeam||g.away===schedFilterTeam);
+  if(schedFilterDiamond) displayGames=displayGames.filter(g=>g.diamond===schedFilterDiamond);
 
-  if(!filtered.length){
+  // For month detection, include all dates (even those with only open slots)
+  const allDates=new Set(G.sched.map(g=>g.date));
+  const monthMap={};const monthOrder=[];
+  for(const dateStr of allDates){
+    const ml=monthLabel(dateStr);
+    if(!monthMap[ml]){monthMap[ml]=[];monthOrder.push(ml);}
+  }
+  // Now populate with actual display games (non-open, or filtered)
+  for(const g of displayGames){
+    const ml=monthLabel(g.date);
+    if(monthMap[ml]) monthMap[ml].push(g);
+  }
+
+  if(!displayGames.length && !allDates.size){
     const desc=[
       schedFilterTeam    ? esc(schedFilterTeam)               : null,
       schedFilterDiamond ? getDiamondName(schedFilterDiamond)  : null
@@ -198,27 +228,23 @@ function _renderSchedGames(){
     return;
   }
 
-  const monthMap={};const monthOrder=[];
-  for(const g of filtered){
-    const ml=monthLabel(g.date);
-    if(!monthMap[ml]){monthMap[ml]=[];monthOrder.push(ml);}
-    monthMap[ml].push(g);
-  }
-
   let html='';
   monthOrder.forEach((month,mi)=>{
     let inner='';
     let lastDate='';
     for(const g of monthMap[month]){
       if(g.date!==lastDate){
-        inner+=`<div class="day-head">${fmtDate(g.date)}${sunsetBadge(g.date)}</div>`;
+        inner+=`<div class="day-head">${fmtDate(g.date)}${sunsetBadge(g.date)}${byeTeams(g.date)}</div>`;
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
       const isCO=g.crossover;
       const isPly=g.playoff;
+      const isMak=g.makeup;
       const badge=isPly
         ?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>'
+        :isMak
+        ?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>'
         :isCO
         ?'<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">CO</span>'
         :'';
@@ -280,7 +306,7 @@ function renderScores(){
     let lastDate='';
     for(const g of monthMap[month]){
       if(g.date!==lastDate){
-        inner+=`<div class="day-head">${fmtDate(g.date)}</div>`;
+        inner+=`<div class="day-head">${fmtDate(g.date)}${byeTeams(g.date)}</div>`;
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
@@ -288,17 +314,19 @@ function renderScores(){
       const aVal=sc?sc.a:'';
       const isCO=g.crossover;
       const wxBadge=sc?.wx?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🌧 WX</span>':'';
+      const makBadge=g.makeup?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
       inner+=`<div class="score-row${isCO?' co':''}">
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||''}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
-        <span class="game-teams">${esc(g.home)}${wxBadge} vs ${esc(g.away)}</span>
+        <span class="game-teams">${esc(g.home)}${wxBadge}${makBadge} vs ${esc(g.away)}</span>
         <span class="score-inputs">
           <input type="number" class="si" min="0" max="99" value="${hVal}" onchange="saveScore('${g.id}',this,'h')" placeholder="H"/>
           <span style="color:var(--muted);font-size:11px;margin:0 2px">–</span>
           <input type="number" class="si" min="0" max="99" value="${aVal}" onchange="saveScore('${g.id}',this,'a')" placeholder="A"/>
         </span>
         <button class="wx-btn" title="Weather cancellation (7–7 tie)" onclick="saveWeather('${g.id}')">🌧</button>
+        <button class="wx-btn" title="Rainout + Reschedule makeup game" onclick="openRainoutModal('${g.id}')" style="margin-left:4px">🌧+📅</button>
       </div>`;
     }
     html+=monthAccordion(month,inner,mi,'sco',0);

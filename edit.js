@@ -1,4 +1,16 @@
 // ── EDIT GAMES ────────────────────────────────────────────────────────────────
+function byeTeamsEdit(dateStr){
+  const playing=new Set();
+  for(const g of G.sched){
+    if(g.date===dateStr&&!g.open){
+      if(g.home) playing.add(g.home);
+      if(g.away) playing.add(g.away);
+    }
+  }
+  const byeList=G.teams.filter(t=>!playing.has(t));
+  return byeList.length?`<span style="font-size:10px;background:var(--surface2);color:var(--muted);padding:1px 6px;border-radius:3px;margin-left:6px">Bye: ${byeList.join(', ')}</span>`:'';
+}
+
 function renderEdit(){
   const el=document.getElementById('edi');
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
@@ -44,7 +56,7 @@ function renderEdit(){
     let inner='';
     let monthOpenSlots=0;
     for(const dateStr of monthMap[month]){
-      inner+=`<div class="day-head">${fmtDate(dateStr)}${sunsetBadge(dateStr)}</div>`;
+      inner+=`<div class="day-head">${fmtDate(dateStr)}${sunsetBadge(dateStr)}${byeTeamsEdit(dateStr)}</div>`;
       const nightGames=G.sched.filter(g=>g.date===dateStr).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
       const usedAt1=new Set(nightGames.filter(g=>g.time!==T2).map(g=>g.diamond));
       const usedAt2=new Set(nightGames.filter(g=>g.time===T2).map(g=>g.diamond));
