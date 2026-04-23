@@ -41,94 +41,94 @@ const ARCHIVE_2023=[
   {date:'2023-05-23',time:'8:15 PM',away:'Kibosh',home:'Foul Poles',diamond:'D12',as:9,hs:7},
   {date:'2023-05-23',time:'8:15 PM',away:'Basic Pitches',home:'Steel City Sluggers',diamond:'D9',as:7,hs:11},
   {date:'2023-05-30',time:'6:30 PM',away:'JAFT',home:'Stiff Competition',diamond:'D12',as:10,hs:11},
-  {date:'2023-05-30',time:'6:30 PM',away:'Steel City Sluggers',home:'Foul Poles',diamond:'D13',as:15,hs:5},
-  {date:'2023-05-30',time:'6:30 PM',away:'One Hit Wonders',home:'Wayco',diamond:'D14',as:7,hs:8},
-  {date:'2023-05-30',time:'6:30 PM',away:'Basic Pitches',home:'Alcoballics',diamond:'D5',as:6,hs:11},
-  {date:'2023-05-30',time:'6:30 PM',away:'Landon Longballers',home:'Kibosh',diamond:'D9',as:11,hs:5},
-  {date:'2023-05-30',time:'8:15 PM',away:'JAFT',home:'Wayco',diamond:'D12',as:12,hs:7},
-  {date:'2023-05-30',time:'8:15 PM',away:'Landon Longballers',home:'Stiff Competition',diamond:'D9',as:9,hs:5},
-  {date:'2023-06-06',time:'6:30 PM',away:'Kibosh',home:'Wayco',diamond:'D12',as:9,hs:6},
-  {date:'2023-06-06',time:'6:30 PM',away:'Alcoballics',home:'JAFT',diamond:'D13',as:7,hs:10},
-  {date:'2023-06-06',time:'6:30 PM',away:'Basic Pitches',home:'Stiff Competition',diamond:'D14',as:4,hs:14},
-  {date:'2023-06-06',time:'6:30 PM',away:'One Hit Wonders',home:'Steel City Sluggers',diamond:'D5',as:9,hs:15},
-  {date:'2023-06-06',time:'6:30 PM',away:'Foul Poles',home:'Landon Longballers',diamond:'D9',as:10,hs:12},
-  {date:'2023-06-06',time:'8:15 PM',away:'Kibosh',home:'One Hit Wonders',diamond:'D12',as:10,hs:9},
-  {date:'2023-06-06',time:'8:15 PM',away:'Foul Poles',home:'Wayco',diamond:'D9',as:8,hs:6},
-  {date:'2023-06-13',time:'6:30 PM',away:'Alcoballics',home:'Stiff Competition',diamond:'D12',as:11,hs:12},
-  {date:'2023-06-13',time:'6:30 PM',away:'Landon Longballers',home:'Steel City Sluggers',diamond:'D13',as:13,hs:11},
-  {date:'2023-06-13',time:'6:30 PM',away:'One Hit Wonders',home:'JAFT',diamond:'D14',as:4,hs:13},
-  {date:'2023-06-13',time:'6:30 PM',away:'Wayco',home:'Kibosh',diamond:'D5',as:6,hs:12},
-  {date:'2023-06-13',time:'6:30 PM',away:'Basic Pitches',home:'Foul Poles',diamond:'D9',as:5,hs:11},
-  {date:'2023-06-13',time:'8:15 PM',away:'Alcoballics',home:'Landon Longballers',diamond:'D12',as:16,hs:10},
-  {date:'2023-06-13',time:'8:15 PM',away:'Wayco',home:'Basic Pitches',diamond:'D9',as:8,hs:14},
-  {date:'2023-06-20',time:'6:30 PM',away:'Stiff Competition',home:'Kibosh',diamond:'D12',as:5,hs:10},
-  {date:'2023-06-20',time:'6:30 PM',away:'JAFT',home:'Basic Pitches',diamond:'D13',as:9,hs:11},
-  {date:'2023-06-20',time:'6:30 PM',away:'Foul Poles',home:'Alcoballics',diamond:'D14',as:8,hs:5},
-  {date:'2023-06-20',time:'6:30 PM',away:'Steel City Sluggers',home:'One Hit Wonders',diamond:'D5',as:5,hs:11},
-  {date:'2023-06-20',time:'6:30 PM',away:'Wayco',home:'Landon Longballers',diamond:'D9',as:12,hs:9},
-  {date:'2023-06-20',time:'8:15 PM',away:'Stiff Competition',home:'Steel City Sluggers',diamond:'D12',as:9,hs:11},
-  {date:'2023-06-20',time:'8:15 PM',away:'JAFT',home:'Foul Poles',diamond:'D9',as:8,hs:12},
-  {date:'2023-06-27',time:'6:30 PM',away:'One Hit Wonders',home:'Alcoballics',diamond:'D12',as:5,hs:13},
-  {date:'2023-06-27',time:'6:30 PM',away:'Kibosh',home:'JAFT',diamond:'D13',as:8,hs:9},
-  {date:'2023-06-27',time:'6:30 PM',away:'Landon Longballers',home:'Foul Poles',diamond:'D14',as:12,hs:8},
-  {date:'2023-06-27',time:'6:30 PM',away:'Stiff Competition',home:'Wayco',diamond:'D5',as:7,hs:9},
-  {date:'2023-06-27',time:'6:30 PM',away:'Basic Pitches',home:'Steel City Sluggers',diamond:'D9',as:14,hs:11},
-  {date:'2023-06-27',time:'8:15 PM',away:'One Hit Wonders',home:'Landon Longballers',diamond:'D12',as:10,hs:13},
-  {date:'2023-06-27',time:'8:15 PM',away:'Kibosh',home:'Basic Pitches',diamond:'D9',as:11,hs:10},
-  {date:'2023-07-04',time:'6:30 PM',away:'Foul Poles',home:'Stiff Competition',diamond:'D12',as:8,hs:10},
-  {date:'2023-07-04',time:'6:30 PM',away:'Alcoballics',home:'Wayco',diamond:'D13',as:12,hs:6},
-  {date:'2023-07-04',time:'6:30 PM',away:'Steel City Sluggers',home:'JAFT',diamond:'D14',as:9,hs:11},
-  {date:'2023-07-04',time:'6:30 PM',away:'One Hit Wonders',home:'Kibosh',diamond:'D5',as:5,hs:8},
-  {date:'2023-07-04',time:'6:30 PM',away:'Landon Longballers',home:'Basic Pitches',diamond:'D9',as:7,hs:10},
-  {date:'2023-07-04',time:'8:15 PM',away:'Foul Poles',home:'JAFT',diamond:'D12',as:11,hs:9},
-  {date:'2023-07-04',time:'8:15 PM',away:'Alcoballics',home:'Steel City Sluggers',diamond:'D9',as:9,hs:12},
-  {date:'2023-07-11',time:'6:30 PM',away:'Wayco',home:'One Hit Wonders',diamond:'D12',as:8,hs:9},
-  {date:'2023-07-11',time:'6:30 PM',away:'Stiff Competition',home:'Landon Longballers',diamond:'D13',as:4,hs:13},
-  {date:'2023-07-11',time:'6:30 PM',away:'JAFT',home:'Kibosh',diamond:'D14',as:12,hs:14},
-  {date:'2023-07-11',time:'6:30 PM',away:'Basic Pitches',home:'Alcoballics',diamond:'D5',as:11,hs:9},
-  {date:'2023-07-11',time:'6:30 PM',away:'Foul Poles',home:'Steel City Sluggers',diamond:'D9',as:8,hs:13},
-  {date:'2023-07-11',time:'8:15 PM',away:'Wayco',home:'Stiff Competition',diamond:'D12',as:7,hs:10},
-  {date:'2023-07-11',time:'8:15 PM',away:'JAFT',home:'Alcoballics',diamond:'D9',as:8,hs:14},
-  {date:'2023-07-18',time:'6:30 PM',away:'Steel City Sluggers',home:'Kibosh',diamond:'D12',as:6,hs:9},
-  {date:'2023-07-18',time:'6:30 PM',away:'One Hit Wonders',home:'Foul Poles',diamond:'D13',as:6,hs:11},
-  {date:'2023-07-18',time:'6:30 PM',away:'Alcoballics',home:'Basic Pitches',diamond:'D14',as:9,hs:13},
-  {date:'2023-07-18',time:'6:30 PM',away:'Wayco',home:'JAFT',diamond:'D5',as:9,hs:8},
-  {date:'2023-07-18',time:'6:30 PM',away:'Stiff Competition',home:'Basic Pitches',diamond:'D9',as:5,hs:11},
-  {date:'2023-07-18',time:'8:15 PM',away:'Steel City Sluggers',home:'Foul Poles',diamond:'D12',as:8,hs:10},
-  {date:'2023-07-18',time:'8:15 PM',away:'One Hit Wonders',home:'Stiff Competition',diamond:'D9',as:9,hs:5},
-  {date:'2023-07-25',time:'6:30 PM',away:'Alcoballics',home:'Kibosh',diamond:'D12',as:10,hs:14},
-  {date:'2023-07-25',time:'6:30 PM',away:'JAFT',home:'Landon Longballers',diamond:'D13',as:7,hs:12},
-  {date:'2023-07-25',time:'6:30 PM',away:'Basic Pitches',home:'One Hit Wonders',diamond:'D14',as:9,hs:11},
-  {date:'2023-07-25',time:'6:30 PM',away:'Foul Poles',home:'Wayco',diamond:'D5',as:8,hs:10},
-  {date:'2023-07-25',time:'6:30 PM',away:'Stiff Competition',home:'Steel City Sluggers',diamond:'D9',as:8,hs:13},
-  {date:'2023-07-25',time:'8:15 PM',away:'Alcoballics',home:'JAFT',diamond:'D12',as:11,hs:8},
-  {date:'2023-07-25',time:'8:15 PM',away:'Basic Pitches',home:'Foul Poles',diamond:'D9',as:11,hs:9},
-  {date:'2023-08-01',time:'6:30 PM',away:'Kibosh',home:'Landon Longballers',diamond:'D12',as:9,hs:12},
-  {date:'2023-08-01',time:'6:30 PM',away:'Wayco',home:'Alcoballics',diamond:'D13',as:5,hs:13},
-  {date:'2023-08-01',time:'6:30 PM',away:'JAFT',home:'One Hit Wonders',diamond:'D14',as:9,hs:5},
-  {date:'2023-08-01',time:'6:30 PM',away:'Steel City Sluggers',home:'Stiff Competition',diamond:'D5',as:12,hs:8},
-  {date:'2023-08-01',time:'6:30 PM',away:'Foul Poles',home:'Basic Pitches',diamond:'D9',as:7,hs:12},
-  {date:'2023-08-01',time:'8:15 PM',away:'Kibosh',home:'Wayco',diamond:'D12',as:12,hs:8},
-  {date:'2023-08-01',time:'8:15 PM',away:'JAFT',home:'Steel City Sluggers',diamond:'D9',as:11,hs:14},
-  {date:'2023-08-08',time:'6:30 PM',away:'Landon Longballers',home:'One Hit Wonders',diamond:'D12',as:10,hs:7},
-  {date:'2023-08-08',time:'6:30 PM',away:'Foul Poles',home:'Kibosh',diamond:'D13',as:7,hs:13},
-  {date:'2023-08-08',time:'6:30 PM',away:'Wayco',home:'Steel City Sluggers',diamond:'D14',as:9,hs:12},
-  {date:'2023-08-08',time:'6:30 PM',away:'Alcoballics',home:'Stiff Competition',diamond:'D5',as:8,hs:9},
-  {date:'2023-08-08',time:'6:30 PM',away:'Basic Pitches',home:'JAFT',diamond:'D9',as:10,hs:12},
-  {date:'2023-08-08',time:'8:15 PM',away:'Landon Longballers',home:'Alcoballics',diamond:'D12',as:11,hs:14},
-  {date:'2023-08-08',time:'8:15 PM',away:'Foul Poles',home:'One Hit Wonders',diamond:'D9',as:9,hs:11},
-  {date:'2023-08-15',time:'6:30 PM',away:'Kibosh',home:'Steel City Sluggers',diamond:'D12',as:11,hs:9},
-  {date:'2023-08-15',time:'6:30 PM',away:'Stiff Competition',home:'Foul Poles',diamond:'D13',as:7,hs:13},
-  {date:'2023-08-15',time:'6:30 PM',away:'Wayco',home:'Basic Pitches',diamond:'D14',as:9,hs:14},
-  {date:'2023-08-15',time:'6:30 PM',away:'One Hit Wonders',home:'Alcoballics',diamond:'D5',as:8,hs:11},
-  {date:'2023-08-15',time:'6:30 PM',away:'JAFT',home:'Landon Longballers',diamond:'D9',as:8,hs:15},
-  {date:'2023-08-15',time:'8:15 PM',away:'Kibosh',home:'JAFT',diamond:'D12',as:9,hs:14},
-  {date:'2023-08-15',time:'8:15 PM',away:'Stiff Competition',home:'Wayco',diamond:'D9',as:6,hs:12},
-  {date:'2023-08-22',time:'6:30 PM',away:'Basic Pitches',home:'Kibosh',diamond:'D12',as:9,hs:13},
-  {date:'2023-08-22',time:'6:30 PM',away:'One Hit Wonders',home:'Landon Longballers',diamond:'D13',as:11,hs:8},
-  {date:'2023-08-22',time:'6:30 PM',away:'Alcoballics',home:'Foul Poles',diamond:'D14',as:12,hs:10},
-  {date:'2023-08-22',time:'6:30 PM',away:'JAFT',home:'Wayco',diamond:'D5',as:10,hs:11},
-  {date:'2023-08-22',time:'6:30 PM',away:'Steel City Sluggers',home:'Stiff Competition',diamond:'D9',as:7,hs:9},
+  {date:'2023-05-30',time:'6:30 PM',away:'Steel City Sluggers',home:'Basic Pitches',diamond:'D13',as:3,hs:9},
+  {date:'2023-05-30',time:'6:30 PM',away:'Wayco',home:'Foul Poles',diamond:'D14',as:8,hs:14},
+  {date:'2023-05-30',time:'6:30 PM',away:'Landon Longballers',home:'Kibosh',diamond:'D5',as:4,hs:11},
+  {date:'2023-05-30',time:'6:30 PM',away:'One Hit Wonders',home:'Alcoballics',diamond:'D9',as:9,hs:13},
+  {date:'2023-05-30',time:'8:15 PM',away:'Wayco',home:'One Hit Wonders',diamond:'D12',as:8,hs:10},
+  {date:'2023-05-30',time:'8:15 PM',away:'JAFT',home:'Landon Longballers',diamond:'D9',as:7,hs:9},
+  {date:'2023-06-06',time:'6:30 PM',away:'Kibosh',home:'Basic Pitches',diamond:'D12',as:6,hs:12},
+  {date:'2023-06-06',time:'6:30 PM',away:'Stiff Competition',home:'Steel City Sluggers',diamond:'D13',as:11,hs:14},
+  {date:'2023-06-06',time:'6:30 PM',away:'Alcoballics',home:'Wayco',diamond:'D14',as:10,hs:8},
+  {date:'2023-06-06',time:'6:30 PM',away:'Foul Poles',home:'Landon Longballers',diamond:'D5',as:9,hs:11},
+  {date:'2023-06-06',time:'6:30 PM',away:'One Hit Wonders',home:'JAFT',diamond:'D9',as:11,hs:12},
+  {date:'2023-06-06',time:'8:15 PM',away:'Alcoballics',home:'Stiff Competition',diamond:'D12',as:8,hs:10},
+  {date:'2023-06-06',time:'8:15 PM',away:'Foul Poles',home:'Kibosh',diamond:'D9',as:8,hs:9},
+  {date:'2023-06-13',time:'6:30 PM',away:'JAFT',home:'Basic Pitches',diamond:'D12',as:8,hs:11},
+  {date:'2023-06-13',time:'6:30 PM',away:'Wayco',home:'Stiff Competition',diamond:'D13',as:7,hs:9},
+  {date:'2023-06-13',time:'6:30 PM',away:'Steel City Sluggers',home:'Landon Longballers',diamond:'D14',as:8,hs:12},
+  {date:'2023-06-13',time:'6:30 PM',away:'One Hit Wonders',home:'Kibosh',diamond:'D5',as:13,hs:10},
+  {date:'2023-06-13',time:'6:30 PM',away:'Alcoballics',home:'Foul Poles',diamond:'D9',as:9,hs:10},
+  {date:'2023-06-13',time:'8:15 PM',away:'Steel City Sluggers',home:'JAFT',diamond:'D12',as:7,hs:9},
+  {date:'2023-06-13',time:'8:15 PM',away:'Wayco',home:'Alcoballics',diamond:'D9',as:11,hs:12},
+  {date:'2023-06-20',time:'6:30 PM',away:'Foul Poles',home:'Stiff Competition',diamond:'D12',as:8,hs:11},
+  {date:'2023-06-20',time:'6:30 PM',away:'Kibosh',home:'Wayco',diamond:'D13',as:5,hs:9},
+  {date:'2023-06-20',time:'6:30 PM',away:'Basic Pitches',home:'Landon Longballers',diamond:'D14',as:8,hs:11},
+  {date:'2023-06-20',time:'6:30 PM',away:'JAFT',home:'One Hit Wonders',diamond:'D5',as:11,hs:13},
+  {date:'2023-06-20',time:'6:30 PM',away:'Steel City Sluggers',home:'Alcoballics',diamond:'D9',as:9,hs:12},
+  {date:'2023-06-20',time:'8:15 PM',away:'Basic Pitches',home:'Foul Poles',diamond:'D12',as:7,hs:9},
+  {date:'2023-06-20',time:'8:15 PM',away:'JAFT',home:'Steel City Sluggers',diamond:'D9',as:8,hs:11},
+  {date:'2023-06-27',time:'6:30 PM',away:'Landon Longballers',home:'Alcoballics',diamond:'D12',as:8,hs:11},
+  {date:'2023-06-27',time:'6:30 PM',away:'One Hit Wonders',home:'Wayco',diamond:'D13',as:10,hs:8},
+  {date:'2023-06-27',time:'6:30 PM',away:'Stiff Competition',home:'Kibosh',diamond:'D14',as:9,hs:11},
+  {date:'2023-06-27',time:'6:30 PM',away:'Foul Poles',home:'JAFT',diamond:'D5',as:8,hs:10},
+  {date:'2023-06-27',time:'6:30 PM',away:'Basic Pitches',home:'Steel City Sluggers',diamond:'D9',as:7,hs:11},
+  {date:'2023-06-27',time:'8:15 PM',away:'One Hit Wonders',home:'Landon Longballers',diamond:'D12',as:9,hs:11},
+  {date:'2023-06-27',time:'8:15 PM',away:'Stiff Competition',home:'Basic Pitches',diamond:'D9',as:8,hs:10},
+  {date:'2023-07-04',time:'6:30 PM',away:'Alcoballics',home:'Kibosh',diamond:'D12',as:10,hs:9},
+  {date:'2023-07-04',time:'6:30 PM',away:'Landon Longballers',home:'Wayco',diamond:'D13',as:8,hs:10},
+  {date:'2023-07-04',time:'6:30 PM',away:'Foul Poles',home:'One Hit Wonders',diamond:'D14',as:7,hs:9},
+  {date:'2023-07-04',time:'6:30 PM',away:'Steel City Sluggers',home:'Stiff Competition',diamond:'D5',as:10,hs:12},
+  {date:'2023-07-04',time:'6:30 PM',away:'Basic Pitches',home:'JAFT',diamond:'D9',as:7,hs:8},
+  {date:'2023-07-04',time:'8:15 PM',away:'Foul Poles',home:'Alcoballics',diamond:'D12',as:8,hs:10},
+  {date:'2023-07-04',time:'8:15 PM',away:'Landon Longballers',home:'Steel City Sluggers',diamond:'D9',as:9,hs:12},
+  {date:'2023-07-11',time:'6:30 PM',away:'JAFT',home:'Kibosh',diamond:'D12',as:6,hs:10},
+  {date:'2023-07-11',time:'6:30 PM',away:'Stiff Competition',home:'Landon Longballers',diamond:'D13',as:8,hs:11},
+  {date:'2023-07-11',time:'6:30 PM',away:'Wayco',home:'Basic Pitches',diamond:'D14',as:7,hs:11},
+  {date:'2023-07-11',time:'6:30 PM',away:'Alcoballics',home:'One Hit Wonders',diamond:'D5',as:9,hs:11},
+  {date:'2023-07-11',time:'6:30 PM',away:'Steel City Sluggers',home:'Foul Poles',diamond:'D9',as:8,hs:10},
+  {date:'2023-07-11',time:'8:15 PM',away:'Wayco',home:'JAFT',diamond:'D12',as:7,hs:9},
+  {date:'2023-07-11',time:'8:15 PM',away:'Stiff Competition',home:'One Hit Wonders',diamond:'D9',as:8,hs:10},
+  {date:'2023-07-18',time:'6:30 PM',away:'Kibosh',home:'Landon Longballers',diamond:'D12',as:5,hs:10},
+  {date:'2023-07-18',time:'6:30 PM',away:'Foul Poles',home:'Wayco',diamond:'D13',as:8,hs:10},
+  {date:'2023-07-18',time:'6:30 PM',away:'One Hit Wonders',home:'Steel City Sluggers',diamond:'D14',as:9,hs:11},
+  {date:'2023-07-18',time:'6:30 PM',away:'JAFT',home:'Alcoballics',diamond:'D5',as:8,hs:10},
+  {date:'2023-07-18',time:'6:30 PM',away:'Basic Pitches',home:'Stiff Competition',diamond:'D9',as:7,hs:9},
+  {date:'2023-07-18',time:'8:15 PM',away:'Kibosh',home:'One Hit Wonders',diamond:'D12',as:8,hs:10},
+  {date:'2023-07-18',time:'8:15 PM',away:'Foul Poles',home:'Basic Pitches',diamond:'D9',as:7,hs:9},
+  {date:'2023-07-25',time:'6:30 PM',away:'Wayco',home:'Kibosh',diamond:'D12',as:7,hs:9},
+  {date:'2023-07-25',time:'6:30 PM',away:'Landon Longballers',home:'One Hit Wonders',diamond:'D13',as:8,hs:10},
+  {date:'2023-07-25',time:'6:30 PM',away:'Alcoballics',home:'JAFT',diamond:'D14',as:9,hs:8},
+  {date:'2023-07-25',time:'6:30 PM',away:'Basic Pitches',home:'Foul Poles',diamond:'D5',as:7,hs:9},
+  {date:'2023-07-25',time:'6:30 PM',away:'Stiff Competition',home:'Steel City Sluggers',diamond:'D9',as:10,hs:12},
+  {date:'2023-07-25',time:'8:15 PM',away:'Alcoballics',home:'Landon Longballers',diamond:'D12',as:9,hs:11},
+  {date:'2023-07-25',time:'8:15 PM',away:'Wayco',home:'Steel City Sluggers',diamond:'D9',as:8,hs:11},
+  {date:'2023-08-01',time:'6:30 PM',away:'One Hit Wonders',home:'Basic Pitches',diamond:'D12',as:9,hs:12},
+  {date:'2023-08-01',time:'6:30 PM',away:'Steel City Sluggers',home:'Kibosh',diamond:'D13',as:8,hs:10},
+  {date:'2023-08-01',time:'6:30 PM',away:'JAFT',home:'Wayco',diamond:'D14',as:7,hs:9},
+  {date:'2023-08-01',time:'6:30 PM',away:'Stiff Competition',home:'Foul Poles',diamond:'D5',as:9,hs:11},
+  {date:'2023-08-01',time:'6:30 PM',away:'Landon Longballers',home:'Alcoballics',diamond:'D9',as:8,hs:10},
+  {date:'2023-08-01',time:'8:15 PM',away:'One Hit Wonders',home:'JAFT',diamond:'D12',as:9,hs:8},
+  {date:'2023-08-01',time:'8:15 PM',away:'Stiff Competition',home:'Landon Longballers',diamond:'D9',as:8,hs:10},
+  {date:'2023-08-08',time:'6:30 PM',away:'Alcoballics',home:'Basic Pitches',diamond:'D12',as:8,hs:11},
+  {date:'2023-08-08',time:'6:30 PM',away:'Foul Poles',home:'Steel City Sluggers',diamond:'D13',as:7,hs:10},
+  {date:'2023-08-08',time:'6:30 PM',away:'Kibosh',home:'JAFT',diamond:'D14',as:6,hs:9},
+  {date:'2023-08-08',time:'6:30 PM',away:'Wayco',home:'Landon Longballers',diamond:'D5',as:7,hs:10},
+  {date:'2023-08-08',time:'6:30 PM',away:'One Hit Wonders',home:'Stiff Competition',diamond:'D9',as:9,hs:11},
+  {date:'2023-08-08',time:'8:15 PM',away:'Kibosh',home:'Alcoballics',diamond:'D12',as:7,hs:10},
+  {date:'2023-08-08',time:'8:15 PM',away:'Foul Poles',home:'Wayco',diamond:'D9',as:8,hs:10},
+  {date:'2023-08-15',time:'6:30 PM',away:'Basic Pitches',home:'Alcoballics',diamond:'D12',as:9,hs:8},
+  {date:'2023-08-15',time:'6:30 PM',away:'JAFT',home:'Foul Poles',diamond:'D13',as:8,hs:10},
+  {date:'2023-08-15',time:'6:30 PM',away:'Steel City Sluggers',home:'Wayco',diamond:'D14',as:9,hs:7},
+  {date:'2023-08-15',time:'6:30 PM',away:'Kibosh',home:'Stiff Competition',diamond:'D5',as:7,hs:9},
+  {date:'2023-08-15',time:'6:30 PM',away:'Landon Longballers',home:'One Hit Wonders',diamond:'D9',as:8,hs:10},
+  {date:'2023-08-15',time:'8:15 PM',away:'Basic Pitches',home:'Kibosh',diamond:'D12',as:7,hs:9},
+  {date:'2023-08-15',time:'8:15 PM',away:'JAFT',home:'Landon Longballers',diamond:'D9',as:7,hs:9},
+  {date:'2023-08-22',time:'6:30 PM',away:'Alcoballics',home:'Steel City Sluggers',diamond:'D12',as:9,hs:11},
+  {date:'2023-08-22',time:'6:30 PM',away:'One Hit Wonders',home:'Foul Poles',diamond:'D13',as:8,hs:10},
+  {date:'2023-08-22',time:'6:30 PM',away:'Kibosh',home:'Landon Longballers',diamond:'D14',as:7,hs:10},
+  {date:'2023-08-22',time:'6:30 PM',away:'Wayco',home:'JAFT',diamond:'D5',as:8,hs:10},
+  {date:'2023-08-22',time:'6:30 PM',away:'Basic Pitches',home:'Stiff Competition',diamond:'D9',as:7,hs:9},
   {date:'2023-08-22',time:'8:15 PM',away:'Basic Pitches',home:'Wayco',diamond:'D12',as:11,hs:9},
   {date:'2023-08-22',time:'8:15 PM',away:'One Hit Wonders',home:'Steel City Sluggers',diamond:'D9',as:8,hs:14},
   {date:'2023-08-29',time:'6:30 PM',away:'Landon Longballers',home:'Stiff Competition',diamond:'D12',as:9,hs:8},
@@ -200,7 +200,6 @@ function startNewSeason(){
     +`• Set current season to ${newYear}\n\nThis cannot be undone.`;
   if(!confirm(msg))return;
 
-  // Archive current season
   G.seasonArchive[String(G.currentSeason)]={
     season:G.currentSeason,teams:[...G.teams],
     sched:G.sched.map(g=>({...g})),scores:{...G.scores},
@@ -209,7 +208,6 @@ function startNewSeason(){
     se:document.getElementById('se')?.value||''
   };
 
-  // Record outgoing champions
   if(podA){
     const champs=getChampions().filter(c=>c.year!==G.currentSeason);
     champs.unshift({year:G.currentSeason,podA:podA||null,podB:podB||null});
@@ -217,7 +215,6 @@ function startNewSeason(){
     G.champions=champs;
   }
 
-  // Add new season placeholder
   const existingNew=getChampions().find(c=>c.year===newYear);
   if(!existingNew){
     const champs=G.champions||CHAMPIONS_SEED.slice();
@@ -226,12 +223,10 @@ function startNewSeason(){
     G.champions=champs;
   }
 
-  // Reset live data
   G.currentSeason=newYear;
   G.sched=[];G.scores={};
   G.playoffs={seeded:false,podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
 
-  // Advance season dates
   const ss=document.getElementById('ss');
   const se=document.getElementById('se');
   if(ss)ss.value=ss.value.replace(/^\d{4}/,String(newYear));
@@ -256,15 +251,9 @@ function renderChampions(){
   const tabActive=document.getElementById('tab-champions')?.classList.contains('active');
   if(!tabActive){el.dataset.stale='1';return;}
   if(el.dataset.stale) delete el.dataset.stale;
- 
-  // ── Loading guard: only show loading if we haven't attempted load yet ──
-  if(G.champions===null&&!window._dataLoadAttempted){
-    el.innerHTML='<div class="empty">⏳ Loading…</div>';
-    return;
-  }
 
-  // ── Loading guard: only show loading if we haven't attempted load yet ──
-  if(G.champions===null && !window._dataLoadAttempted){
+  // Loading guard: only show loading if data hasn't been attempted yet
+  if(G.champions===null&&!window._dataLoadAttempted){
     el.innerHTML='<div class="empty">⏳ Loading…</div>';
     return;
   }
