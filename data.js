@@ -24,14 +24,13 @@ let G={
   sched:[],
   scores:{},
   playoffs:{seeded:false,format:'podrr',podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}},
+  settings:{ss:'',se:'',days:[2]},
   currentSeason:2026,
   champions:null,
   seasonArchive:{}
 };
 
 const CROSSOVER='CrossOver';
-// FIX BUG 5: removed global `let hc={}` — hc/hcMap are scoped inside genSched() in schedule-gen.js
-// FIX BUG 5: removed duplicate `let schedFilterTeam` and `let schedFilterDiamond` — declared in schedule-render.js
 
 // ── DIAMOND HELPERS ───────────────────────────────────────────────────────────
 function getDiamonds(){ return G.diamonds; }
@@ -55,8 +54,6 @@ function shuffle(arr){
   for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
-// FIX BUG 5: removed broken 2-arg pickHA that read from undeclared global `hc`.
-// The correct 3-arg pickHA(t1,t2,hcMap) lives in schedule-gen.js.
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function showTab(t,btn){
@@ -73,24 +70,12 @@ function showTab(t,btn){
 }
 
 function _renderActiveTab(t){
-  try{
-    if(t==='schedule'  &&typeof renderSched==='function')     renderSched();
-  }catch(e){console.error('renderSched error:',e);}
-  try{
-    if(t==='standings' &&typeof renderStandings==='function') renderStandings();
-  }catch(e){console.error('renderStandings error:',e);}
-  try{
-    if(t==='stats'     &&typeof renderStats==='function')     renderStats();
-  }catch(e){console.error('renderStats error:',e);}
-  try{
-    if(t==='playoffs'  &&typeof renderPlayoffs==='function')  renderPlayoffs();
-  }catch(e){console.error('renderPlayoffs error:',e);}
-  try{
-    if(t==='champions' &&typeof renderChampions==='function') renderChampions();
-  }catch(e){console.error('renderChampions error:',e);}
-  try{
-    if(t==='admin'     &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();
-  }catch(e){console.error('refreshActiveAdminTab error:',e);}
+  try{if(t==='schedule'  &&typeof renderSched==='function')     renderSched();}catch(e){console.error('renderSched error:',e);}
+  try{if(t==='standings' &&typeof renderStandings==='function') renderStandings();}catch(e){console.error('renderStandings error:',e);}
+  try{if(t==='stats'     &&typeof renderStats==='function')     renderStats();}catch(e){console.error('renderStats error:',e);}
+  try{if(t==='playoffs'  &&typeof renderPlayoffs==='function')  renderPlayoffs();}catch(e){console.error('renderPlayoffs error:',e);}
+  try{if(t==='champions' &&typeof renderChampions==='function') renderChampions();}catch(e){console.error('renderChampions error:',e);}
+  try{if(t==='admin'     &&typeof refreshActiveAdminTab==='function') refreshActiveAdminTab();}catch(e){console.error('refreshActiveAdminTab error:',e);}
 }
 
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
@@ -131,11 +116,19 @@ function updateSeasonHeader(){
 }
 
 // ── NEXT GAME ID ──────────────────────────────────────────────────────────────
+// PATCH: cache maxSeq per year — avoids scanning full G.sched on every call.
+// Cache is invalidated whenever G.sched changes length (genSched, addSlotGame, removeGame).
+const _gameIdCache={};
+function _invalidateGameIdCache(){ Object.keys(_gameIdCache).forEach(k=>delete _gameIdCache[k]); }
+
 function nextGameId(dateStr){
   const yr=dateStr.slice(2,4);
-  const existing=G.sched.filter(g=>g.id.startsWith(yr));
-  const maxSeq=existing.reduce((m,g)=>{const n=parseInt(g.id.slice(2));return n>m?n:m;},0);
-  return`${yr}${String(maxSeq+1).padStart(3,'0')}`;
+  if(_gameIdCache[yr]===undefined){
+    const existing=G.sched.filter(g=>g.id.startsWith(yr));
+    _gameIdCache[yr]=existing.reduce((m,g)=>{const n=parseInt(g.id.slice(2));return n>m?n:m;},0);
+  }
+  _gameIdCache[yr]++;
+  return`${yr}${String(_gameIdCache[yr]).padStart(3,'0')}`;
 }
 
 // ── DAYS OF WEEK ──────────────────────────────────────────────────────────────
@@ -144,9 +137,6 @@ const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function initDayChecks(){
   const el=document.getElementById('day-checks');
   if(!el)return;
-  // FIX BUG 1: read from STORAGE_KEY+'_backup' — that is the key saveData() writes.
-  // Previously read from STORAGE_KEY ('hccsl_v2') which is never written, so days
-  // always defaulted to [2] (Tuesday) regardless of what was saved.
   let savedDays=[2];
   try{
     const raw=localStorage.getItem(STORAGE_KEY+'_backup');
@@ -156,7 +146,7 @@ function initDayChecks(){
         savedDays=d.days.filter(day=>Number.isInteger(day)&&day>=0&&day<=6);
       }
     }
-  }catch(e){/* ignore parse errors */}
+  }catch(e){}
   el.innerHTML=DAY_NAMES.map((name,i)=>{
     const isChecked=savedDays.includes(i);
     const checkedAttr=isChecked?'checked':'';
@@ -175,15 +165,14 @@ function onDayChange(i,cb){
     if(cb.checked){lbl.style.borderColor='var(--navy)';lbl.style.background='var(--navy)';lbl.style.color='#fff';}
     else{lbl.style.borderColor='var(--border)';lbl.style.background='var(--white)';lbl.style.color='var(--text)';}
   }
-  // FIX BUG 4: write to STORAGE_KEY+'_backup' so initDayChecks() can read it back.
-  // Previously wrote to STORAGE_KEY ('hccsl_v2') which is never read, making day
-  // preference changes invisible on next page load.
   try{
     const raw=localStorage.getItem(STORAGE_KEY+'_backup');
     const d=raw?JSON.parse(raw):{};
     d.days=getSelectedDays();
     localStorage.setItem(STORAGE_KEY+'_backup',JSON.stringify(d));
   }catch(e){}
+  // PATCH: sync days to G.settings so _buildPayload never reads stale DOM value
+  if(typeof syncSettingsToG==='function') syncSettingsToG();
   updateGptNotice();
 }
 
@@ -194,7 +183,7 @@ function getSelectedDays(){
 }
 
 function getGameNights(ss,se,days){
-  if(!days||!days.length) return[];
+  if(!ss||!se||!days||!days.length) return[];
   const[sy,sm,sd]=ss.split('-').map(Number);
   const[ey,em,ed]=se.split('-').map(Number);
   const nights=[];
@@ -331,19 +320,14 @@ function updateGptNotice(){
 
   const tfacedEl=document.getElementById('tfaced');
   const tfaced=tfacedEl?parseInt(tfacedEl.value)||2:2;
-
   const gptEl=document.getElementById('gpt');
   const gptVal=gptEl?parseInt(gptEl.value)||null:null;
 
   const uniquePairs=leagueN*(leagueN-1)/2;
   const lgPairSlotsPerNight=dhCount+singleCount;
-
   const requiredNights=lgPairSlotsPerNight>0?Math.round(uniquePairs*tfaced/lgPairSlotsPerNight):0;
-  const gamesPerTeamAlgo=lgPairSlotsPerNight>0
-    ?Math.round((requiredNights*(dhCount*2+singleCount))/leagueN)
-    :0;
+  const gamesPerTeamAlgo=lgPairSlotsPerNight>0?Math.round((requiredNights*(dhCount*2+singleCount))/leagueN):0;
   const displayedGpt=gptVal||gamesPerTeamAlgo;
-
   const nightsMatch=nights===requiredNights&&requiredNights>0;
   const lgGamesFromFaced=uniquePairs*tfaced;
   const lgGamesPerNight=dhCount*2+singleCount;
@@ -351,7 +335,6 @@ function updateGptNotice(){
   const totalGames=totalGamesPerNight*(nightsMatch?requiredNights:nights);
   const coTotalGames=d9?2*(nightsMatch?requiredNights:nights):0;
   const lgTotalGames=totalGames-coTotalGames;
-
   const t1=`${lgPairSlotsPerNight} league slot${lgPairSlotsPerNight!==1?'s':''}/night`;
   const t2=d9?'1 CrossOver DH':'no D9';
 
@@ -423,6 +406,42 @@ function applyRecommendedGames(n){
     showToast(`✓ Set to ${n} games per team`);
   }
 }
+
+// ── TOAST — queue-based, no message overwrite on rapid saves ─────────────────
+// PATCH: replaced single-node pattern with a queue so rapid saves don't clobber
+// each other. Each toast is its own element, appended and auto-removed.
+(function(){
+  const TOAST_GAP=6; // px between stacked toasts
+  function _getContainer(){
+    let c=document.getElementById('_toast_container');
+    if(!c){
+      c=document.createElement('div');
+      c.id='_toast_container';
+      c.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column-reverse;align-items:center;gap:'+TOAST_GAP+'px;pointer-events:none';
+      document.body.appendChild(c);
+    }
+    return c;
+  }
+
+  window.showToast=function(msg,duration=2800){
+    const c=_getContainer();
+    const t=document.createElement('div');
+    t.style.cssText='background:rgba(12,42,69,0.93);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:var(--font,sans-serif);box-shadow:0 4px 16px rgba(0,0,0,0.25);opacity:0;transform:translateY(6px);transition:opacity 0.2s,transform 0.2s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center';
+    t.textContent=msg;
+    c.appendChild(t);
+    // Animate in
+    requestAnimationFrame(()=>{
+      t.style.opacity='1';
+      t.style.transform='translateY(0)';
+    });
+    // Animate out and remove
+    setTimeout(()=>{
+      t.style.opacity='0';
+      t.style.transform='translateY(6px)';
+      setTimeout(()=>{ if(t.parentNode) t.parentNode.removeChild(t); },220);
+    },duration);
+  };
+})();
 
 // ── HEADER WEATHER (Turner Park, Hamilton ON · Open-Meteo, no API key) ────────
 async function initHeaderWeather(){
