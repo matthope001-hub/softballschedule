@@ -1,32 +1,23 @@
 // ── EDIT GAMES ────────────────────────────────────────────────────────────────
 
 // OPT 7: Single render dispatcher for all edit actions.
-// After any schedule mutation, only the currently visible tab needs an immediate
-// re-render. All inactive tabs are marked stale and will re-render when the
-// user navigates to them. This replaces the pattern of blindly calling
-// renderSched()+renderScores()+renderStandings()+renderStats() after every edit.
 function _markStaleAndRenderActive(skipEdit){
-  // Mark heavy tabs stale — they rebuild lazily on next tab switch
   const sto=document.getElementById('sto'); if(sto) sto.dataset.stale='1';
   const sta=document.getElementById('sta'); if(sta) sta.dataset.stale='1';
   const champ=document.getElementById('champ-content'); if(champ) champ.dataset.stale='1';
 
-  // Immediately re-render whatever tab the user is looking at
   const active=window._activeTab||'schedule';
   if     (active==='schedule')  { try{renderSched();}catch(e){} }
   else if(active==='standings') { try{renderStandings();}catch(e){} }
   else if(active==='stats')     { try{renderStats();}catch(e){} }
   else if(active==='playoffs')  { try{renderPlayoffs();}catch(e){} }
 
-  // Edit tab always re-renders (it's the source of the action, always visible)
   if(!skipEdit){ try{renderEdit();}catch(e){} }
 
-  // If admin scores subtab is active, keep it fresh
   if(active==='admin'&&typeof activeAdminTab!=='undefined'&&activeAdminTab==='scores'){
     try{renderScores();}catch(e){}
   }
 
-  // Ticker + season banner are lightweight — always update
   try{renderLastResults();}catch(e){}
   try{renderSeasonBanner();}catch(e){}
 }
@@ -48,15 +39,13 @@ function renderEdit(){
   if(!el)return;
   if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to edit games</div>';return;}
 
-  const ssEl=document.getElementById('ss');
-  const seEl=document.getElementById('se');
-  let days=getSelectedDays();
+  // PATCH: read from G.settings — never from DOM — safe regardless of active tab
+  const ssVal=G.settings?.ss||'';
+  const seVal=G.settings?.se||'';
+  let days=G.settings?.days||[];
   if(!days.length) days=[2];
 
-  const ssVal=ssEl?.value||'2026-05-19';
-  const seVal=seEl?.value||'2026-09-29';
-
-  const windowNights=getGameNights(ssVal,seVal,days);
+  const windowNights=(ssVal&&seVal)?getGameNights(ssVal,seVal,days):[];
   const schedDates=new Set(G.sched.map(g=>g.date));
   const extraDates=[...schedDates].filter(d=>!windowNights.includes(d)).sort();
   const allNights=[...new Set([...windowNights,...extraDates])].sort();
@@ -129,7 +118,6 @@ function renderEdit(){
       // Open slots at T1
       for(const dmId of openAt1){
         const slotId=`slot_${dateStr}_${dmId}_1`;
-        monthOpenSlots;
         inner+=`<div class="edit-row open-slot">
   <span class="time-lbl">${T1}</span>
   <span style="font-size:11px;color:var(--muted)">${getDiamondName(dmId)}${isDiamondLit(dmId)?' 💡':' 🌙'} — Open</span>
@@ -186,7 +174,6 @@ function editGame(id,field,value){
   else if(field==='time') g.time=value;
   g.crossover=g.home===CROSSOVER||g.away===CROSSOVER;
   saveData();
-  // OPT 7: skipEdit=true — we're inside renderEdit's onChange, no full rebuild needed
   _markStaleAndRenderActive(true);
 }
 
@@ -202,7 +189,6 @@ function removeGame(id){
   const edi=document.getElementById('edi');
   if(edi) edi.dataset.openMonth=openMonth;
   saveData();
-  // OPT 7: single dispatch — only active tab + edit tab re-render
   _markStaleAndRenderActive();
   showToast(`🗑 Game #${id} removed — slot is open`);
 }
@@ -226,7 +212,6 @@ function addSlotGame(slotId,dateStr,time,dmId,lights){
   const edi=document.getElementById('edi');
   if(edi) edi.dataset.openMonth=openMonth;
   saveData();
-  // OPT 7: single dispatch
   _markStaleAndRenderActive();
   showToast(`✓ Game #${newId} added — ${home} vs ${away}`);
 }
@@ -239,13 +224,13 @@ function clearScheduleOnly(){
   if(!confirm(`Final confirmation — delete all ${gameCount} games?`)) return;
   G.sched=[];
   G.scores={};
+  // PATCH: include format:'podrr' so playoff routing survives a schedule clear
   G.playoffs={
-    seeded:false,podA:[],podB:[],games:{},
+    seeded:false,format:'podrr',podA:[],podB:[],games:{},
     semis:{podA:{},podB:{}},
     finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}
   };
   saveData();
-  // OPT 7: single dispatch
   _markStaleAndRenderActive();
   showToast('🗑 Schedule cleared — teams and diamonds preserved');
 }
@@ -322,7 +307,6 @@ function submitAddGame(){
   document.getElementById('add-game-form').style.display='none';
 
   saveData();
-  // OPT 7: single dispatch
   _markStaleAndRenderActive();
   const typeLabel=type==='playoff'?'🏆 Playoff game':type==='exhibition'?'Exhibition game':'Game';
   showToast(`✓ ${typeLabel} #${newId} added — ${home} vs ${away} · ${date}`);
