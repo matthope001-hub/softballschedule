@@ -6,9 +6,110 @@ function capRuns(h,a){
   return{ch:h,ca:Math.min(a,h+CAP)};
 }
 
+// ── SHARED TIEBREAK UTILITIES ─────────────────────────────────────────────────
+// PATCH: extracted from computeStandings(), getRegularSeasonRanking(), and
+// podRRStandings() — previously three independent copies. All callers now use
+// these two functions, so any tiebreak fix applies everywhere at once.
+
+// Build a h2h stats map for a set of teams and scored games.
+// games must be pre-filtered (no playoffs, no crossover, scored only).
+// Returns { [teamA]: { [teamB]: { pts: number, games: [{date,homePts}] } } }
+function _buildH2H(teams,games){
+  const h2h={};
+  for(const t of teams){
+    h2h[t]={};
+    for(const u of teams) h2h[t][u]={pts:0,games:[]};
+  }
+  const sorted=[...games].sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  for(const g of sorted){
+    if(!h2h[g.home]||!h2h[g.away]) continue;
+    const sc=g.score||g._sc; // support both playoff game shape and sched shape
+    if(!sc) continue;
+    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
+    const homePts=hw?2:tie?1:0;
+    const awayPts=aw?2:tie?1:0;
+    h2h[g.home][g.away].pts+=homePts;
+    h2h[g.home][g.away].games.push({date:g.date,homePts});
+    h2h[g.away][g.home].pts+=awayPts;
+    h2h[g.away][g.home].games.push({date:g.date,homePts:awayPts});
+  }
+  return h2h;
+}
+
+// Stable hash for deterministic coin-toss fallback.
+function _stableHash(a,b){
+  const s=a<b?a+b:b+a;
+  let h=0;
+  for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
+  return h%2===0;
+}
+
+// Recursively rank a group of tied teams using the league tiebreak rules:
+//   a) head-to-head points among tied teams
+//   b) winner of most recent matchup among tied teams
+//   c) stable hash coin-toss
+// h2h: output of _buildH2H()
+// Returns ordered array of team names (best first).
+function _rankTiedGroup(group,h2h){
+  if(group.length===1) return group;
+
+  // a) head-to-head points
+  const h2hPts={};
+  for(const t of group){
+    h2hPts[t]=0;
+    for(const u of group) if(u!==t) h2hPts[t]+=h2h[t]?.[u]?.pts||0;
+  }
+  const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
+  const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
+
+  if(afterH2H.length===1){
+    return[afterH2H[0],..._rankTiedGroup(group.filter(t=>t!==afterH2H[0]),h2h)];
+  }
+
+  // b) most recent head-to-head matchup result
+  const allGames=[];
+  for(let i=0;i<afterH2H.length;i++)
+    for(let j=i+1;j<afterH2H.length;j++){
+      const a=afterH2H[i],b=afterH2H[j];
+      for(const g of(h2h[a]?.[b]?.games||[]))
+        allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
+    }
+  allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  for(const g of allGames){
+    if(g.winner&&afterH2H.includes(g.winner)){
+      return[g.winner,..._rankTiedGroup(afterH2H.filter(t=>t!==g.winner),h2h),
+             ...group.filter(t=>!afterH2H.includes(t))];
+    }
+  }
+
+  // c) stable hash coin-toss
+  const sorted=[...afterH2H].sort((a,b)=>_stableHash(a,b)?-1:1);
+  return[...sorted,...group.filter(t=>!afterH2H.includes(t))];
+}
+
+// Rank a full list of teams by pts desc, applying tiebreak within tied groups.
+// stats: { [team]: { pts } }  h2h: output of _buildH2H()
+// Returns [{ team, tied }]
+function _rankTeams(teams,stats,h2h){
+  const sorted=teams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
+  const ranked=[];
+  let i=0;
+  while(i<sorted.length){
+    let j=i+1;
+    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
+    const group=sorted.slice(i,j);
+    if(group.length===1){
+      ranked.push({team:group[0],tied:false});
+    } else {
+      const order=_rankTiedGroup(group,h2h);
+      ranked.push(...order.map((t,idx)=>({team:t,tied:true})));
+    }
+    i=j;
+  }
+  return ranked;
+}
+
 // ── OPT 2: computeStandings() — single source of truth ───────────────────────
-// Previously renderStandings() and renderLastResults() each looped G.sched
-// independently. Now this function does it once; both callers consume the result.
 // Returns { leagueTeams, stats, h2hStats, ranked, homeStats, awayStats,
 //           teamResults, regularSeasonGames, gp }
 function computeStandings(){
@@ -34,71 +135,17 @@ function computeStandings(){
     }
   }
 
-  const h2hStats={};
-  for(const t of leagueTeams){
-    h2hStats[t]={};
-    for(const u of leagueTeams) h2hStats[t][u]={pts:0,games:[]};
-  }
-  const scoredGames=[...G.sched].filter(g=>
+  // Build h2h using shared utility — attach scores as _sc for shape compatibility
+  const scoredLeagueGames=G.sched.filter(g=>
     G.scores[g.id]&&!g.playoff&&
     stats[g.home]!==undefined&&stats[g.away]!==undefined&&
     g.home!==CROSSOVER&&g.away!==CROSSOVER
-  );
-  scoredGames.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
-  for(const g of scoredGames){
-    const sc=G.scores[g.id];
-    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
-    h2hStats[g.home][g.away].games.push({date:g.date,homePts:hw?2:tie?1:0});
-    h2hStats[g.away][g.home].games.push({date:g.date,homePts:aw?2:tie?1:0});
-    if(hw)h2hStats[g.home][g.away].pts+=2;
-    else if(aw)h2hStats[g.away][g.home].pts+=2;
-    else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
-  }
+  ).map(g=>({...g,_sc:G.scores[g.id]}));
 
-  function stableRand(a,b){let h=0;for(const c of(a+b))h=(h*31+c.charCodeAt(0))>>>0;return h%2===0;}
+  const h2hStats=_buildH2H(leagueTeams,scoredLeagueGames);
+  const ranked=_rankTeams(leagueTeams,stats,h2hStats);
 
-  function tiebreak(group){
-    const h2hPts={};
-    for(const t of group){
-      h2hPts[t]=0;
-      for(const u of group) if(u!==t) h2hPts[t]+=h2hStats[t][u]?.pts||0;
-    }
-    const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
-    const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
-    if(afterH2H.length===1) return afterH2H[0];
-    const allGames=[];
-    for(let i=0;i<afterH2H.length;i++)
-      for(let j=i+1;j<afterH2H.length;j++){
-        const a=afterH2H[i],b=afterH2H[j];
-        for(const g of(h2hStats[a][b]?.games||[]))
-          allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
-      }
-    allGames.sort((a,b)=>b.date.localeCompare(a.date));
-    for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
-    return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
-  }
-
-  const sorted=leagueTeams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
-  const ranked=[];
-  let i=0;
-  while(i<sorted.length){
-    let j=i+1;
-    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
-    const group=sorted.slice(i,j);
-    if(group.length===1){
-      ranked.push({team:group[0],tied:false});
-    }else{
-      const rankGroup=(g)=>{
-        if(!g.length) return[];
-        const winner=tiebreak(g);
-        return[{team:winner,tied:g.length>1},...rankGroup(g.filter(t=>t!==winner))];
-      };
-      ranked.push(...rankGroup(group).map((r,idx)=>({...r,tied:idx>0||group.length>1})));
-    }
-    i=j;
-  }
-
-  // Home/away split and results timeline (for Last 10 / Streak)
+  // Home/away split and results timeline
   const regularSeasonGames=G.sched.filter(g=>!g.playoff);
   const regularSeasonScores=regularSeasonGames.filter(g=>G.scores[g.id]);
   const gp=regularSeasonScores.length;
@@ -131,7 +178,6 @@ function renderStandings(){
   if(!tabActive){if(el)el.dataset.stale='1';return;}
   if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
 
-  // OPT 2: single computation, shared result
   const{leagueTeams,stats,ranked,homeStats,awayStats,teamResults,regularSeasonGames,gp}=computeStandings();
 
   function last10(t){const r=teamResults[t].slice(-10);const w=r.filter(x=>x==='W').length,l=r.filter(x=>x==='L').length;return r.length?`${w}-${l}`:'—';}
