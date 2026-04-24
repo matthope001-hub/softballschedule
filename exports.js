@@ -50,23 +50,95 @@ function exportPrint(){
   if(!win)alert('Popup blocked — allow popups for print/PDF export');
 }
 
+// PATCH: iCal export now uses TZID:America/Toronto with correct local time
+// instead of bare (floating) timestamps that calendar apps interpret as UTC,
+// causing games to appear 4–5 hours off for Eastern time users.
 function exportICal(){
   if(!G.sched.length){alert('No schedule to export.');return;}
-  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//HCCSL//Schedule//EN','CALSCALE:GREGORIAN'];
+
+  const pad=n=>String(n).padStart(2,'0');
+
+  // Parse "6:30 PM" / "8:15 PM" style strings into {h,m} in 24h.
+  function parseTime(timeStr){
+    if(!timeStr) return{h:18,m:30};
+    const upper=timeStr.trim().toUpperCase();
+    const isPM=upper.includes('PM');
+    const isAM=upper.includes('AM');
+    const parts=upper.replace(/[^0-9:]/g,'').split(':');
+    let h=parseInt(parts[0])||18;
+    const m=parseInt(parts[1])||0;
+    if(isPM&&h!==12) h+=12;
+    if(isAM&&h===12) h=0;
+    return{h,m};
+  }
+
+  // Build a TZID-qualified timestamp string: TZID=America/Toronto:YYYYMMDDTHHmmss
+  function dtLocal(dateStr,timeStr){
+    const[y,mo,d]=dateStr.split('-');
+    const{h,m}=parseTime(timeStr);
+    return`TZID=America/Toronto:${y}${mo}${d}T${pad(h)}${pad(m)}00`;
+  }
+
+  // Timezone definition block for America/Toronto (covers EST/EDT transitions)
+  const tzBlock=[
+    'BEGIN:VTIMEZONE',
+    'TZID:America/Toronto',
+    'BEGIN:STANDARD',
+    'DTSTART:19671029T020000',
+    'RRULE:FREQ=YEARLY;BYDAY=1SU;BYMONTH=11',
+    'TZOFFSETFROM:-0400',
+    'TZOFFSETTO:-0500',
+    'TZNAME:EST',
+    'END:STANDARD',
+    'BEGIN:DAYLIGHT',
+    'DTSTART:19870405T020000',
+    'RRULE:FREQ=YEARLY;BYDAY=2SU;BYMONTH=3',
+    'TZOFFSETFROM:-0500',
+    'TZOFFSETTO:-0400',
+    'TZNAME:EDT',
+    'END:DAYLIGHT',
+    'END:VTIMEZONE'
+  ].join('\r\n');
+
+  const lines=[
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//HCCSL//Schedule//EN',
+    'CALSCALE:GREGORIAN',
+    'X-WR-CALNAME:HCCSL Schedule',
+    'X-WR-TIMEZONE:America/Toronto',
+    tzBlock
+  ];
+
   for(const g of G.sched){
-    const[y,mo,d]=g.date.split('-').map(Number);
-    let[hr,mn]=g.time?g.time.replace(' PM','').replace(' AM','').split(':').map(Number):[18,30];
-    if(g.time&&g.time.includes('PM')&&hr!==12) hr+=12;
-    const pad=n=>String(n).padStart(2,'0');
-    const dtStart=`${y}${pad(mo)}${pad(d)}T${pad(hr)}${pad(mn||0)}00`;
-    const endHr=hr+1;const endMn=(mn||0)+30;
-    const dtEnd=`${y}${pad(mo)}${pad(d)}T${pad(endHr)}${pad(endMn)}00`;
+    const{h:startH,m:startM}=parseTime(g.time);
+    // Games are 1h30m; end = start + 90 minutes
+    const totalStartMin=startH*60+startM;
+    const totalEndMin=totalStartMin+90;
+    const endH=Math.floor(totalEndMin/60);
+    const endM=totalEndMin%60;
+    const[y,mo,d]=g.date.split('-');
+
+    const dtStart=`TZID=America/Toronto:${y}${mo}${d}T${pad(startH)}${pad(startM)}00`;
+    const dtEnd=`TZID=America/Toronto:${y}${mo}${d}T${pad(endH)}${pad(endM)}00`;
     const summary=`HCCSL: ${g.home} vs ${g.away}`;
     const desc=`Game #${g.id} · ${getDiamondName(g.diamond)} · ${g.crossover?'CrossOver':g.playoff?'Playoff':'League'}`;
-    lines.push('BEGIN:VEVENT',`DTSTART:${dtStart}`,`DTEND:${dtEnd}`,`SUMMARY:${summary}`,`DESCRIPTION:${desc}`,`LOCATION:Turner Park, Hamilton ON`,`UID:hccsl-${g.id}@hccsl`,`STATUS:CONFIRMED`,'END:VEVENT');
+
+    lines.push(
+      'BEGIN:VEVENT',
+      `DTSTART;${dtStart}`,
+      `DTEND;${dtEnd}`,
+      `SUMMARY:${summary}`,
+      `DESCRIPTION:${desc}`,
+      `LOCATION:Turner Park\\, Hamilton ON`,
+      `UID:hccsl-${g.id}@hccsl`,
+      `STATUS:CONFIRMED`,
+      'END:VEVENT'
+    );
   }
+
   lines.push('END:VCALENDAR');
-  const blob=new Blob([lines.join('\r\n')],{type:'text/calendar'});
+  const blob=new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=`HCCSL_${G.currentSeason||2026}.ics`;
