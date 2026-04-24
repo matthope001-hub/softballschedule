@@ -63,7 +63,7 @@ function genSched(){
     return shuffle(pool);
   }
 
-  // FIX BUG 5: deterministic hash tie-breaker — no Math.random() inside sort()
+  // Deterministic hash tie-breaker — no Math.random() inside sort()
   function stableHash(s){
     let h=0;
     for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
@@ -88,7 +88,6 @@ function genSched(){
     return byeCount+backToBackPenalty+violationPenalty;
   }
 
-  // FIX BUG 5: sort uses stableHash as tie-breaker instead of Math.random()
   function sortByByePriority(candidates,currentNight,dateStr){
     return [...candidates].sort((a,b)=>{
       const scoreA=byePriorityScore(a,currentNight,dateStr);
@@ -105,7 +104,6 @@ function genSched(){
     });
 
     if(validPairs.length>0){
-      // FIX BUG 5: deterministic tie-breaker in sort
       validPairs.sort((a,b)=>{
         const scoreA=byePriorityScore(a.pair[0],currentNight,dateStr)+byePriorityScore(a.pair[1],currentNight,dateStr);
         const scoreB=byePriorityScore(b.pair[0],currentNight,dateStr)+byePriorityScore(b.pair[1],currentNight,dateStr);
@@ -126,7 +124,6 @@ function genSched(){
     return null;
   }
 
-  // FIX BUG 3: findPairWithDhLimit now has extra-round fallback filtered by DH cap
   function findPairWithDhLimit(pool,busy,needed,targetDh,teamDhCount,currentNight,dateStr){
     const validPairs=pool.map((pair,idx)=>({pair,idx})).filter(({pair:[t1,t2]})=>{
       if(busy.has(t1)||busy.has(t2)) return false;
@@ -145,7 +142,7 @@ function genSched(){
       return pool.splice(best.idx,1)[0];
     }
 
-    // FIX BUG 3: extra-round fallback — only pairs where both teams are under DH cap
+    // Extra-round fallback — only pairs where both teams are under DH cap
     if(gptInput==null) return null;
     let eligible=leagueTeams.filter(t=>
       gamesLeft(t)>=needed&&!busy.has(t)&&teamDhCount[t]<targetDh
@@ -184,7 +181,7 @@ function genSched(){
   const teamByesByMonth={};
   for(const t of leagueTeams) teamByesByMonth[t]={};
 
-  // FIX BUG 1: CrossOver round-robin rotation — shuffled once, cycled via index
+  // CrossOver round-robin rotation — shuffled once, cycled via index
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
@@ -199,14 +196,14 @@ function genSched(){
 
     // ── D9: CrossOver DH ─────────────────────────────────────────────────────
     if(d9&&!coByeSet.has(ni)){
-      // FIX BUG 1: true round-robin — advance coIdx, skip at-cap or busy teams
+      // True round-robin — advance coIdx, skip at-cap or busy teams
       let opp=null;
       const n=coOpponents.length;
       for(let attempt=0;attempt<n;attempt++){
         const candidate=coOpponents[(coIdx+attempt)%n];
         if(gamesLeft(candidate)>=2&&!busy.has(candidate)){
           opp=candidate;
-          coIdx=(coIdx+attempt+1)%n; // advance past chosen candidate
+          coIdx=(coIdx+attempt+1)%n;
           break;
         }
       }
@@ -222,7 +219,6 @@ function genSched(){
       if(opp){
         busy.add(opp);
         teamGames[opp]=(teamGames[opp]||0)+2;
-        // FIX BUG 2: opp is home in game 1 — update hcMap
         hcMap[opp]=(hcMap[opp]||0)+1;
         gameSeq[yr]++;
         // Game 1 @ T1 — league team HOME, CrossOver AWAY
@@ -375,7 +371,7 @@ function genSched(){
   const minByes=Math.min(...byeValues);
   const byeDiff=maxByes-minByes;
 
-  // FIX BUG 4: prebuilt {date → Set<team>} map — O(games) instead of O(n² * sched)
+  // Prebuilt {date → Set<team>} map — O(games) instead of O(n² * sched)
   const playedOnNight={};
   for(const g of sched){
     if(g.open) continue;
@@ -425,8 +421,9 @@ function genSched(){
 
   G.sched=sched;
   G.scores={};
+  // PATCH: preserve format key so playoff routing survives schedule regeneration
   G.playoffs={
-    seeded:false,podA:[],podB:[],games:{},
+    seeded:false,format:'podrr',podA:[],podB:[],games:{},
     semis:{podA:{},podB:{}},
     finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}
   };
@@ -443,9 +440,14 @@ function genSched(){
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
+// PATCH: deterministic tie-break using stableHash — eliminates H/A drift across re-runs
 function pickHA(t1,t2,hc){
   const h1=hc[t1]||0,h2=hc[t2]||0;
   if(h1<h2) return[t1,t2];
   if(h2<h1) return[t2,t1];
-  return Math.random()<0.5?[t1,t2]:[t2,t1];
+  // Tie: use stable string hash instead of Math.random()
+  let hash=0;
+  const s=t1+t2;
+  for(let i=0;i<s.length;i++) hash=(Math.imul(31,hash)+s.charCodeAt(i))|0;
+  return hash&1?[t1,t2]:[t2,t1];
 }
