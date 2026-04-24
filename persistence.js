@@ -44,13 +44,32 @@ function showToast(msg, duration=2800) {
   t._hide=setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateY(6px)'; },duration);
 }
 
+// ── SEASON SETTINGS SYNC ──────────────────────────────────────────────────────
+// PATCH: store ss/se/days in G.settings so _buildPayload() never reads the DOM.
+// DOM reads in _buildPayload() are unsafe — if the debounce fires while the user
+// is on a non-Settings tab, document.getElementById('ss') returns the element
+// but its value may be stale or empty, silently overwriting valid cloud data.
+// All writers (initDayChecks, onDayChange, input[ss/se] onchange) must call
+// syncSettingsToG() to keep G.settings current.
+if(!G.settings) G.settings={ss:'',se:'',days:[2]};
+
+function syncSettingsToG(){
+  const ssEl=document.getElementById('ss');
+  const seEl=document.getElementById('se');
+  if(ssEl&&ssEl.value) G.settings.ss=ssEl.value;
+  if(seEl&&seEl.value) G.settings.se=seEl.value;
+  G.settings.days=getSelectedDays();
+}
+
 // ── SAVE ──────────────────────────────────────────────────────────────────────
-// FIX BUG 2: payload is built at flush time (inside _flushToCloud), not at
-// saveData() call time. This ensures rapid admin actions don't flush a stale
-// snapshot captured 600ms earlier.
+// Payload is built at flush time (inside _flushToCloud), not at saveData() call
+// time — rapid admin actions won't flush a stale snapshot captured 600ms earlier.
+// ss/se/days now read from G.settings, not from DOM.
 let _saveDebounceTimer=null;
 
 function saveData() {
+  // Sync DOM → G.settings at call time (user is likely still on Settings tab)
+  syncSettingsToG();
   clearTimeout(_saveDebounceTimer);
   _saveDebounceTimer=setTimeout(()=>_flushToCloud(),600);
 }
@@ -62,9 +81,11 @@ function _buildPayload(){
     sched:         G.sched,
     scores:        G.scores,
     playoffs:      G.playoffs,
-    days:          getSelectedDays(),
-    ss:            document.getElementById('ss')?.value||'',
-    se:            document.getElementById('se')?.value||'',
+    // PATCH: read from G.settings — never from DOM — so values are correct
+    // regardless of which tab is active when the debounce fires.
+    days:          G.settings.days,
+    ss:            G.settings.ss,
+    se:            G.settings.se,
     currentSeason: G.currentSeason||2026,
     champions:     G.champions||null,
     seasonArchive: G.seasonArchive||{}
@@ -168,17 +189,28 @@ function applyData(d) {
     });
     G.sched.forEach(g=>{ if(g.time) g.time=fmt12(g.time); });
   }
-  if(d.scores)   G.scores=d.scores;
-  // FIX BUG 3: guard playoffs.format — old JSONBin records won't have it.
-  // Preserve existing format if the incoming record lacks it.
+  if(d.scores) G.scores=d.scores;
+  // Guard playoffs.format — old JSONBin records won't have it.
   if(d.playoffs){
     const existingFormat=G.playoffs?.format||'podrr';
     G.playoffs=d.playoffs;
     if(!G.playoffs.format) G.playoffs.format=existingFormat;
   }
-  if(d.ss){const el=document.getElementById('ss');if(el)el.value=d.ss;}
-  if(d.se){const el=document.getElementById('se');if(el)el.value=d.se;}
-  if(d.days&&d.days.length) applyDays(d.days);
+  // PATCH: apply ss/se/days to both DOM and G.settings
+  if(d.ss){
+    const el=document.getElementById('ss');
+    if(el) el.value=d.ss;
+    G.settings.ss=d.ss;
+  }
+  if(d.se){
+    const el=document.getElementById('se');
+    if(el) el.value=d.se;
+    G.settings.se=d.se;
+  }
+  if(d.days&&d.days.length){
+    applyDays(d.days);
+    G.settings.days=d.days;
+  }
   if(d.currentSeason) G.currentSeason=d.currentSeason;
   G.champions    =d.champions||null;
   G.seasonArchive=d.seasonArchive||{};
@@ -211,6 +243,7 @@ function clearData(){
   G.champions=champions;
   G.seasonArchive=seasonArchive;
   G.currentSeason=currentSeason;
+  // PATCH: preserve settings through clear — don't wipe season dates
   saveData();
   location.reload();
 }
@@ -224,6 +257,9 @@ document.addEventListener('DOMContentLoaded',async function(){
 
   const restored=await loadData();
   window._dataLoadAttempted=true;
+
+  // PATCH: sync DOM → G.settings after load so first saveData() call has correct values
+  try{syncSettingsToG();}catch(e){}
 
   try{renderTeams();}catch(e){}
   try{renderDiamonds();}catch(e){}
