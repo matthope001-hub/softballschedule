@@ -38,9 +38,12 @@ function byeTeams(dateStr){
   return byeList.length?`<span style="font-size:10px;background:var(--surface2);color:var(--muted);padding:1px 6px;border-radius:3px;margin-left:6px">Bye: ${byeList.join(', ')}</span>`:'';
 }
 
+// PATCH: season-aware sunset badge — derives unsafe/caution dates from current season year
+// rather than hardcoded 2026 strings, so it works correctly in future seasons.
 function sunsetBadge(dateStr){
-  const UNSAFE=['2026-09-15','2026-09-22','2026-09-29'];
-  const CAUTION=['2026-09-08'];
+  const yr=dateStr.slice(0,4);
+  const UNSAFE=[`${yr}-09-15`,`${yr}-09-22`,`${yr}-09-29`];
+  const CAUTION=[`${yr}-09-08`];
   if(UNSAFE.includes(dateStr))return`<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px">🌙 NO LIGHTS</span>`;
   if(CAUTION.includes(dateStr))return`<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px">⚠ LOW LIGHT</span>`;
   return'';
@@ -64,7 +67,6 @@ function renderSeasonBanner(){
 
 // ── OPT 2: Shared lightweight W/L record builder ──────────────────────────────
 // Called by renderLastResults only. Full standings use computeStandings() in standings.js.
-// This avoids renderLastResults re-looping all of G.sched independently.
 function _quickRecords(){
   const rec={};
   for(const t of G.teams) rec[t]={w:0,l:0};
@@ -85,7 +87,6 @@ function renderLastResults(){
     .slice(0,10);
   if(!scored.length){el.innerHTML='';return;}
 
-  // OPT 2: use shared helper — one loop, not two
   const records=_quickRecords();
   const fmtRec=t=>{const r=records[t]||{w:0,l:0};return`${r.w}-${r.l}`;};
 
@@ -286,10 +287,11 @@ function _renderSchedGames(){
 }
 
 // ── SCORES ────────────────────────────────────────────────────────────────────
+// PATCH: removed dead `el` variable — innerHTML is assigned via the `sco` reference below.
 function renderScores(){
-  const el=document.getElementById('sco');
-  if(!el)return;
-  if(!G.sched.length){el.innerHTML='<div class="empty">Generate a schedule to enter scores</div>';return;}
+  const sco=document.getElementById('sco');
+  if(!sco)return;
+  if(!G.sched.length){sco.innerHTML='<div class="empty">Generate a schedule to enter scores</div>';return;}
 
   const nonPlayoff=G.sched.filter(g=>!g.playoff);
   const monthMap={};const monthOrder=[];
@@ -332,31 +334,24 @@ function renderScores(){
     html+=monthAccordion(month,inner,mi,'sco',0);
   });
 
-  const sco=document.getElementById('sco');
-  if(sco){
-    sco.innerHTML=html;
-    const now=toDateStr(new Date());
-    let opened=false;
-    monthOrder.forEach((month,i)=>{
-      if(!opened&&(monthLabel(now)===month||monthMap[month].some(g=>g.date>=now))){
-        const body=document.getElementById(`sco_m${i}`);
-        const arr=document.getElementById(`arr_sco_m${i}`);
-        if(body){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
-      }
-    });
-    if(!opened&&monthOrder.length){
-      const body=document.getElementById('sco_m0');
-      const arr=document.getElementById('arr_sco_m0');
-      if(body){body.classList.add('open');if(arr)arr.textContent='▲';}
+  sco.innerHTML=html;
+  const now=toDateStr(new Date());
+  let opened=false;
+  monthOrder.forEach((month,i)=>{
+    if(!opened&&(monthLabel(now)===month||monthMap[month].some(g=>g.date>=now))){
+      const body=document.getElementById(`sco_m${i}`);
+      const arr=document.getElementById(`arr_sco_m${i}`);
+      if(body){body.classList.add('open');if(arr)arr.textContent='▲';opened=true;}
     }
+  });
+  if(!opened&&monthOrder.length){
+    const body=document.getElementById('sco_m0');
+    const arr=document.getElementById('arr_sco_m0');
+    if(body){body.classList.add('open');if(arr)arr.textContent='▲';}
   }
 }
 
 // ── SCORE SAVE — OPT 1: debounced, no DOM rebuild ────────────────────────────
-// oninput fires on every keystroke. We write to G.scores immediately so the
-// value is never lost, but we debounce the expensive downstream renders
-// (standings, stats, ticker) by 600ms. The input itself gets a transient
-// border flash on commit so the user has visual confirmation.
 function saveScore(id,input,side){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const val=parseInt(input.value);
@@ -364,16 +359,13 @@ function saveScore(id,input,side){
   if(!G.scores[id]) G.scores[id]={h:'',a:''};
   G.scores[id][side]=val;
 
-  // Visual feedback on the input — blue while pending, green on commit
   input.style.borderColor='var(--sys-blue,#1971c2)';
 
   clearTimeout(_scoreSaveTimer);
   _scoreSaveTimer=setTimeout(()=>{
     saveData();
-    // Flash green to confirm save
     input.style.borderColor='#27ae60';
     setTimeout(()=>{ input.style.borderColor=''; },900);
-    // Update standings + ticker without touching the Scores DOM
     renderStandings();
     renderLastResults();
     renderSeasonBanner();
@@ -381,18 +373,14 @@ function saveScore(id,input,side){
 }
 
 // ── OPT 3: Surgical row update — no full renderScores() rebuild ───────────────
-// weatherGame/clearScore previously called renderScores() which wiped ALL inputs.
-// Now we only patch the specific game row's badge and button state in place.
-
 function _patchScoreRow(id){
   const row=document.getElementById('srow_'+id);
-  if(!row) return false; // row not visible (collapsed accordion) — fall back to full render
+  if(!row) return false;
   const sc=G.scores[id];
   const hEl=document.getElementById('sih_'+id);
   const aEl=document.getElementById('sia_'+id);
   if(hEl) hEl.value=sc?sc.h:'';
   if(aEl) aEl.value=sc?sc.a:'';
-  // Update WX badge inside game-teams span
   const teamsSpan=row.querySelector('.game-teams');
   if(teamsSpan){
     const g=G.sched.find(x=>x.id===id);
@@ -409,7 +397,6 @@ function saveWeather(id){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   G.scores[id]={h:7,a:7,wx:true};
   saveData();
-  // OPT 3: patch in place; fall back to full rebuild only if row isn't in DOM
   if(!_patchScoreRow(id)) renderScores();
   renderSched();
   renderStandings();
@@ -422,7 +409,6 @@ function clearScore(id){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   delete G.scores[id];
   saveData();
-  // OPT 3: patch in place; fall back to full rebuild only if row isn't in DOM
   if(!_patchScoreRow(id)) renderScores();
   renderSched();
   renderStandings();
