@@ -1,12 +1,12 @@
 // ── PLAYOFFS ──────────────────────────────────────────────────────────────────
 
 // ── REGULAR SEASON RANKING (for seeding) ─────────────────────────────────────
+// PATCH: replaced inline tiebreak implementation with shared _buildH2H() +
+// _rankTeams() from standings.js — single source of truth for tiebreak logic.
 function getRegularSeasonRanking(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
   for(const t of leagueTeams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
-  const h2h={};
-  for(const t of leagueTeams){h2h[t]={};for(const u of leagueTeams)h2h[t][u]={pts:0,games:[]};}
 
   const regularGames=G.sched.filter(g=>!g.playoff&&!g.open&&!g.crossover&&G.scores[g.id]);
   for(const g of regularGames){
@@ -19,73 +19,24 @@ function getRegularSeasonRanking(){
     if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
     else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
     else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
-    const homePts=hw?2:tie?1:0;
-    const awayPts=aw?2:tie?1:0;
-    h2h[g.home][g.away].pts+=homePts;
-    h2h[g.home][g.away].games.push({date:g.date,homePts});
-    h2h[g.away][g.home].pts+=awayPts;
-    h2h[g.away][g.home].games.push({date:g.date,homePts:awayPts});
   }
 
-  function stableRand(a,b){
-    const s=a<b?a+b:b+a;
-    let h=0;for(let i=0;i<s.length;i++){h=(Math.imul(31,h)+s.charCodeAt(i))|0;}
-    return h%2===0;
-  }
-
-  function tiebreak(group){
-    if(group.length===1) return group[0];
-    // a) head-to-head points among tied teams
-    const h2hPts={};
-    for(const t of group) h2hPts[t]=0;
-    for(const t of group)
-      for(const u of group)
-        if(t!==u) h2hPts[t]+=h2h[t][u]?.pts||0;
-    const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
-    const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
-    if(afterH2H.length===1) return afterH2H[0];
-    // b) winner of last matchup among tied teams
-    const allGames=[];
-    for(const t of afterH2H)
-      for(const u of afterH2H)
-        if(t!==u)
-          for(const g of (h2h[t][u]?.games||[]))
-            allGames.push({...g,winner:g.homePts===2?t:g.homePts===0?u:null});
-    allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    for(const g of allGames) if(g.winner&&afterH2H.includes(g.winner)) return g.winner;
-    return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
-  }
-
-  const sorted=leagueTeams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
-  const ranked=[];
-  let i=0;
-  while(i<sorted.length){
-    let j=i+1;
-    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
-    const group=sorted.slice(i,j);
-    if(group.length===1){
-      ranked.push({team:group[0],tied:false});
-    } else {
-      const rankGroup=(g)=>{
-        if(!g.length) return[];
-        const winner=tiebreak(g);
-        return[{team:winner,tied:g.length>1},...rankGroup(g.filter(t=>t!==winner))];
-      };
-      ranked.push(...rankGroup(group).map((r,idx)=>({...r,tied:idx>0||group.length>1})));
-    }
-    i=j;
-  }
+  // Attach scores as _sc for _buildH2H shape compatibility
+  const scoredGames=regularGames.map(g=>({...g,_sc:G.scores[g.id]}));
+  const h2h=_buildH2H(leagueTeams,scoredGames);
+  const ranked=_rankTeams(leagueTeams,stats,h2h);
   return ranked.map((r,i)=>({...r,seed:i+1,...stats[r.team]}));
 }
 
 // ── POD ROUND ROBIN STANDINGS ─────────────────────────────────────────────────
+// PATCH: replaced inline tiebreak with shared _buildH2H() + _rankTeams().
 function podRRStandings(teams,pfx){
   const stats={};
   for(const t of teams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
-  const h2h={};
-  for(const t of teams){h2h[t]={};for(const u of teams)h2h[t][u]={pts:0,games:[]};}
+
   const games=Object.values(G.playoffs.games).filter(g=>g.id.startsWith(pfx+'RR'));
   const sortedGames=[...games].sort((a,b)=>a.id.localeCompare(b.id));
+
   for(const g of sortedGames){
     if(!g.score) continue;
     const{h,a}=g.score;const{ch,ca}=capRuns(h,a);
@@ -95,40 +46,16 @@ function podRRStandings(teams,pfx){
     if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
     else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
     else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
-    const homePts=hw?2:tie?1:0;
-    const awayPts=aw?2:tie?1:0;
-    h2h[g.home][g.away].pts+=homePts;
-    h2h[g.home][g.away].games.push({date:g.date,homePts});
-    h2h[g.away][g.home].pts+=awayPts;
-    h2h[g.away][g.home].games.push({date:g.date,homePts:awayPts});
   }
-  function stableRand(a,b){const s=a<b?a+b:b+a;let h=0;for(let i=0;i<s.length;i++){h=(Math.imul(31,h)+s.charCodeAt(i))|0;}return h%2===0;}
-  function tiebreak(group){
-    if(group.length===1)return group[0];
-    const h2hPts={};for(const t of group)h2hPts[t]=0;
-    for(const t of group)for(const u of group)if(t!==u)h2hPts[t]+=h2h[t][u]?.pts||0;
-    const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
-    const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
-    if(afterH2H.length===1)return afterH2H[0];
-    const allGames=[];
-    for(const t of afterH2H)for(const u of afterH2H)if(t!==u)for(const g of(h2h[t][u]?.games||[]))allGames.push({...g,winner:g.homePts===2?t:g.homePts===0?u:null});
-    allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    for(const g of allGames)if(g.winner&&afterH2H.includes(g.winner))return g.winner;
-    return afterH2H.sort((a,b)=>stableRand(a,b)?-1:1)[0];
-  }
-  const sorted=teams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
-  const ranked=[];let i=0;
-  while(i<sorted.length){
-    let j=i+1;
-    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts)j++;
-    const group=sorted.slice(i,j);
-    if(group.length===1){ranked.push({team:group[0],tied:false});}
-    else{
-      const rankGroup=(g)=>{if(!g.length)return[];const winner=tiebreak(g);return[{team:winner,tied:g.length>1},...rankGroup(g.filter(t=>t!==winner))];};
-      ranked.push(...rankGroup(group).map((r,idx)=>({...r,tied:idx>0||group.length>1})));
-    }
-    i=j;
-  }
+
+  // Playoff games use g.score.h/a directly — map to _sc shape for _buildH2H
+  const scoredGames=sortedGames.filter(g=>g.score).map(g=>({
+    ...g,
+    date:g.date||g.id, // use game id as date proxy for ordering when date absent
+    _sc:{h:g.score.h,a:g.score.a}
+  }));
+  const h2h=_buildH2H(teams,scoredGames);
+  const ranked=_rankTeams(teams,stats,h2h);
   return ranked.map((r,i)=>({...r,seed:i+1,...stats[r.team]}));
 }
 
@@ -137,16 +64,7 @@ function winnerOf(score,home,away){
   if(!score) return null;
   if(score.h>score.a) return home;
   if(score.a>score.h) return away;
-  return null; // tie
-}
-
-// ── CAP RUNS ─────────────────────────────────────────────────────────────────
-function capRuns(h,a){
-  const diff=Math.abs(h-a);
-  const cap=7;
-  if(h>a) return{ch:a+Math.min(diff,cap),ca:a};
-  if(a>h) return{ch:h,ca:h+Math.min(diff,cap)};
-  return{ch:h,ca:a};
+  return null;
 }
 
 // ── STANDINGS TABLE (shared by public + admin) ────────────────────────────────
@@ -242,9 +160,6 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
   const semi2winner=winnerOf(sm2.score,sm2.home,sm2.away);
   const champion=winnerOf(fin.score,fin.home,fin.away);
 
-  // ── Unified row renderer — 5 fixed columns, all game rows identical ────────
-  // col 1: game id badge (70px)  col 2: home (right-align)  col 3: score center
-  // col 4: away (left-align)     col 5: result tick (20px)
   function pubGameRow(id,home,away,score,label){
     const w=winnerOf(score,home,away);
     const hmW=w===home,awW=w===away;
@@ -264,7 +179,6 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
     </tr>`;
   }
 
-  // ── Final row — navy background treatment ─────────────────────────────────
   function finalRow(home,away,score){
     const w=winnerOf(score,home,away);
     const hmW=w===home,awW=w===away;
@@ -287,16 +201,11 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
   let h=`<div class="card"><div class="card-title">${esc(podLabel)}</div>`;
   h+=_buildStandingsTable(standing,rrPlayed,rrTotal,isPodA,rrDone);
 
-  // ── Round robin results ───────────────────────────────────────────────────
   h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Round Robin Results</div>`;
   h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">`;
-  for(const g of games){
-    const entry=getPlayoffSchedEntry(g.id);
-    h+=pubGameRow(g.id,g.home,g.away,g.score,g.id);
-  }
+  for(const g of games) h+=pubGameRow(g.id,g.home,g.away,g.score,g.id);
   h+=`</table>`;
 
-  // ── Elimination bracket ───────────────────────────────────────────────────
   h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Elimination Bracket</div>`;
 
   if(!rrDone){
@@ -305,13 +214,11 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
     if(isPodA){
       h+=`<div class="notice" style="background:#fff0f0;border-color:var(--red);margin-bottom:10px">⛔ ${esc(standing[4]?.team||'5th')} eliminated after round robin.</div>`;
     }
-
     h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Semi-Finals</div>`;
     h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:10px">`;
     h+=pubGameRow(podKey+'_s1',sm1.home,sm1.away,sm1.score,'Semi 1 · 1v4');
     h+=pubGameRow(podKey+'_s2',sm2.home,sm2.away,sm2.score,'Semi 2 · 2v3');
     h+=`</table>`;
-
     h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Final</div>`;
     if(!semi1winner||!semi2winner){
       h+=`<div class="notice">Complete both semi-finals to unlock the Final.</div>`;
@@ -327,7 +234,6 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
       }
     }
   }
-
   h+=`</div>`;
   return h;
 }
@@ -423,7 +329,6 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
       }
     }
   } else {
-    // POD B bracket (no elimination notice)
     const finGame={home:fin.home||(semi1winner||'TBD'),away:fin.away||(semi2winner||'TBD'),score:fin.score};
     const connector=`<svg width="48" height="240" viewBox="0 0 48 240" style="flex-shrink:0">
       <path d="M0 60 H24 V180 H0" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
@@ -454,98 +359,42 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
   return h;
 }
 
-// ── PUBLIC PLAYOFFS TAB (display only) ───────────────────────────────────────
+// ── PUBLIC PLAYOFFS TAB ───────────────────────────────────────────────────────
 function renderPlayoffs(){
   const el=document.getElementById('ply');
   if(!el) return;
   const p=G.playoffs||{seeded:false};
   const fmt=PLAYOFF_FORMATS[p.format||'podrr']||PLAYOFF_FORMATS.podrr;
-  
+
   if(!p.seeded){
     const ranked=getRegularSeasonRanking();
     const formatDesc=fmt.desc+` — ${fmt.games} games total.`;
     let bracketPreview='';
-    
     if(p.format==='top6byes'){
-      bracketPreview=`<div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm);margin-top:10px">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:6px">Top 6 with Byes Bracket</div>
-        <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
-          <div>① Wild Card — #3 vs #6, #4 vs #5</div>
-          <div>② Semifinals — #1 vs WC2 winner, #2 vs WC1 winner</div>
-          <div>③ Finals — Championship game</div>
-        </div>
-      </div>`;
+      bracketPreview=`<div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm);margin-top:10px"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">Top 6 with Byes Bracket</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Wild Card — #3 vs #6, #4 vs #5</div><div>② Semifinals — #1 vs WC2 winner, #2 vs WC1 winner</div><div>③ Finals — Championship game</div></div></div>`;
     }else if(p.format==='singleelim8'){
-      bracketPreview=`<div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm);margin-top:10px">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:6px">8-Team Single Elimination</div>
-        <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
-          <div>① Quarterfinals — 1v8, 2v7, 3v6, 4v5</div>
-          <div>② Semifinals — QF winners</div>
-          <div>③ Finals — Championship + 3rd place game</div>
-        </div>
-      </div>`;
+      bracketPreview=`<div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm);margin-top:10px"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">8-Team Single Elimination</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Quarterfinals — 1v8, 2v7, 3v6, 4v5</div><div>② Semifinals — QF winners</div><div>③ Finals — Championship + 3rd place game</div></div></div>`;
     }else if(p.format==='doubleelim8'){
-      bracketPreview=`<div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm);margin-top:10px">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:6px">8-Team Double Elimination</div>
-        <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
-          <div>① Winner's Bracket QF — 1v8, 2v7, 3v6, 4v5</div>
-          <div>② Loser's Bracket — WB losers drop down</div>
-          <div>③ Finals — WB winner vs LB winner (bracket reset if needed)</div>
-        </div>
-      </div>`;
+      bracketPreview=`<div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm);margin-top:10px"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">8-Team Double Elimination</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Winner's Bracket QF — 1v8, 2v7, 3v6, 4v5</div><div>② Loser's Bracket — WB losers drop down</div><div>③ Finals — WB winner vs LB winner (bracket reset if needed)</div></div></div>`;
     }else{
-      // podrr default
-      bracketPreview=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-        <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
-          <div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD A — Top 5 Teams</div>
-          <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
-            <div>① Round Robin — each team plays the other 4 once (10 games)</div>
-            <div>② 5th place is <strong>eliminated</strong></div>
-            <div>③ Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div>
-            <div>④ POD A Final</div>
-          </div>
-        </div>
-        <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
-          <div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD B — Bottom 4 Teams</div>
-          <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
-            <div>① Round Robin — each team plays the other 3 once (6 games)</div>
-            <div>② Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div>
-            <div>③ POD B Final</div>
-          </div>
-        </div>
-      </div>`;
+      bracketPreview=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD A — Top 5 Teams</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Round Robin — each team plays the other 4 once (10 games)</div><div>② 5th place is <strong>eliminated</strong></div><div>③ Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div><div>④ POD A Final</div></div></div><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD B — Bottom 4 Teams</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Round Robin — each team plays the other 3 once (6 games)</div><div>② Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div><div>③ POD B Final</div></div></div></div>`;
     }
-    
-    el.innerHTML=`<div class="card">
-      <div class="card-title">Playoffs — ${fmt.label}</div>
-      <div class="notice">Playoffs have not been seeded yet. Make sure all regular season scores are entered first.</div>
-      <div style="font-size:13px;color:var(--muted);margin-top:8px">${formatDesc}</div>
-      ${ranked.length>=6?`
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0">
-        ${ranked.slice(0,8).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="padding:10px;background:var(--surface2);border-radius:var(--r-sm);display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">${r.pts}pts</span></div>`;}).join('')}
-      </div>`:''}
-      ${bracketPreview}
-    </div>`;
+    el.innerHTML=`<div class="card"><div class="card-title">Playoffs — ${fmt.label}</div><div class="notice">Playoffs have not been seeded yet. Make sure all regular season scores are entered first.</div><div style="font-size:13px;color:var(--muted);margin-top:8px">${formatDesc}</div>${ranked.length>=6?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0">${ranked.slice(0,8).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="padding:10px;background:var(--surface2);border-radius:var(--r-sm);display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">${r.pts}pts</span></div>`;}).join('')}</div>`:''} ${bracketPreview}</div>`;
     return;
   }
-  
-  // Seeded playoffs — route to appropriate renderer
+
   let html=`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${fmt.label} · ${fmt.desc}</div>`;
-  
-  if(p.format==='top6byes'){
-    html+=renderTop6ByesPublic(p);
-  }else if(p.format==='singleelim8'){
-    html+=renderSingleElim8Public(p);
-  }else if(p.format==='doubleelim8'){
-    html+=renderDoubleElim8Public(p);
-  }else{
+  if(p.format==='top6byes') html+=renderTop6ByesPublic(p);
+  else if(p.format==='singleelim8') html+=renderSingleElim8Public(p);
+  else if(p.format==='doubleelim8') html+=renderDoubleElim8Public(p);
+  else{
     html+=renderPodPublic('POD A — Top 5','PA','podA',p.podA);
     html+=renderPodPublic('POD B — Bottom 4','PB','podB',p.podB);
   }
   el.innerHTML=html;
 }
 
-// ── ADMIN PLAYOFFS TAB (editable) ─────────────────────────────────────────────
+// ── ADMIN PLAYOFFS TAB ────────────────────────────────────────────────────────
 function renderPlayoffsAdmin(){
   const el=document.getElementById('ply-admin');
   if(!el) return;
@@ -553,271 +402,126 @@ function renderPlayoffsAdmin(){
   if(!p.seeded){
     const ranked=getRegularSeasonRanking();
     const hasScores=G.sched.some(g=>G.scores[g.id]);
-    el.innerHTML=`
-      <div class="card">
-        <div class="card-title">Playoffs — Setup</div>
-        <div class="notice">Seeding is pulled from final regular season standings. Make sure all regular season scores are entered first.</div>
-        ${ranked.length>=9?`
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-          <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
-            <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD A — Top 5</div>
-            ${ranked.slice(0,5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
-          </div>
-          <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
-            <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD B — Bottom 4</div>
-            ${ranked.slice(5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}
-          </div>
-        </div>`:''}
-        <div style="margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
-          <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px">Select Playoff Format</label>
-          <select id="playoff-format" style="width:100%;padding:8px 12px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--white);color:var(--text);cursor:pointer" onchange="onPlayoffFormatChange()">
-            <option value="podrr">2-Pod Round Robin — 15 games (current)</option>
-            <option value="top6byes">Top 6 with Byes — 5 games (most efficient)</option>
-            <option value="singleelim8">8-Team Single Elim — 7 games (everyone in)</option>
-            <option value="doubleelim8">8-Team Double Elim — 15 games (most fair)</option>
-          </select>
-          <div id="playoff-format-desc" style="margin-top:8px;font-size:12px;color:var(--text2)">
-            2 pods of 4-5 teams play round robin → 1v4, 2v3 semis → finals. 5th place in each pod eliminated.
-          </div>
-        </div>
-        <button class="btn btn-primary" onclick="seedPlayoffs()">🏆 Seed Playoffs from Standings</button>
-        ${!hasScores?'<div style="margin-top:8px;font-size:12px;color:var(--muted)">⚠ No scores entered yet — standings may not reflect final order</div>':''}
-      </div>`;
+    el.innerHTML=`<div class="card"><div class="card-title">Playoffs — Setup</div><div class="notice">Seeding is pulled from final regular season standings. Make sure all regular season scores are entered first.</div>${ranked.length>=9?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD A — Top 5</div>${ranked.slice(0,5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}</div><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD B — Bottom 4</div>${ranked.slice(5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}</div></div>`:''}
+      <div style="margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px">Select Playoff Format</label>
+        <select id="playoff-format" style="width:100%;padding:8px 12px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--white);color:var(--text);cursor:pointer" onchange="onPlayoffFormatChange()">
+          <option value="podrr">2-Pod Round Robin — 15 games (current)</option>
+          <option value="top6byes">Top 6 with Byes — 5 games (most efficient)</option>
+          <option value="singleelim8">8-Team Single Elim — 7 games (everyone in)</option>
+          <option value="doubleelim8">8-Team Double Elim — 15 games (most fair)</option>
+        </select>
+        <div id="playoff-format-desc" style="margin-top:8px;font-size:12px;color:var(--text2)">2 pods of 4-5 teams play round robin → 1v4, 2v3 semis → finals. 5th place in each pod eliminated.</div>
+      </div>
+      <button class="btn btn-primary" onclick="seedPlayoffs()">🏆 Seed Playoffs from Standings</button>
+      ${!hasScores?'<div style="margin-top:8px;font-size:12px;color:var(--muted)">⚠ No scores entered yet — standings may not reflect final order</div>':''}
+    </div>`;
     return;
   }
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
     <div style="font-size:13px;color:var(--muted)">Enter scores · Schedule games · Manage bracket</div>
     <button class="btn btn-sm" onclick="resetPlayoffs()" style="color:var(--red);border-color:var(--red)">↺ Reset Playoffs</button>
   </div>`;
-  
-  // Route to appropriate admin renderer based on format
-  if(p.format==='top6byes'){
-    html+=renderTop6ByesAdmin(p);
-  }else if(p.format==='singleelim8'){
-    html+=renderSingleElim8Admin(p);
-  }else if(p.format==='doubleelim8'){
-    html+=renderDoubleElim8Admin(p);
-  }else{
+  if(p.format==='top6byes') html+=renderTop6ByesAdmin(p);
+  else if(p.format==='singleelim8') html+=renderSingleElim8Admin(p);
+  else if(p.format==='doubleelim8') html+=renderDoubleElim8Admin(p);
+  else{
     html+=renderPodAdmin('POD A — Top 5','PA','podA',p.podA);
     html+=renderPodAdmin('POD B — Bottom 4','PB','podB',p.podB);
   }
   el.innerHTML=html;
 }
 
-// ── RENDERERS FOR NEW FORMATS ─────────────────────────────────────────────────
-// Top 6 with Byes — Public View
+// ── RENDERERS FOR ALTERNATE FORMATS ──────────────────────────────────────────
 function renderTop6ByesPublic(p){
   const games=Object.values(p.games);
   const wc=games.filter(g=>g.id.startsWith('WC'));
   const sf=games.filter(g=>g.id.startsWith('SF'));
   const fin=games.find(g=>g.id==='FINAL');
-  
   function gameRow(g,label){
-    const sc=g?.score;
-    const w=sc?(sc.h>sc.a?g.home:sc.a>sc.h?g.away:null):null;
-    return`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 8px;width:80px"><span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${esc(label||g?.id||'')}</span></td>
-      <td style="padding:9px 8px;text-align:right;font-size:13px;font-weight:${w===g?.home?'800':'500'}">${esc(g?.home||'TBD')}</td>
-      <td style="padding:9px 6px;text-align:center;font-family:var(--mono);font-size:13px;font-weight:800">${sc?`${sc.h}–${sc.a}`:'vs'}</td>
-      <td style="padding:9px 8px;text-align:left;font-size:13px;font-weight:${w===g?.away?'800':'500'}">${esc(g?.away||'TBD')}</td>
-      <td style="padding:9px 4px;width:20px;text-align:center">${w?'✓':''}</td>
-    </tr>`;
+    const sc=g?.score;const w=sc?(sc.h>sc.a?g.home:sc.a>sc.h?g.away:null):null;
+    return`<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 8px;width:80px"><span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${esc(label||g?.id||'')}</span></td><td style="padding:9px 8px;text-align:right;font-size:13px;font-weight:${w===g?.home?'800':'500'}">${esc(g?.home||'TBD')}</td><td style="padding:9px 6px;text-align:center;font-family:var(--mono);font-size:13px;font-weight:800">${sc?`${sc.h}–${sc.a}`:'vs'}</td><td style="padding:9px 8px;text-align:left;font-size:13px;font-weight:${w===g?.away?'800':'500'}">${esc(g?.away||'TBD')}</td><td style="padding:9px 4px;width:20px;text-align:center">${w?'✓':''}</td></tr>`;
   }
-  
   let h=`<div class="card"><div class="card-title">Top 6 with Byes Bracket</div>`;
   h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Wild Card — #1 & #2 have byes</div>`;
   h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${wc.map(g=>gameRow(g,'WC')).join('')}</table>`;
   h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Semifinals</div>`;
   h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${sf.map(g=>gameRow(g,'SF')).join('')}</table>`;
-  if(fin){
-    h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Finals</div>`;
-    h+=`<table style="width:100%;border-collapse:collapse">${gameRow(fin,'FINAL')}</table>`;
-  }
-  h+=`</div>`;
-  return h;
+  if(fin){h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Finals</div><table style="width:100%;border-collapse:collapse">${gameRow(fin,'FINAL')}</table>`;}
+  h+=`</div>`;return h;
 }
-
-// Top 6 with Byes — Admin View
 function renderTop6ByesAdmin(p){
   const games=Object.values(p.games);
   const wc=games.filter(g=>g.id.startsWith('WC'));
   const sf=games.filter(g=>g.id.startsWith('SF'));
   const fin=p.finals;
-  
   function adminRow(g,label){
     const sh=(g.home||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const sa=(g.away||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return`<tr>
-      <td style="padding:8px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted)">${esc(label||g.id)}</td>
-      <td style="padding:8px;text-align:right;font-size:13px">${esc(g.home||'TBD')}</td>
-      ${scoreInput(`${g.id}_H`,`${g.id}_A`,g.score?.h,g.score?.a,`savePlayoffScore('${g.id}')`)}
-      <td style="padding:8px;text-align:left;font-size:13px">${esc(g.away||'TBD')}</td>
-      ${schedBtn(g.id,sh,sa)}
-    </tr>`;
+    return`<tr><td style="padding:8px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted)">${esc(label||g.id)}</td><td style="padding:8px;text-align:right;font-size:13px">${esc(g.home||'TBD')}</td>${scoreInput(`${g.id}_H`,`${g.id}_A`,g.score?.h,g.score?.a,`savePlayoffScore('${g.id}')}`)}<td style="padding:8px;text-align:left;font-size:13px">${esc(g.away||'TBD')}</td>${schedBtn(g.id,sh,sa)}</tr>`;
   }
-  
-  let h=`<div class="card"><div class="card-title">Wild Card</div>`;
-  h+=`<table class="edit-table" style="margin-bottom:16px">`;
-  h+=`<thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>`;
-  h+=wc.map(g=>adminRow(g,'WC')).join('');
-  h+=`</tbody></table>`;
-  
-  h+=`<div class="card-title">Semifinals</div>`;
-  h+=`<table class="edit-table" style="margin-bottom:16px">`;
-  h+=`<thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>`;
-  h+=sf.map(g=>adminRow(g,'SF')).join('');
-  h+=`</tbody></table>`;
-  
-  if(fin?.home||fin?.away){
-    h+=`<div class="card-title">Finals</div>`;
-    h+=`<table class="edit-table"><tbody>${adminRow({id:'FINAL',...fin},'FINAL')}</tbody></table>`;
-  }
-  h+=`</div>`;
-  return h;
+  let h=`<div class="card"><div class="card-title">Wild Card</div><table class="edit-table" style="margin-bottom:16px"><thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>${wc.map(g=>adminRow(g,'WC')).join('')}</tbody></table>`;
+  h+=`<div class="card-title">Semifinals</div><table class="edit-table" style="margin-bottom:16px"><thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>${sf.map(g=>adminRow(g,'SF')).join('')}</tbody></table>`;
+  if(fin?.home||fin?.away){h+=`<div class="card-title">Finals</div><table class="edit-table"><tbody>${adminRow({id:'FINAL',...fin},'FINAL')}</tbody></table>`;}
+  h+=`</div>`;return h;
 }
-
-// 8-Team Single Elim — Public View
 function renderSingleElim8Public(p){
   const games=Object.values(p.games);
   const qf=games.filter(g=>g.id.startsWith('QF'));
   const sf=games.filter(g=>g.id.startsWith('SF'));
   const fin=p.finals;
-  
   function gameRow(g,label){
-    const sc=g?.score;
-    const w=sc?(sc.h>sc.a?g.home:sc.a>sc.h?g.away:null):null;
-    return`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 8px;width:80px"><span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${esc(label||g?.id||'')}</span></td>
-      <td style="padding:9px 8px;text-align:right;font-size:13px;font-weight:${w===g?.home?'800':'500'}">${esc(g?.home||'TBD')}</td>
-      <td style="padding:9px 6px;text-align:center;font-family:var(--mono);font-size:13px;font-weight:800">${sc?`${sc.h}–${sc.a}`:'vs'}</td>
-      <td style="padding:9px 8px;text-align:left;font-size:13px;font-weight:${w===g?.away?'800':'500'}">${esc(g?.away||'TBD')}</td>
-      <td style="padding:9px 4px;width:20px;text-align:center">${w?'✓':''}</td>
-    </tr>`;
+    const sc=g?.score;const w=sc?(sc.h>sc.a?g.home:sc.a>sc.h?g.away:null):null;
+    return`<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 8px;width:80px"><span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${esc(label||g?.id||'')}</span></td><td style="padding:9px 8px;text-align:right;font-size:13px;font-weight:${w===g?.home?'800':'500'}">${esc(g?.home||'TBD')}</td><td style="padding:9px 6px;text-align:center;font-family:var(--mono);font-size:13px;font-weight:800">${sc?`${sc.h}–${sc.a}`:'vs'}</td><td style="padding:9px 8px;text-align:left;font-size:13px;font-weight:${w===g?.away?'800':'500'}">${esc(g?.away||'TBD')}</td><td style="padding:9px 4px;width:20px;text-align:center">${w?'✓':''}</td></tr>`;
   }
-  
-  let h=`<div class="card"><div class="card-title">Quarterfinals</div>`;
-  h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${qf.map(g=>gameRow(g,'QF')).join('')}</table>`;
-  h+=`<div class="card-title">Semifinals</div>`;
-  h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${sf.map(g=>gameRow(g,'SF')).join('')}</table>`;
-  if(fin?.home||fin?.away){
-    h+=`<div class="card-title">Finals</div>`;
-    h+=`<table style="width:100%;border-collapse:collapse">${gameRow({id:'FINAL',...fin},'FINAL')}</table>`;
-  }
-  h+=`</div>`;
-  return h;
+  let h=`<div class="card"><div class="card-title">Quarterfinals</div><table style="width:100%;border-collapse:collapse;margin-bottom:16px">${qf.map(g=>gameRow(g,'QF')).join('')}</table>`;
+  h+=`<div class="card-title">Semifinals</div><table style="width:100%;border-collapse:collapse;margin-bottom:16px">${sf.map(g=>gameRow(g,'SF')).join('')}</table>`;
+  if(fin?.home||fin?.away){h+=`<div class="card-title">Finals</div><table style="width:100%;border-collapse:collapse">${gameRow({id:'FINAL',...fin},'FINAL')}</table>`;}
+  h+=`</div>`;return h;
 }
-
-// 8-Team Single Elim — Admin View  
 function renderSingleElim8Admin(p){
   const games=Object.values(p.games);
   const qf=games.filter(g=>g.id.startsWith('QF'));
   const sf=games.filter(g=>g.id.startsWith('SF'));
   const fin=p.finals;
-  
   function adminRow(g,label){
     const sh=(g.home||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const sa=(g.away||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return`<tr>
-      <td style="padding:8px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted)">${esc(label||g.id)}</td>
-      <td style="padding:8px;text-align:right;font-size:13px">${esc(g.home||'TBD')}</td>
-      ${scoreInput(`${g.id}_H`,`${g.id}_A`,g.score?.h,g.score?.a,`savePlayoffScore('${g.id}')`)}
-      <td style="padding:8px;text-align:left;font-size:13px">${esc(g.away||'TBD')}</td>
-      ${schedBtn(g.id,sh,sa)}
-    </tr>`;
+    return`<tr><td style="padding:8px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted)">${esc(label||g.id)}</td><td style="padding:8px;text-align:right;font-size:13px">${esc(g.home||'TBD')}</td>${scoreInput(`${g.id}_H`,`${g.id}_A`,g.score?.h,g.score?.a,`savePlayoffScore('${g.id}')}`)}<td style="padding:8px;text-align:left;font-size:13px">${esc(g.away||'TBD')}</td>${schedBtn(g.id,sh,sa)}</tr>`;
   }
-  
-  let h=`<div class="card"><div class="card-title">Quarterfinals — 1v8, 2v7, 3v6, 4v5</div>`;
-  h+=`<table class="edit-table" style="margin-bottom:16px">`;
-  h+=`<thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>`;
-  h+=qf.map(g=>adminRow(g,'QF')).join('');
-  h+=`</tbody></table>`;
-  
-  h+=`<div class="card-title">Semifinals</div>`;
-  h+=`<table class="edit-table" style="margin-bottom:16px">`;
-  h+=`<thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>`;
-  h+=sf.map(g=>adminRow(g,'SF')).join('');
-  h+=`</tbody></table>`;
-  
-  if(fin?.home||fin?.away){
-    h+=`<div class="card-title">Finals</div>`;
-    h+=`<table class="edit-table"><tbody>${adminRow({id:'FINAL',...fin},'FINAL')}</tbody></table>`;
-  }
-  h+=`</div>`;
-  return h;
+  let h=`<div class="card"><div class="card-title">Quarterfinals — 1v8, 2v7, 3v6, 4v5</div><table class="edit-table" style="margin-bottom:16px"><thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>${qf.map(g=>adminRow(g,'QF')).join('')}</tbody></table>`;
+  h+=`<div class="card-title">Semifinals</div><table class="edit-table" style="margin-bottom:16px"><thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>${sf.map(g=>adminRow(g,'SF')).join('')}</tbody></table>`;
+  if(fin?.home||fin?.away){h+=`<div class="card-title">Finals</div><table class="edit-table"><tbody>${adminRow({id:'FINAL',...fin},'FINAL')}</tbody></table>`;}
+  h+=`</div>`;return h;
 }
-
-// 8-Team Double Elim — Public View
 function renderDoubleElim8Public(p){
   const games=Object.values(p.games);
   const wb=games.filter(g=>g.id.startsWith('WB'));
   const lb=games.filter(g=>g.id.startsWith('LB'));
   const fin=p.finals;
-  
   function gameRow(g,label){
-    const sc=g?.score;
-    const w=sc?(sc.h>sc.a?g.home:sc.a>sc.h?g.away:null):null;
-    return`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 8px;width:80px"><span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${esc(label||g?.id||'')}</span></td>
-      <td style="padding:9px 8px;text-align:right;font-size:13px;font-weight:${w===g?.home?'800':'500'}">${esc(g?.home||'TBD')}</td>
-      <td style="padding:9px 6px;text-align:center;font-family:var(--mono);font-size:13px;font-weight:800">${sc?`${sc.h}–${sc.a}`:'vs'}</td>
-      <td style="padding:9px 8px;text-align:left;font-size:13px;font-weight:${w===g?.away?'800':'500'}">${esc(g?.away||'TBD')}</td>
-      <td style="padding:9px 4px;width:20px;text-align:center">${w?'✓':''}</td>
-    </tr>`;
+    const sc=g?.score;const w=sc?(sc.h>sc.a?g.home:sc.a>sc.h?g.away:null):null;
+    return`<tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 8px;width:80px"><span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 6px;border-radius:3px">${esc(label||g?.id||'')}</span></td><td style="padding:9px 8px;text-align:right;font-size:13px;font-weight:${w===g?.home?'800':'500'}">${esc(g?.home||'TBD')}</td><td style="padding:9px 6px;text-align:center;font-family:var(--mono);font-size:13px;font-weight:800">${sc?`${sc.h}–${sc.a}`:'vs'}</td><td style="padding:9px 8px;text-align:left;font-size:13px;font-weight:${w===g?.away?'800':'500'}">${esc(g?.away||'TBD')}</td><td style="padding:9px 4px;width:20px;text-align:center">${w?'✓':''}</td></tr>`;
   }
-  
-  let h=`<div class="card"><div class="card-title">Winner's Bracket</div>`;
-  h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${wb.map(g=>gameRow(g,'WB')).join('')}</table>`;
-  if(lb.length>0){
-    h+=`<div class="card-title">Loser's Bracket</div>`;
-    h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">${lb.map(g=>gameRow(g,'LB')).join('')}</table>`;
-  }
-  if(fin?.home||fin?.away){
-    h+=`<div class="card-title">Grand Finals</div>`;
-    h+=`<table style="width:100%;border-collapse:collapse">${gameRow({id:'FINAL',...fin},'FINAL')}</table>`;
-  }
-  h+=`</div>`;
-  return h;
+  let h=`<div class="card"><div class="card-title">Winner's Bracket</div><table style="width:100%;border-collapse:collapse;margin-bottom:16px">${wb.map(g=>gameRow(g,'WB')).join('')}</table>`;
+  if(lb.length>0){h+=`<div class="card-title">Loser's Bracket</div><table style="width:100%;border-collapse:collapse;margin-bottom:16px">${lb.map(g=>gameRow(g,'LB')).join('')}</table>`;}
+  if(fin?.home||fin?.away){h+=`<div class="card-title">Grand Finals</div><table style="width:100%;border-collapse:collapse">${gameRow({id:'FINAL',...fin},'FINAL')}</table>`;}
+  h+=`</div>`;return h;
 }
-
-// 8-Team Double Elim — Admin View
 function renderDoubleElim8Admin(p){
   const games=Object.values(p.games);
   const wb=games.filter(g=>g.id.startsWith('WB'));
   const lb=games.filter(g=>g.id.startsWith('LB'));
   const fin=p.finals;
-  
   function adminRow(g,label){
     const sh=(g.home||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const sa=(g.away||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return`<tr>
-      <td style="padding:8px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted)">${esc(label||g.id)}</td>
-      <td style="padding:8px;text-align:right;font-size:13px">${esc(g.home||'TBD')}</td>
-      ${scoreInput(`${g.id}_H`,`${g.id}_A`,g.score?.h,g.score?.a,`savePlayoffScore('${g.id}')`)}
-      <td style="padding:8px;text-align:left;font-size:13px">${esc(g.away||'TBD')}</td>
-      ${schedBtn(g.id,sh,sa)}
-    </tr>`;
+    return`<tr><td style="padding:8px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted)">${esc(label||g.id)}</td><td style="padding:8px;text-align:right;font-size:13px">${esc(g.home||'TBD')}</td>${scoreInput(`${g.id}_H`,`${g.id}_A`,g.score?.h,g.score?.a,`savePlayoffScore('${g.id}')}`)}<td style="padding:8px;text-align:left;font-size:13px">${esc(g.away||'TBD')}</td>${schedBtn(g.id,sh,sa)}</tr>`;
   }
-  
-  let h=`<div class="card"><div class="card-title">Winner's Bracket — Quarterfinals</div>`;
-  h+=`<table class="edit-table" style="margin-bottom:16px">`;
-  h+=`<thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>`;
-  h+=wb.map(g=>adminRow(g,'WB')).join('');
-  h+=`</tbody></table>`;
-  
-  if(lb.length>0){
-    h+=`<div class="card-title">Loser's Bracket</div>`;
-    h+=`<table class="edit-table" style="margin-bottom:16px">`;
-    h+=`<thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>`;
-    h+=lb.map(g=>adminRow(g,'LB')).join('');
-    h+=`</tbody></table>`;
-  }
-  
-  if(fin?.home||fin?.away){
-    h+=`<div class="card-title">Grand Finals</div>`;
-    h+=`<table class="edit-table"><tbody>${adminRow({id:'FINAL',...fin},'FINAL')}</tbody></table>`;
-  }
-  h+=`</div>`;
-  return h;
+  let h=`<div class="card"><div class="card-title">Winner's Bracket — Quarterfinals</div><table class="edit-table" style="margin-bottom:16px"><thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>${wb.map(g=>adminRow(g,'WB')).join('')}</tbody></table>`;
+  if(lb.length>0){h+=`<div class="card-title">Loser's Bracket</div><table class="edit-table" style="margin-bottom:16px"><thead><tr><th>Game</th><th class="ar">Home</th><th class="ac" colspan="3">Score</th><th>Away</th><th>Sched</th></tr></thead><tbody>${lb.map(g=>adminRow(g,'LB')).join('')}</tbody></table>`;}
+  if(fin?.home||fin?.away){h+=`<div class="card-title">Grand Finals</div><table class="edit-table"><tbody>${adminRow({id:'FINAL',...fin},'FINAL')}</tbody></table>`;}
+  h+=`</div>`;return h;
 }
 
 // ── PLAYOFF FORMATS ───────────────────────────────────────────────────────────
@@ -833,7 +537,6 @@ function getSelectedPlayoffFormat(){
   return el?el.value:'podrr';
 }
 
-// ── SEED PLAYOFFS ─────────────────────────────────────────────────────────────
 function seedPlayoffs(){
   if(!checkAdmin()) return;
   const ranked=getRegularSeasonRanking();
@@ -841,72 +544,50 @@ function seedPlayoffs(){
   const format=getSelectedPlayoffFormat();
   const fmt=PLAYOFF_FORMATS[format];
   if(!fmt){alert('Invalid playoff format selected');return;}
-  
   function recStr(r){const t=r.tie?`-${r.tie}`:'';return `(${r.w}-${r.l}${t}) ${r.pts}pts`;}
   let seedMsg=`Format: ${fmt.label}\n${fmt.desc}\n\n`;
-  
-  // Build bracket based on format
-  let bracketHTML='';
   if(format==='top6byes'){
     seedMsg+=`Top 6 Teams:\n${ranked.slice(0,6).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
     seedMsg+=`\n\nWild Card: #3 vs #6, #4 vs #5\n#1 and #2 get byes to Semifinals`;
-    bracketHTML=`<div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--r-sm);font-size:12px">
-      <strong>Bracket:</strong><br>WC1: #3 vs #6 | WC2: #4 vs #5<br>SF1: #1 vs WC2 winner | SF2: #2 vs WC1 winner<br>Finals: SF winners
-    </div>`;
   }else if(format==='singleelim8'||format==='doubleelim8'){
     seedMsg+=`All 8 Teams:\n${ranked.slice(0,8).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
     seedMsg+=`\n\nQuarterfinals: 1v8, 2v7, 3v6, 4v5`;
-    bracketHTML=`<div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:var(--r-sm);font-size:12px">
-      <strong>Bracket:</strong><br>QF: 1v8, 2v7, 3v6, 4v5<br>SF: QF winners | Finals: SF winners
-    </div>`;
   }else{
-    // podrr (current default)
     const podA=ranked.slice(0,5).map(r=>r.team);
     const podB=ranked.slice(5).map(r=>r.team);
     seedMsg+=`POD A (Top 5):\n${ranked.slice(0,5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
     seedMsg+=`\n\nPOD B (Bottom ${podB.length}):\n${ranked.slice(5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
   }
   seedMsg+=`\n\nThis will create ${fmt.games} games and reset any existing playoff data.`;
-  
-  const confirmed=confirm(seedMsg);
-  if(!confirmed) return;
-  
-  // Generate games based on format
-  let games={};
-  let podA=[],podB=[];
+  if(!confirm(seedMsg)) return;
+
+  let games={},podA=[],podB=[];
   let semis={podA:{},podB:{}};
   let finals={podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}};
-  
+
   if(format==='top6byes'){
     const top6=ranked.slice(0,6).map(r=>r.team);
-    // Wild Card games
-    games.WC1={id:'WC1',phase:'wc',home:top6[2],away:top6[5],score:null}; // #3 vs #6
-    games.WC2={id:'WC2',phase:'wc',home:top6[3],away:top6[4],score:null}; // #4 vs #5
-    // Semifinals (TBD until WC results)
-    semis={s1:{home:top6[0],away:'TBD',score:null},s2:{home:top6[1],away:'TBD',score:null}}; // #1, #2 get byes
+    games.WC1={id:'WC1',phase:'wc',home:top6[2],away:top6[5],score:null};
+    games.WC2={id:'WC2',phase:'wc',home:top6[3],away:top6[4],score:null};
+    semis={s1:{home:top6[0],away:'TBD',score:null},s2:{home:top6[1],away:'TBD',score:null}};
     finals={home:null,away:null,score:null};
   }else if(format==='singleelim8'){
     const top8=ranked.slice(0,8).map(r=>r.team);
-    // Quarterfinals
-    games.QF1={id:'QF1',phase:'qf',home:top8[0],away:top8[7],score:null}; // 1v8
-    games.QF2={id:'QF2',phase:'qf',home:top8[3],away:top8[4],score:null}; // 4v5
-    games.QF3={id:'QF3',phase:'qf',home:top8[1],away:top8[6],score:null}; // 2v7
-    games.QF4={id:'QF4',phase:'qf',home:top8[2],away:top8[5],score:null}; // 3v6
-    // Semifinals (TBD)
+    games.QF1={id:'QF1',phase:'qf',home:top8[0],away:top8[7],score:null};
+    games.QF2={id:'QF2',phase:'qf',home:top8[3],away:top8[4],score:null};
+    games.QF3={id:'QF3',phase:'qf',home:top8[1],away:top8[6],score:null};
+    games.QF4={id:'QF4',phase:'qf',home:top8[2],away:top8[5],score:null};
     semis={s1:{home:'TBD',away:'TBD',score:null},s2:{home:'TBD',away:'TBD',score:null}};
     finals={home:null,away:null,score:null};
   }else if(format==='doubleelim8'){
     const top8=ranked.slice(0,8).map(r=>r.team);
-    // Winner's Bracket QF
     games.WB1={id:'WB1',phase:'wb',home:top8[0],away:top8[7],score:null};
     games.WB2={id:'WB2',phase:'wb',home:top8[3],away:top8[4],score:null};
     games.WB3={id:'WB3',phase:'wb',home:top8[1],away:top8[6],score:null};
     games.WB4={id:'WB4',phase:'wb',home:top8[2],away:top8[5],score:null};
-    // Loser's Bracket will be added as WB results come in
     semis={wb:{home:null,away:null,score:null},lb:{home:null,away:null,score:null}};
     finals={home:null,away:null,score:null};
   }else{
-    // podrr - current 2-pod round robin
     podA=ranked.slice(0,5).map(r=>r.team);
     podB=ranked.slice(5).map(r=>r.team);
     function rrGames(teams,pfx){
@@ -922,20 +603,17 @@ function seedPlayoffs(){
     semis={podA:{},podB:{}};
     finals={podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}};
   }
-  
-  G.playoffs={
-    seeded:true,format,podA,podB,games,semis,finals
-  };
-  saveData();renderPlayoffs();renderPlayoffsAdmin();showToast(`🏆 Playoffs seeded! ${fmt.label} — ${fmt.games} games`);
+
+  G.playoffs={seeded:true,format,podA,podB,games,semis,finals};
+  saveData();renderPlayoffs();renderPlayoffsAdmin();
+  showToast(`🏆 Playoffs seeded! ${fmt.label} — ${fmt.games} games`);
 }
 
 function onPlayoffFormatChange(){
   const format=getSelectedPlayoffFormat();
   const fmt=PLAYOFF_FORMATS[format];
   const descEl=document.getElementById('playoff-format-desc');
-  if(descEl&&fmt){
-    descEl.textContent=fmt.desc+` — ${fmt.games} games total.`;
-  }
+  if(descEl&&fmt) descEl.textContent=fmt.desc+` — ${fmt.games} games total.`;
 }
 
 function resetPlayoffs(){
@@ -946,62 +624,49 @@ function resetPlayoffs(){
   saveData();renderPlayoffs();renderPlayoffsAdmin();showToast('Playoffs reset');
 }
 
-function _clampScore(val){
-  const n=parseInt(val);
-  return isNaN(n)?null:Math.max(0,n);
-}
+function _clampScore(val){const n=parseInt(val);return isNaN(n)?null:Math.max(0,n);}
 
 function savePlayoffScore(gameId){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const hEl=document.getElementById('ph_'+gameId);
   const aEl=document.getElementById('pa_'+gameId);
-  const hRaw=hEl?.value;
-  const aRaw=aEl?.value;
   const g=G.playoffs.games[gameId];
   if(!g) return;
+  const hRaw=hEl?.value,aRaw=aEl?.value;
   if(hRaw===''&&aRaw===''){g.score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
-  const h=_clampScore(hRaw??'');
-  const a=_clampScore(aRaw??'');
+  const h=_clampScore(hRaw??''),a=_clampScore(aRaw??'');
   if(h===null||a===null) return;
-  g.score={h,a};
-  saveData();renderPlayoffs();renderPlayoffsAdmin();
+  g.score={h,a};saveData();renderPlayoffs();renderPlayoffsAdmin();
 }
 
 function saveSemiScore(pod,key){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const hEl=document.getElementById(`psh_${pod}_${key}`);
   const aEl=document.getElementById(`psa_${pod}_${key}`);
-  const hRaw=hEl?.value;
-  const aRaw=aEl?.value;
+  const hRaw=hEl?.value,aRaw=aEl?.value;
   if(!G.playoffs.semis[pod][key]) G.playoffs.semis[pod][key]={home:null,away:null,score:null};
   if(hRaw===''&&aRaw===''){G.playoffs.semis[pod][key].score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
-  const h=_clampScore(hRaw??'');
-  const a=_clampScore(aRaw??'');
+  const h=_clampScore(hRaw??''),a=_clampScore(aRaw??'');
   if(h===null||a===null) return;
-  G.playoffs.semis[pod][key].score={h,a};
-  saveData();renderPlayoffs();renderPlayoffsAdmin();
+  G.playoffs.semis[pod][key].score={h,a};saveData();renderPlayoffs();renderPlayoffsAdmin();
 }
 
 function saveFinalScore(pod){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const hEl=document.getElementById('pfh_'+pod);
   const aEl=document.getElementById('pfa_'+pod);
-  const hRaw=hEl?.value;
-  const aRaw=aEl?.value;
+  const hRaw=hEl?.value,aRaw=aEl?.value;
   if(hRaw===''&&aRaw===''){G.playoffs.finals[pod].score=null;saveData();renderPlayoffs();renderPlayoffsAdmin();return;}
-  const h=_clampScore(hRaw??'');
-  const a=_clampScore(aRaw??'');
+  const h=_clampScore(hRaw??''),a=_clampScore(aRaw??'');
   if(h===null||a===null) return;
-  G.playoffs.finals[pod].score={h,a};
-  saveData();renderPlayoffs();renderPlayoffsAdmin();
+  G.playoffs.finals[pod].score={h,a};saveData();renderPlayoffs();renderPlayoffsAdmin();
 }
 
-// ── SCHEDULE A PLAYOFF GAME (modal) ──────────────────────────────────────────
 function schedulePlayoffGame(plyId,home,away){
   if(!checkAdmin()) return;
   const existingPly=G.sched.filter(g=>g.playoff);
   if(document.getElementById('_ply_modal')) document.getElementById('_ply_modal').remove();
-  window._plyModalState={plyId,home,away,diamond:null,hour:6,min:'30',ampm:'PM',clockStep:'hour',existingPly};
+  window._plyModalState={plyId,home,away,diamond:null,existingPly};
   const modal=document.createElement('div');
   modal.id='_ply_modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
@@ -1009,18 +674,12 @@ function schedulePlayoffGame(plyId,home,away){
     <div style="font-size:15px;font-weight:800;color:#0d1b2e;margin-bottom:4px">📅 Schedule Playoff Game</div>
     <div style="font-size:12px;color:#6b7d94;margin-bottom:16px">${esc(home)} vs ${esc(away)}</div>
     <div style="display:grid;gap:10px;margin-bottom:14px">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Date</div>
-        <input type="date" id="_pm_date" style="width:100%;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-size:14px;font-family:sans-serif"/>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Time</div>
-        <input type="text" id="_pm_time" placeholder="6:30 PM" value="6:30 PM" style="width:100%;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-size:14px;font-family:sans-serif"/>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Diamond</div>
-        <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-      </div>
+      <div><div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Date</div>
+        <input type="date" id="_pm_date" style="width:100%;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-size:14px;font-family:sans-serif"/></div>
+      <div><div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Time</div>
+        <input type="text" id="_pm_time" placeholder="6:30 PM" value="6:30 PM" style="width:100%;padding:8px 10px;border:1.5px solid #e2e6ec;border-radius:8px;font-size:14px;font-family:sans-serif"/></div>
+      <div><div style="font-size:11px;font-weight:700;color:#6b7d94;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Diamond</div>
+        <div id="_pm_diamonds" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>
       <div id="_pm_conflicts" style="font-size:12px;color:#e03131"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
@@ -1050,25 +709,17 @@ function _plyModalRefresh(){
     const bg=isSelected?'#0d1b2e':booked?'#fee2e2':'#f7f8fb';
     const color=isSelected?'#fff':booked?'#b91c1c':'#0d1b2e';
     const border=isSelected?'#0d1b2e':booked?'#fca5a5':'#e2e6ec';
-    return`<button type="button" ${booked?'disabled':''} onclick="_plySelectDiamond(${d.id})"
-      style="padding:5px 12px;border-radius:6px;border:1.5px solid ${border};background:${bg};font-size:12px;font-weight:600;color:${color};cursor:${booked?'not-allowed':'pointer'};font-family:sans-serif">
-      D${d.id}${d.lights?' 💡':' 🌙'}${booked?' ✗':''}</button>`;
+    return`<button type="button" ${booked?'disabled':''} onclick="_plySelectDiamond(${d.id})" style="padding:5px 12px;border-radius:6px;border:1.5px solid ${border};background:${bg};font-size:12px;font-weight:600;color:${color};cursor:${booked?'not-allowed':'pointer'};font-family:sans-serif">D${d.id}${d.lights?' 💡':' 🌙'}${booked?' ✗':''}</button>`;
   }).join('');
   const conflictEl=document.getElementById('_pm_conflicts');
   if(conflictEl){
     const msgs=[];
-    if(teamConflict){
-      const who=[state.home,state.away].filter(t=>busyTeams.has(t));
-      msgs.push(`⚠ ${who.join(' and ')} already ha${who.length>1?'ve':'s'} a game at this time`);
-    }
+    if(teamConflict){const who=[state.home,state.away].filter(t=>busyTeams.has(t));msgs.push(`⚠ ${who.join(' and ')} already ha${who.length>1?'ve':'s'} a game at this time`);}
     conflictEl.textContent=msgs.join(' · ');
   }
 }
 
-function _plySelectDiamond(id){
-  window._plyModalState.diamond=id;
-  _plyModalRefresh();
-}
+function _plySelectDiamond(id){window._plyModalState.diamond=id;_plyModalRefresh();}
 
 function confirmSchedulePlayoffGame(){
   const state=window._plyModalState;
@@ -1078,17 +729,8 @@ function confirmSchedulePlayoffGame(){
   if(!time){alert('Please enter a time.');return;}
   if(!state.diamond){alert('Please select a diamond.');return;}
   const dm=G.diamonds.find(d=>d.id===state.diamond);
-  const yr=date.slice(2,4);
-  const existing=G.sched.filter(g=>g.id.startsWith(yr));
-  const maxSeq=existing.reduce((m,g)=>{const n=parseInt(g.id.slice(2));return n>m?n:m;},0);
-  const newId=`${yr}${String(maxSeq+1).padStart(3,'0')}`;
-  const newGame={
-    id:newId,date,time,
-    diamond:state.diamond,lights:dm?.lights||false,
-    home:state.home,away:state.away,
-    bye:'',crossover:false,playoff:true,
-    plyId:state.plyId
-  };
+  const newId=nextGameId(date);
+  const newGame={id:newId,date,time,diamond:state.diamond,lights:dm?.lights||false,home:state.home,away:state.away,bye:'',crossover:false,playoff:true,plyId:state.plyId};
   G.sched.push(newGame);
   G.sched.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   document.getElementById('_ply_modal')?.remove();
