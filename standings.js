@@ -63,7 +63,6 @@ function computeStandings(){
   function h2hWinner(a,b){
     const ab=h2hStats[a][b],ba=h2hStats[b][a];
     if(ab.pts!==ba.pts) return ab.pts>ba.pts?a:b;
-    // Last matchup tiebreaker
     const ag=ab.games,bg=ba.games;
     if(ag.length&&bg.length){
       const lastA=ag[ag.length-1],lastB=bg[bg.length-1];
@@ -76,14 +75,12 @@ function computeStandings(){
         if(aLastPts!==bLastPts) return aLastPts>bLastPts?a:b;
       }
     }
-    // Stable coin toss
     return stableRand(a,b)>0?a:b;
   }
 
   const ranked=[...leagueTeams].map(t=>({team:t,tied:false})).sort((x,y)=>{
     const a=x.team,b=y.team;
     if(stats[b].pts!==stats[a].pts) return stats[b].pts-stats[a].pts;
-    // H2H tiebreak
     const winner=h2hWinner(a,b);
     x.tied=true;y.tied=true;
     return winner===a?-1:1;
@@ -199,7 +196,7 @@ function renderStandings(){
 
   if(el.dataset.stale) delete el.dataset.stale;
 
-  // ── AGENT: notify bus that standings rendered ──────────────────────────────
+  // ── AGENT: notify bus that standings finished rendering ───────────────────
   if(typeof AgentBus!=='undefined'){
     AgentBus.publish('standings:rendered',{teams:leagueTeams.length,gp});
   }
