@@ -86,7 +86,7 @@ function genSched(){
     return best;
   }
 
-  const sched=[];
+const sched=[];
   const gameSeq={};
 
   for(let ni=0;ni<nights.length;ni++){
@@ -99,21 +99,16 @@ function genSched(){
     // ── D9: CrossOver — 2 different opponents ─────────────────────────────
     if(d9&&!coByeSet.has(ni)){
       const n=coOpponents.length;
-
-      // oppA — CrossOver HOME @ T1
       let oppA=null;
       for(let attempt=0;attempt<n;attempt++){
         const c=coOpponents[(coIdx+attempt)%n];
         if(!busy.has(c)&&!atCap(c)){oppA=c;coIdx=(coIdx+attempt+1)%n;break;}
       }
-
-      // oppB — Team HOME @ T2, must differ from oppA
       let oppB=null;
       for(let attempt=0;attempt<n;attempt++){
         const c=coOpponents[(coIdx+attempt)%n];
         if(!busy.has(c)&&!atCap(c)&&c!==oppA){oppB=c;coIdx=(coIdx+attempt+1)%n;break;}
       }
-
       if(oppA){
         busy.add(oppA);
         teamGames[oppA]=(teamGames[oppA]||0)+1;
@@ -129,47 +124,66 @@ function genSched(){
       }
     }
 
-    // ── DH diamonds (D12) ────────────────────────────────────────────────
+    // ── Assign remaining 6 teams: singles first, then D12 gets the rest ──
+    const avail=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t));
+    let remaining=[...avail];
+
+    // Singles first (D13, D14) — pick least-faced pair from remaining
+    for(const dm of singleDiamonds){
+      if(remaining.length<2){
+        gameSeq[yr]++;
+        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:'',away:'',bye:'',crossover:false,open:true});
+        continue;
+      }
+      let best=null,bestScore=Infinity;
+      for(let i=0;i<remaining.length;i++){
+        for(let j=i+1;j<remaining.length;j++){
+          const t1=remaining[i],t2=remaining[j];
+          const score=pairCount(t1,t2)*10000+stableHash(t1+t2);
+          if(score<bestScore){bestScore=score;best=[i,j,t1,t2];}
+        }
+      }
+      const[bi,bj,t1,t2]=best;
+      remaining=remaining.filter((_,idx)=>idx!==bi&&idx!==bj);
+      const[h,a]=pickHA(t1,t2,hcMap);
+      busy.add(h);busy.add(a);
+      teamGames[h]=(teamGames[h]||0)+1;
+      teamGames[a]=(teamGames[a]||0)+1;
+      pairIncrement(h,a);
+      hcMap[h]=(hcMap[h]||0)+1;
+      gameSeq[yr]++;
+      sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:h,away:a,bye:'',crossover:false});
+    }
+
+    // D12 — whoever is left gets the DH
     for(const dm of dhDiamonds){
-      const pair=pickPair(busy);
-      if(pair){
-        const[t1,t2]=pair;
-        const[h,a]=pickHA(t1,t2,hcMap);
-        busy.add(h);busy.add(a);
-        teamGames[h]=(teamGames[h]||0)+2;
-        teamGames[a]=(teamGames[a]||0)+2;
-        pairIncrement(h,a);
-        hcMap[h]=(hcMap[h]||0)+1;
-        hcMap[a]=(hcMap[a]||0)+1;
-        gameSeq[yr]++;
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:h,away:a,bye:'',crossover:false});
-        gameSeq[yr]++;
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:a,away:h,bye:'',crossover:false});
-      } else {
+      if(remaining.length<2){
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
+        continue;
       }
-    }
-
-    // ── Single diamonds (D13, D14) — 6:30 only ───────────────────────────
-    for(const dm of singleDiamonds){
-      const pair=pickPair(busy);
-      if(pair){
-        const[t1,t2]=pair;
-        const[h,a]=pickHA(t1,t2,hcMap);
-        busy.add(h);busy.add(a);
-        teamGames[h]=(teamGames[h]||0)+1;
-        teamGames[a]=(teamGames[a]||0)+1;
-        pairIncrement(h,a);
-        hcMap[h]=(hcMap[h]||0)+1;
-        gameSeq[yr]++;
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:h,away:a,bye:'',crossover:false});
-      } else {
-        gameSeq[yr]++;
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:'',away:'',bye:'',crossover:false,open:true});
+      let best=null,bestScore=Infinity;
+      for(let i=0;i<remaining.length;i++){
+        for(let j=i+1;j<remaining.length;j++){
+          const t1=remaining[i],t2=remaining[j];
+          const score=pairCount(t1,t2)*10000+stableHash(t1+t2);
+          if(score<bestScore){bestScore=score;best=[i,j,t1,t2];}
+        }
       }
+      const[bi,bj,t1,t2]=best;
+      const[h,a]=pickHA(t1,t2,hcMap);
+      busy.add(h);busy.add(a);
+      teamGames[h]=(teamGames[h]||0)+2;
+      teamGames[a]=(teamGames[a]||0)+2;
+      pairIncrement(h,a);
+      hcMap[h]=(hcMap[h]||0)+1;
+      hcMap[a]=(hcMap[a]||0)+1;
+      gameSeq[yr]++;
+      sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:h,away:a,bye:'',crossover:false});
+      gameSeq[yr]++;
+      sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:a,away:h,bye:'',crossover:false});
     }
   }
 
