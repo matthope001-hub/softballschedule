@@ -194,40 +194,48 @@ function genSched(){
 
     const busy=new Set();
 
-    // ── D9: CrossOver DH ─────────────────────────────────────────────────────
-    if(d9&&!coByeSet.has(ni)){
-      // True round-robin — advance coIdx, skip at-cap or busy teams
-      let opp=null;
-      const n=coOpponents.length;
-      for(let attempt=0;attempt<n;attempt++){
-        const candidate=coOpponents[(coIdx+attempt)%n];
-        if(gamesLeft(candidate)>=2&&!busy.has(candidate)){
-          opp=candidate;
-          coIdx=(coIdx+attempt+1)%n;
-          break;
-        }
-      }
-      // All capped/busy — fallback: any eligible team sorted by bye priority
-      if(opp===null){
-        const fallback=sortByByePriority(
-          leagueTeams.filter(t=>gamesLeft(t)>=2&&!busy.has(t)),
-          ni,date
-        );
-        if(fallback.length>0) opp=fallback[0];
-      }
-
-      if(opp){
-        busy.add(opp);
-        teamGames[opp]=(teamGames[opp]||0)+2;
-        hcMap[opp]=(hcMap[opp]||0)+1;
-        gameSeq[yr]++;
-        // Game 1 @ T1 — league team HOME, CrossOver AWAY
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:9,lights:true,home:opp,away:CROSSOVER,bye:'',crossover:true});
-        gameSeq[yr]++;
-        // Game 2 @ T2 — CrossOver HOME, league team AWAY
-        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:9,lights:true,home:CROSSOVER,away:opp,bye:'',crossover:true});
-      }
+// ── D9 CrossOver — 2 different opponents per night ───────────────────────────
+const isCOBye=coByeSet.has(ni);
+if(d9&&!isCOBye){
+  // Pick opponent A (6:30) — CO home
+  let oppA=null;
+  const n=coOpponents.length;
+  for(let attempt=0;attempt<n;attempt++){
+    const candidate=coOpponents[(coIdx+attempt)%n];
+    if(!teamAtCap(candidate)&&!busyTonight.has(candidate)){
+      oppA=candidate;
+      coIdx=(coIdx+attempt+1)%n;
+      break;
     }
+  }
+
+  // Pick opponent B (8:15) — CO away, must differ from oppA
+  let oppB=null;
+  for(let attempt=0;attempt<n;attempt++){
+    const candidate=coOpponents[(coIdx+attempt)%n];
+    if(!teamAtCap(candidate)&&!busyTonight.has(candidate)&&candidate!==oppA){
+      oppB=candidate;
+      coIdx=(coIdx+attempt+1)%n;
+      break;
+    }
+  }
+
+  if(oppA){
+    busyTonight.add(oppA);
+    teamGameCount[oppA]=(teamGameCount[oppA]||0)+1;
+    gameSeq[yr]++;
+    // Game 1 @ T1 — CrossOver HOME, Team A AWAY
+    sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:9,lights:true,home:CROSSOVER,away:oppA,bye:'',crossover:true});
+  }
+
+  if(oppB){
+    busyTonight.add(oppB);
+    teamGameCount[oppB]=(teamGameCount[oppB]||0)+1;
+    gameSeq[yr]++;
+    // Game 2 @ T2 — Team B HOME, CrossOver AWAY
+    sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:9,lights:true,home:oppB,away:CROSSOVER,bye:'',crossover:true});
+  }
+}
 
     // ── DH league diamonds (lights=true, e.g. D12) ───────────────────────────
     for(const dm of dhDiamonds){
