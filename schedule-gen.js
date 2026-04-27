@@ -72,19 +72,22 @@ function genSched(){
 
   // ── Pick best available pair from eligible teams, preferring least-played ─
   // NIGHT-FIRST: never blocks on pair exhaustion — always picks someone
-  function pickPair(busy,exclude){
-    const avail=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t)&&!(exclude&&exclude.has(t)));
-    if(avail.length<2) return null;
-    // Sort all possible pairs by times faced ascending, then stable hash
-    let best=null,bestScore=Infinity;
-    for(let i=0;i<avail.length;i++){
-      for(let j=i+1;j<avail.length;j++){
-        const score=pairCount(avail[i],avail[j])*1000+stableHash(avail[i]+avail[j]);
-        if(score<bestScore){bestScore=score;best=[avail[i],avail[j]];}
-      }
+function pickPair(busy){
+  const avail=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t));
+  if(avail.length<2) return null;
+  let best=null,bestScore=Infinity;
+  for(let i=0;i<avail.length;i++){
+    for(let j=i+1;j<avail.length;j++){
+      const t1=avail[i],t2=avail[j];
+      // Prefer: fewer times faced, then fewest combined games played, then stable hash
+      const faced=pairCount(t1,t2);
+      const gamesPlayed=(teamGames[t1]||0)+(teamGames[t2]||0);
+      const score=faced*10000+gamesPlayed*100+stableHash(t1+t2);
+      if(score<bestScore){bestScore=score;best=[t1,t2];}
     }
-    return best;
   }
+  return best;
+}
 
   const sched=[];
   const gameSeq={};
