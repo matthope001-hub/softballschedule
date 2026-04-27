@@ -4,7 +4,7 @@ let _genSchedRunning=false;
 function genSched(){
   if(_genSchedRunning){alert('Schedule generation already in progress. Please wait.');return;}
   _genSchedRunning=true;
-  console.log('genSched version: night-first-v5');
+  console.log('genSched version: night-first-v6');
 
   const ss=document.getElementById('ss')?.value;
   const se=document.getElementById('se')?.value;
@@ -69,9 +69,11 @@ function genSched(){
     for(let j=i+1;j<leagueTeams.length;j++)
       allPairs.push([leagueTeams[i],leagueTeams[j]]);
 
-  // ── DH nights tracker — keeps D12 assignment balanced across teams ────────
+  // ── DH nights tracker — hard cap to keep game totals equal ───────────────
   const dhNights={};
   for(const t of leagueTeams) dhNights[t]=0;
+  const maxDHNights=Math.floor(nights.length*2/leagueTeams.length);
+  console.log('maxDHNights per team:',maxDHNights);
 
   // ── D12 rotation ─────────────────────────────────────────────────────────
   const dhRotation=shuffle([...allPairs]);
@@ -79,19 +81,29 @@ function genSched(){
 
   function nextDHPair(busySet){
     const n=dhRotation.length;
-    // First pass — prefer pairs where both teams have fewest DH nights
-    const minDH=Math.min(...Object.values(dhNights));
+    // First pass — only teams under DH cap
     for(let attempt=0;attempt<n;attempt++){
       const[t1,t2]=dhRotation[(dhRotIdx+attempt)%n];
       if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)
-        &&dhNights[t1]<=minDH+1&&dhNights[t2]<=minDH+1){
+        &&dhNights[t1]<maxDHNights&&dhNights[t2]<maxDHNights){
         dhRotIdx=(dhRotIdx+attempt+1)%n;
         dhNights[t1]++;dhNights[t2]++;
         pairIncrement(t1,t2);
         return[t1,t2];
       }
     }
-    // Second pass — relax, just pick anyone available
+    // Second pass — relax one side of cap
+    for(let attempt=0;attempt<n;attempt++){
+      const[t1,t2]=dhRotation[(dhRotIdx+attempt)%n];
+      if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)
+        &&(dhNights[t1]<maxDHNights||dhNights[t2]<maxDHNights)){
+        dhRotIdx=(dhRotIdx+attempt+1)%n;
+        dhNights[t1]++;dhNights[t2]++;
+        pairIncrement(t1,t2);
+        return[t1,t2];
+      }
+    }
+    // Final pass — anyone available
     for(let attempt=0;attempt<n;attempt++){
       const[t1,t2]=dhRotation[(dhRotIdx+attempt)%n];
       if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)){
@@ -194,7 +206,7 @@ function genSched(){
       sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:h,away:a,bye:'',crossover:false});
     }
 
-    // ── D12 — balanced DH rotation ────────────────────────────────────────
+    // ── D12 — balanced DH rotation with hard cap ──────────────────────────
     for(const dm of dhDiamonds){
       if(remaining.length<2){
         gameSeq[yr]++;
@@ -274,6 +286,7 @@ function genSched(){
   console.log('Pair history:',pairHistory);
   console.log('Team games:',teamGames);
   console.log('DH nights per team:',dhNights);
+  console.log('maxDHNights per team:',maxDHNights);
 
   G.sched=sched;
   G.scores={};
