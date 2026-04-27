@@ -71,6 +71,21 @@ function genSched(){
   let pairQueue=shuffle([...allPairs]);
 
   function nextPair(busySet){
+    const avgGames=Object.values(teamGames).reduce((a,b)=>a+b,0)/leagueTeams.length;
+    const threshold=avgGames+4;// allow max 4 games above average before deprioritizing
+
+    // First pass — prefer balanced teams
+    for(let i=0;i<pairQueue.length;i++){
+      const[t1,t2]=pairQueue[i];
+      if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)
+        &&(teamGames[t1]||0)<=threshold&&(teamGames[t2]||0)<=threshold){
+        pairQueue.splice(i,1);
+        if(pairQueue.length===0) pairQueue=shuffle([...allPairs]);
+        pairIncrement(t1,t2);
+        return[t1,t2];
+      }
+    }
+    // Second pass — relax threshold, take anyone available
     for(let i=0;i<pairQueue.length;i++){
       const[t1,t2]=pairQueue[i];
       if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)){
@@ -80,7 +95,7 @@ function genSched(){
         return[t1,t2];
       }
     }
-    // Refill and try once more
+    // Refill and final try
     pairQueue=shuffle([...allPairs]);
     for(let i=0;i<pairQueue.length;i++){
       const[t1,t2]=pairQueue[i];
