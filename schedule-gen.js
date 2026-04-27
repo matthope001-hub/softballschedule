@@ -62,31 +62,38 @@ function genSched(){
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function stableHash(s){
-    let h=0;
-    for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
-    return h;
-  }
+  // ── Pair queue — cycles through all 28 pairs before repeating ────────────
+  const allPairs=[];
+  for(let i=0;i<leagueTeams.length;i++)
+    for(let j=i+1;j<leagueTeams.length;j++)
+      allPairs.push([leagueTeams[i],leagueTeams[j]]);
 
-  // Pick best pair — prefers least-faced, then fewest combined games, then hash
-  function pickPair(busy){
-    const avail=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t));
-    if(avail.length<2) return null;
-    let best=null,bestScore=Infinity;
-    for(let i=0;i<avail.length;i++){
-      for(let j=i+1;j<avail.length;j++){
-        const t1=avail[i],t2=avail[j];
-        const faced=pairCount(t1,t2);
-        const gamesPlayed=(teamGames[t1]||0)+(teamGames[t2]||0);
-        const score=faced*10000+gamesPlayed*100+stableHash(t1+t2);
-        if(score<bestScore){bestScore=score;best=[t1,t2];}
+  let pairQueue=shuffle([...allPairs]);
+
+  function nextPair(busySet){
+    for(let i=0;i<pairQueue.length;i++){
+      const[t1,t2]=pairQueue[i];
+      if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)){
+        pairQueue.splice(i,1);
+        if(pairQueue.length===0) pairQueue=shuffle([...allPairs]);
+        pairIncrement(t1,t2);
+        return[t1,t2];
       }
     }
-    return best;
+    // Refill and try once more
+    pairQueue=shuffle([...allPairs]);
+    for(let i=0;i<pairQueue.length;i++){
+      const[t1,t2]=pairQueue[i];
+      if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)){
+        pairQueue.splice(i,1);
+        pairIncrement(t1,t2);
+        return[t1,t2];
+      }
+    }
+    return null;
   }
 
-const sched=[];
+  const sched=[];
   const gameSeq={};
 
   for(let ni=0;ni<nights.length;ni++){
@@ -124,38 +131,33 @@ const sched=[];
       }
     }
 
-    // ── Assign remaining 6 teams: singles first, then D12 gets the rest ──
-    const avail=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t));
-    let remaining=[...avail];
+    // ── Singles first (D13, D14), then D12 gets remainder ────────────────
+    let remaining=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t));
 
-    // Singles first (D13, D14) — pick least-faced pair from remaining
     for(const dm of singleDiamonds){
       if(remaining.length<2){
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:'',away:'',bye:'',crossover:false,open:true});
         continue;
       }
-      let best=null,bestScore=Infinity;
-      for(let i=0;i<remaining.length;i++){
-        for(let j=i+1;j<remaining.length;j++){
-          const t1=remaining[i],t2=remaining[j];
-          const score=pairCount(t1,t2)*10000+stableHash(t1+t2);
-          if(score<bestScore){bestScore=score;best=[i,j,t1,t2];}
-        }
+      const busySet=new Set(leagueTeams.filter(t=>!remaining.includes(t)));
+      const pair=nextPair(busySet);
+      if(!pair){
+        gameSeq[yr]++;
+        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:'',away:'',bye:'',crossover:false,open:true});
+        continue;
       }
-      const[bi,bj,t1,t2]=best;
-      remaining=remaining.filter((_,idx)=>idx!==bi&&idx!==bj);
+      const[t1,t2]=pair;
+      remaining=remaining.filter(t=>t!==t1&&t!==t2);
       const[h,a]=pickHA(t1,t2,hcMap);
       busy.add(h);busy.add(a);
       teamGames[h]=(teamGames[h]||0)+1;
       teamGames[a]=(teamGames[a]||0)+1;
-      pairIncrement(h,a);
       hcMap[h]=(hcMap[h]||0)+1;
       gameSeq[yr]++;
       sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:h,away:a,bye:'',crossover:false});
     }
 
-    // D12 — whoever is left gets the DH
     for(const dm of dhDiamonds){
       if(remaining.length<2){
         gameSeq[yr]++;
@@ -164,20 +166,20 @@ const sched=[];
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
         continue;
       }
-      let best=null,bestScore=Infinity;
-      for(let i=0;i<remaining.length;i++){
-        for(let j=i+1;j<remaining.length;j++){
-          const t1=remaining[i],t2=remaining[j];
-          const score=pairCount(t1,t2)*10000+stableHash(t1+t2);
-          if(score<bestScore){bestScore=score;best=[i,j,t1,t2];}
-        }
+      const busySet=new Set(leagueTeams.filter(t=>!remaining.includes(t)));
+      const pair=nextPair(busySet);
+      if(!pair){
+        gameSeq[yr]++;
+        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
+        gameSeq[yr]++;
+        sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T2,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
+        continue;
       }
-      const[bi,bj,t1,t2]=best;
+      const[t1,t2]=pair;
       const[h,a]=pickHA(t1,t2,hcMap);
       busy.add(h);busy.add(a);
       teamGames[h]=(teamGames[h]||0)+2;
       teamGames[a]=(teamGames[a]||0)+2;
-      pairIncrement(h,a);
       hcMap[h]=(hcMap[h]||0)+1;
       hcMap[a]=(hcMap[a]||0)+1;
       gameSeq[yr]++;
