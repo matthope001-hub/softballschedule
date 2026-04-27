@@ -4,6 +4,7 @@ let _genSchedRunning=false;
 function genSched(){
   if(_genSchedRunning){alert('Schedule generation already in progress. Please wait.');return;}
   _genSchedRunning=true;
+  console.log('genSched version: night-first-v4');
 
   const ss=document.getElementById('ss')?.value;
   const se=document.getElementById('se')?.value;
@@ -62,30 +63,33 @@ function genSched(){
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
-  // ── Pair queue — cycles through all 28 pairs before repeating ────────────
+  // ── All pairs ─────────────────────────────────────────────────────────────
   const allPairs=[];
   for(let i=0;i<leagueTeams.length;i++)
     for(let j=i+1;j<leagueTeams.length;j++)
       allPairs.push([leagueTeams[i],leagueTeams[j]]);
 
-  let pairQueue=shuffle([...allPairs]);
+  // ── D12 rotation — separate fair cycle for DH slot ───────────────────────
+  const dhRotation=shuffle([...allPairs]);
+  let dhRotIdx=0;
 
-  function nextPair(busySet){
-    const avgGames=Object.values(teamGames).reduce((a,b)=>a+b,0)/leagueTeams.length;
-    const threshold=avgGames+4;// allow max 4 games above average before deprioritizing
-
-    // First pass — prefer balanced teams
-    for(let i=0;i<pairQueue.length;i++){
-      const[t1,t2]=pairQueue[i];
-      if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)
-        &&(teamGames[t1]||0)<=threshold&&(teamGames[t2]||0)<=threshold){
-        pairQueue.splice(i,1);
-        if(pairQueue.length===0) pairQueue=shuffle([...allPairs]);
+  function nextDHPair(busySet){
+    const n=dhRotation.length;
+    for(let attempt=0;attempt<n;attempt++){
+      const[t1,t2]=dhRotation[(dhRotIdx+attempt)%n];
+      if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)){
+        dhRotIdx=(dhRotIdx+attempt+1)%n;
         pairIncrement(t1,t2);
         return[t1,t2];
       }
     }
-    // Second pass — relax threshold, take anyone available
+    return null;
+  }
+
+  // ── Singles rotation — separate fair cycle for single slots ──────────────
+  let pairQueue=shuffle([...allPairs]);
+
+  function nextPair(busySet){
     for(let i=0;i<pairQueue.length;i++){
       const[t1,t2]=pairQueue[i];
       if(!busySet.has(t1)&&!busySet.has(t2)&&!atCap(t1)&&!atCap(t2)){
@@ -95,7 +99,6 @@ function genSched(){
         return[t1,t2];
       }
     }
-    // Refill and final try
     pairQueue=shuffle([...allPairs]);
     for(let i=0;i<pairQueue.length;i++){
       const[t1,t2]=pairQueue[i];
@@ -173,6 +176,7 @@ function genSched(){
       sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:false,home:h,away:a,bye:'',crossover:false});
     }
 
+    // ── D12 — dedicated DH rotation ──────────────────────────────────────
     for(const dm of dhDiamonds){
       if(remaining.length<2){
         gameSeq[yr]++;
@@ -182,7 +186,7 @@ function genSched(){
         continue;
       }
       const busySet=new Set(leagueTeams.filter(t=>!remaining.includes(t)));
-      const pair=nextPair(busySet);
+      const pair=nextDHPair(busySet);
       if(!pair){
         gameSeq[yr]++;
         sched.push({id:`${yr}${String(gameSeq[yr]).padStart(3,'0')}`,date,time:T1,diamond:dm.id,lights:true,home:'',away:'',bye:'',crossover:false,open:true});
