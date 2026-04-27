@@ -235,15 +235,16 @@ function applyDays(days){
 // ── CLEAR DATA ────────────────────────────────────────────────────────────────
 function clearData(){
   if(!checkAdmin()) return;
-  if(!confirm('Clear schedule & scores for the current season?\n\nChampions history and season archives are preserved.\n\nThis cannot be undone.')) return;
-  const{champions,seasonArchive,currentSeason}=G;
-  G.sched=[];G.scores={};
+  if(!confirm('Clear schedule & scores for the current season?\n\nChampions history, teams, diamonds and season archives are preserved.\n\nThis cannot be undone.')) return;
+  const{champions,seasonArchive,currentSeason,teams,diamonds}=G;
+  G.sched=[];
+  G.scores={};
   G.playoffs={seeded:false,format:'podrr',podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}};
-  G.teams=['Kibosh','Alcoballics','Foul Poles','JAFT','Landon Longballers','One Hit Wonders','Steel City Sluggers',"Pitch Don't Kill My Vibe",'Wayco','CrossOver'];
+  G.teams=teams;
+  G.diamonds=diamonds;
   G.champions=champions;
   G.seasonArchive=seasonArchive;
   G.currentSeason=currentSeason;
-  // PATCH: preserve settings through clear — don't wipe season dates
   saveData();
   location.reload();
 }
