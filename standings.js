@@ -6,109 +6,6 @@ function capRuns(h,a){
   return{ch:h,ca:Math.min(a,h+CAP)};
 }
 
-// ── SHARED TIEBREAK UTILITIES ─────────────────────────────────────────────────
-// PATCH: extracted from computeStandings(), getRegularSeasonRanking(), and
-// podRRStandings() — previously three independent copies. All callers now use
-// these two functions, so any tiebreak fix applies everywhere at once.
-
-// Build a h2h stats map for a set of teams and scored games.
-// games must be pre-filtered (no playoffs, no crossover, scored only).
-// Returns { [teamA]: { [teamB]: { pts: number, games: [{date,homePts}] } } }
-function _buildH2H(teams,games){
-  const h2h={};
-  for(const t of teams){
-    h2h[t]={};
-    for(const u of teams) h2h[t][u]={pts:0,games:[]};
-  }
-  const sorted=[...games].sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
-  for(const g of sorted){
-    if(!h2h[g.home]||!h2h[g.away]) continue;
-    const sc=g.score||g._sc; // support both playoff game shape and sched shape
-    if(!sc) continue;
-    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
-    const homePts=hw?2:tie?1:0;
-    const awayPts=aw?2:tie?1:0;
-    h2h[g.home][g.away].pts+=homePts;
-    h2h[g.home][g.away].games.push({date:g.date,homePts});
-    h2h[g.away][g.home].pts+=awayPts;
-    h2h[g.away][g.home].games.push({date:g.date,homePts:awayPts});
-  }
-  return h2h;
-}
-
-// Stable hash for deterministic coin-toss fallback.
-function _stableHash(a,b){
-  const s=a<b?a+b:b+a;
-  let h=0;
-  for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
-  return h%2===0;
-}
-
-// Recursively rank a group of tied teams using the league tiebreak rules:
-//   a) head-to-head points among tied teams
-//   b) winner of most recent matchup among tied teams
-//   c) stable hash coin-toss
-// h2h: output of _buildH2H()
-// Returns ordered array of team names (best first).
-function _rankTiedGroup(group,h2h){
-  if(group.length===1) return group;
-
-  // a) head-to-head points
-  const h2hPts={};
-  for(const t of group){
-    h2hPts[t]=0;
-    for(const u of group) if(u!==t) h2hPts[t]+=h2h[t]?.[u]?.pts||0;
-  }
-  const maxH2H=Math.max(...group.map(t=>h2hPts[t]));
-  const afterH2H=group.filter(t=>h2hPts[t]===maxH2H);
-
-  if(afterH2H.length===1){
-    return[afterH2H[0],..._rankTiedGroup(group.filter(t=>t!==afterH2H[0]),h2h)];
-  }
-
-  // b) most recent head-to-head matchup result
-  const allGames=[];
-  for(let i=0;i<afterH2H.length;i++)
-    for(let j=i+1;j<afterH2H.length;j++){
-      const a=afterH2H[i],b=afterH2H[j];
-      for(const g of(h2h[a]?.[b]?.games||[]))
-        allGames.push({date:g.date,winner:g.homePts===2?a:g.homePts===0?b:null});
-    }
-  allGames.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  for(const g of allGames){
-    if(g.winner&&afterH2H.includes(g.winner)){
-      return[g.winner,..._rankTiedGroup(afterH2H.filter(t=>t!==g.winner),h2h),
-             ...group.filter(t=>!afterH2H.includes(t))];
-    }
-  }
-
-  // c) stable hash coin-toss
-  const sorted=[...afterH2H].sort((a,b)=>_stableHash(a,b)?-1:1);
-  return[...sorted,...group.filter(t=>!afterH2H.includes(t))];
-}
-
-// Rank a full list of teams by pts desc, applying tiebreak within tied groups.
-// stats: { [team]: { pts } }  h2h: output of _buildH2H()
-// Returns [{ team, tied }]
-function _rankTeams(teams,stats,h2h){
-  const sorted=teams.slice().sort((a,b)=>stats[b].pts-stats[a].pts);
-  const ranked=[];
-  let i=0;
-  while(i<sorted.length){
-    let j=i+1;
-    while(j<sorted.length&&stats[sorted[j]].pts===stats[sorted[i]].pts) j++;
-    const group=sorted.slice(i,j);
-    if(group.length===1){
-      ranked.push({team:group[0],tied:false});
-    } else {
-      const order=_rankTiedGroup(group,h2h);
-      ranked.push(...order.map((t,idx)=>({team:t,tied:true})));
-    }
-    i=j;
-  }
-  return ranked;
-}
-
 // ── OPT 2: computeStandings() — single source of truth ───────────────────────
 // Returns { leagueTeams, stats, h2hStats, ranked, homeStats, awayStats,
 //           teamResults, regularSeasonGames, gp }
@@ -135,20 +32,67 @@ function computeStandings(){
     }
   }
 
-  // Build h2h using shared utility — attach scores as _sc for shape compatibility
-  const scoredLeagueGames=G.sched.filter(g=>
+  const h2hStats={};
+  for(const t of leagueTeams){
+    h2hStats[t]={};
+    for(const u of leagueTeams) h2hStats[t][u]={pts:0,games:[]};
+  }
+  const scoredGames=[...G.sched].filter(g=>
     G.scores[g.id]&&!g.playoff&&
     stats[g.home]!==undefined&&stats[g.away]!==undefined&&
     g.home!==CROSSOVER&&g.away!==CROSSOVER
-  ).map(g=>({...g,_sc:G.scores[g.id]}));
+  );
+  scoredGames.sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  for(const g of scoredGames){
+    const sc=G.scores[g.id];
+    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
+    h2hStats[g.home][g.away].games.push({date:g.date,homePts:hw?2:tie?1:0});
+    h2hStats[g.away][g.home].games.push({date:g.date,homePts:aw?2:tie?1:0});
+    if(hw)h2hStats[g.home][g.away].pts+=2;
+    else if(aw)h2hStats[g.away][g.home].pts+=2;
+    else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
+  }
 
-  const h2hStats=_buildH2H(leagueTeams,scoredLeagueGames);
-  const ranked=_rankTeams(leagueTeams,stats,h2hStats);
+  function stableRand(a,b){
+    let h=0;
+    for(let i=0;i<a.length;i++) h=(Math.imul(31,h)+a.charCodeAt(i))|0;
+    for(let i=0;i<b.length;i++) h=(Math.imul(31,h)+b.charCodeAt(i))|0;
+    return h;
+  }
 
-  // Home/away split and results timeline
-  const regularSeasonGames=G.sched.filter(g=>!g.playoff);
+  function h2hWinner(a,b){
+    const ab=h2hStats[a][b],ba=h2hStats[b][a];
+    if(ab.pts!==ba.pts) return ab.pts>ba.pts?a:b;
+    // Last matchup tiebreaker
+    const ag=ab.games,bg=ba.games;
+    if(ag.length&&bg.length){
+      const lastA=ag[ag.length-1],lastB=bg[bg.length-1];
+      const lastDate=lastA.date>lastB.date?lastA.date:lastB.date;
+      const aLast=ag.filter(g=>g.date===lastDate);
+      const bLast=bg.filter(g=>g.date===lastDate);
+      if(aLast.length&&bLast.length){
+        const aLastPts=aLast[aLast.length-1].homePts;
+        const bLastPts=bLast[bLast.length-1].homePts;
+        if(aLastPts!==bLastPts) return aLastPts>bLastPts?a:b;
+      }
+    }
+    // Stable coin toss
+    return stableRand(a,b)>0?a:b;
+  }
+
+  const ranked=[...leagueTeams].map(t=>({team:t,tied:false})).sort((x,y)=>{
+    const a=x.team,b=y.team;
+    if(stats[b].pts!==stats[a].pts) return stats[b].pts-stats[a].pts;
+    // H2H tiebreak
+    const winner=h2hWinner(a,b);
+    x.tied=true;y.tied=true;
+    return winner===a?-1:1;
+  });
+
+  const regularSeasonGames=G.sched.filter(g=>!g.playoff&&!g.open&&g.home&&g.away);
   const regularSeasonScores=regularSeasonGames.filter(g=>G.scores[g.id]);
   const gp=regularSeasonScores.length;
+
   const homeStats={},awayStats={};
   for(const t of leagueTeams){homeStats[t]={w:0,l:0,tie:0};awayStats[t]={w:0,l:0,tie:0};}
   const teamResults={};
@@ -178,7 +122,14 @@ function renderStandings(){
   if(!tabActive){if(el)el.dataset.stale='1';return;}
   if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
 
+  // OPT 2: single computation, shared result
   const{leagueTeams,stats,ranked,homeStats,awayStats,teamResults,regularSeasonGames,gp}=computeStandings();
+
+  // ── AGENT: StandingsIntelligence labels ───────────────────────────────────
+  // Safe guard: only call if agents.js is loaded
+  const siLabels=(typeof AGENTS!=='undefined'&&AGENTS.StandingsIntelligence)
+    ? AGENTS.StandingsIntelligence.getLabels()
+    : {};
 
   function last10(t){const r=teamResults[t].slice(-10);const w=r.filter(x=>x==='W').length,l=r.filter(x=>x==='L').length;return r.length?`${w}-${l}`:'—';}
   function streak(t){const r=teamResults[t];if(!r.length)return{s:'—',cls:''};const last=r[r.length-1];let cnt=0;for(let i=r.length-1;i>=0&&r[i]===last;i--)cnt++;return{s:`${last}${cnt}`,cls:last==='W'?'w':last==='L'?'l':'t'};}
@@ -199,12 +150,12 @@ function renderStandings(){
   <div class="notice">W=2 · T=1 · L=0 · Tiebreakers: a) H2H points · b) Last matchup · c) Coin toss · RF/RA capped at +7</div>
   <div class="st-wrap"><table class="st">
     <colgroup>
-      <col style="width:28px"><col><col style="width:58px"><col style="width:46px"><col style="width:36px">
+      <col style="width:28px"><col><col style="width:140px"><col style="width:58px"><col style="width:46px"><col style="width:36px">
       <col style="width:50px"><col style="width:50px"><col style="width:34px"><col style="width:34px">
       <col style="width:42px"><col style="width:42px"><col style="width:40px"><col style="width:24px">
     </colgroup>
     <thead><tr>
-      <th>#</th><th>Team</th><th>Record</th><th>Win%</th><th>GB</th>
+      <th>#</th><th>Team</th><th>Status</th><th>Record</th><th>Win%</th><th>GB</th>
       <th>Home</th><th>Away</th><th>RF</th><th>RA</th><th>Diff</th><th>Last 10</th><th>Streak</th><th></th>
     </tr></thead>
     <tbody>${ranked.map(({team:t,tied},idx)=>{
@@ -216,9 +167,21 @@ function renderStandings(){
       const arec=`${as2.w}-${as2.l}${as2.tie?'-'+as2.tie:''}`;
       const str=streak(t);
       const tieIcon=tied?`<td title="Tiebreaker applied" style="color:var(--orange);font-size:11px;text-align:center">TB</td>`:`<td></td>`;
+
+      // ── AGENT: StandingsIntelligence badge ──────────────────────────────
+      const lbl=siLabels[t];
+      const statusCell=lbl
+        ?`<td style="white-space:nowrap">
+            <span style="font-size:10px;background:${lbl.bg};color:${lbl.color};
+                         padding:2px 7px;border-radius:4px;font-weight:700;
+                         white-space:nowrap;display:inline-block">${lbl.text}</span>
+          </td>`
+        :`<td></td>`;
+
       return`<tr>
         <td class="rank">${idx+1}</td>
         <td style="font-weight:600">${esc(t)}</td>
+        ${statusCell}
         <td class="rec">${s.w}-${s.l}${s.tie?'-'+s.tie:''}</td>
         <td class="pct">${winPct(t)}</td>
         <td class="gb">${gb(t)}</td>
@@ -235,4 +198,9 @@ function renderStandings(){
   </table></div>`;
 
   if(el.dataset.stale) delete el.dataset.stale;
+
+  // ── AGENT: notify bus that standings rendered ──────────────────────────────
+  if(typeof AgentBus!=='undefined'){
+    AgentBus.publish('standings:rendered',{teams:leagueTeams.length,gp});
+  }
 }
