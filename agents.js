@@ -14,7 +14,6 @@
 //   season:complete          → all regular games scored
 //   season:incomplete        → score cleared after season:complete fired
 //   rainout:opened           → rainout modal opened, payload: { gameId }
-//   rainout:scheduled        → makeup game committed, payload: { gameId, makeupId, date }
 //   standings:rendered       → renderStandings() finished
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -50,8 +49,8 @@ const AgentBus = (() => {
     }
   }
 
-  function history()             { return [..._history]; }
-  function subscriberCount(ev)   { return (_subs[ev] || []).length; }
+  function history()           { return [..._history]; }
+  function subscriberCount(ev) { return (_subs[ev] || []).length; }
   function allSubscriptions() {
     const out = {};
     for (const [ev, subs] of Object.entries(_subs)) out[ev] = subs.map(s => s.agentName);
@@ -118,7 +117,7 @@ const AGENTS = {};
 // ══════════════════════════════════════════════════════════════════════════════
 // AGENT 1: CONFLICT DETECTOR
 // Subscribes: schedule:generated, schedule:saved, schedule:mutated,
-//             optimizer:complete, rainout:scheduled
+//             optimizer:complete, rainout:opened
 // Publishes:  conflicts:found, conflicts:clear
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.ConflictDetector = {
@@ -129,7 +128,8 @@ AGENTS.ConflictDetector = {
     AgentBus.subscribe('schedule:saved',     'ConflictDetector', () => this.run());
     AgentBus.subscribe('schedule:mutated',   'ConflictDetector', () => this.run());
     AgentBus.subscribe('optimizer:complete', 'ConflictDetector', () => this.run());
-    AgentBus.subscribe('rainout:scheduled',  'ConflictDetector', () => this.run());
+    // Re-scan when rainout modal opens so warning appears immediately if conflicts exist
+    AgentBus.subscribe('rainout:opened',     'ConflictDetector', () => this.run());
   },
 
   run() {
@@ -189,7 +189,7 @@ AGENTS.ConflictDetector = {
       }
     }
 
-    // 3. No-lights violations
+    // 3. No-lights violations (D2, D3, D13, D14)
     const noLt = G.diamonds.filter(d => !d.lightsCapable).map(d => d.id);
     for (const g of G.sched) {
       if (g.open) continue;
@@ -274,7 +274,8 @@ AGENTS.ConflictDetector = {
           </div>`).join('')}
       </div>
       <div style="padding:6px 12px;background:#f9fafb;font-size:11px;color:#6b7280;border-top:1px solid #e5e7eb">
-        ${errs.length} error${errs.length !== 1 ? 's' : ''} · ${wrns.length} warning${wrns.length !== 1 ? 's' : ''} · via AgentBus
+        ${errs.length} error${errs.length !== 1 ? 's' : ''} ·
+        ${wrns.length} warning${wrns.length !== 1 ? 's' : ''} · via AgentBus
       </div>`;
   },
 
@@ -398,89 +399,26 @@ AGENTS.ScheduleOptimizer = {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // AGENT 3: RAINOUT RECOVERY
-// Subscribes: rainout:opened
-// Publishes:  rainout:scheduled  (via selectMakeupDate hook)
-// Reacts to:  conflicts:found → warns inside recommendation panel
-//             conflicts:clear → clears warning
+// Rule 8.0: no makeups. Agent only shows a conflict warning inside the modal.
+// Subscribes: rainout:opened, conflicts:found, conflicts:clear
+// Publishes:  nothing (makeups not applicable)
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.RainoutRecovery = {
   init() {
-    AgentBus.subscribe('rainout:opened', 'RainoutRecovery', ({ gameId }) => {
-      this.renderRecommendations(gameId);
+    // No slot recommendations — Rule 8.0, rainouts are 7-7 final, no makeup
+    AgentBus.subscribe('rainout:opened', 'RainoutRecovery', () => {
+      // Container exists in modal but stays hidden unless conflicts are present
     });
     AgentBus.subscribe('conflicts:found', 'RainoutRecovery', ({ violations }) => {
-      const warn = document.getElementById('rainout-conflict-warn');
-      if (!warn) return;
-      warn.textContent = `⚠ ${violations.length} conflict${violations.length !== 1 ? 's' : ''} exist — verify makeup slot`;
-      warn.style.display = 'block';
+      const el = document.getElementById('agent-rainout-recs');
+      if (!el) return;
+      el.style.display = 'block';
+      el.textContent = `⚠ ${violations.length} schedule conflict${violations.length !== 1 ? 's' : ''} detected — review before confirming rainout`;
     });
     AgentBus.subscribe('conflicts:clear', 'RainoutRecovery', () => {
-      const warn = document.getElementById('rainout-conflict-warn');
-      if (warn) warn.style.display = 'none';
+      const el = document.getElementById('agent-rainout-recs');
+      if (el) el.style.display = 'none';
     });
-  },
-
-  recommend(gameId, topN = 3) {
-    const original = G.sched.find(g => g.id === gameId);
-    if (!original) return [];
-    const today = original.date;
-    const lt = G.teams.filter(t => t !== CROSSOVER);
-
-    const tbc = {};
-    for (const t of lt) tbc[t] = 0;
-    const nd = [...new Set(G.sched.map(g => g.date))].sort();
-    for (const date of nd) {
-      const playing = new Set(G.sched.filter(g => g.date === date && !g.open && g.home && g.away)
-                                     .flatMap(g => [g.home, g.away]));
-      for (const t of lt) { if (!playing.has(t)) tbc[t]++; }
-    }
-
-    const open = G.sched.filter(g => g.open && g.date > today);
-    if (!open.length) return [];
-
-    const scored = open.map(slot => {
-      const dm = G.diamonds.find(d => d.id === slot.diamond);
-      const hasLights = dm?.lightsCapable && dm?.lights;
-      const tpn = new Set(G.sched.filter(g => g.date === slot.date && !g.open && g.home && g.away)
-                                  .flatMap(g => [g.home, g.away]));
-      if (tpn.has(original.home) || tpn.has(original.away)) return null;
-      const st = (slot.time || '').toLowerCase();
-      if ((st.includes('8:15') || st.includes('8:30')) && dm && !dm.lightsCapable) return null;
-      const daysOut = (new Date(slot.date) - new Date(today)) / 86400000;
-      const eq = (tbc[original.home] || 0) + (tbc[original.away] || 0);
-      return { slot, rankScore: daysOut - eq * 0.5 - (hasLights ? 1 : 0) };
-    }).filter(Boolean);
-
-    scored.sort((a, b) => a.rankScore - b.rankScore);
-    return scored.slice(0, topN).map(s => s.slot);
-  },
-
-  renderRecommendations(gameId) {
-    const recs = this.recommend(gameId);
-    const container = document.getElementById('agent-rainout-recs');
-    if (!container) return;
-    const dm = id => G.diamonds.find(d => d.id === id);
-    container.innerHTML = `
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;
-                  color:#374151;margin-bottom:6px">🤖 Agent Recommendations</div>
-      <div id="rainout-conflict-warn"
-           style="display:none;color:#d97706;font-size:11px;margin-bottom:6px;
-                  background:#fef3c7;padding:4px 8px;border-radius:5px"></div>
-      ${recs.length
-        ? `<div style="display:grid;gap:6px">
-            ${recs.map(slot => {
-              const d = dm(slot.diamond);
-              const li = d?.lightsCapable && d?.lights ? '💡' : '🌙';
-              return `<button onclick="selectMakeupDate('${slot.date}','${slot.diamond}','${slot.time || '6:30 PM'}',${!!(d?.lightsCapable && d?.lights)})"
-                style="background:#f0fdf4;border:1.5px solid #16a34a;border-radius:7px;
-                       padding:8px 12px;cursor:pointer;text-align:left;font-size:12px;font-family:inherit">
-                <strong>${slot.date}</strong> · D${slot.diamond} ${li} · ${slot.time || '6:30 PM'}
-                <span style="float:right;color:#16a34a;font-weight:700">Use →</span>
-              </button>`;
-            }).join('')}
-          </div>`
-        : `<div style="color:#6b7280;font-size:12px">No open slots found after this game date.</div>`
-      }`;
   }
 };
 
@@ -488,7 +426,7 @@ AGENTS.RainoutRecovery = {
 // ══════════════════════════════════════════════════════════════════════════════
 // AGENT 4: STANDINGS INTELLIGENCE
 // Subscribes: schedule:saved, schedule:mutated, season:complete, season:incomplete
-// Publishes:  (consumed directly via getLabels())
+// Publishes:  (consumed directly via getLabels() from standings.js)
 // Cache invalidated on every data-change event
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.StandingsIntelligence = {
@@ -510,7 +448,7 @@ AGENTS.StandingsIntelligence = {
     if (lt.length < 2) return {};
 
     const stats = {};
-    for (const t of lt) stats[t] = { gp: 0, w: 0, l: 0, tie: 0, pts: 0 };
+    for (const t of lt) stats[t] = { gp:0, w:0, l:0, tie:0, pts:0 };
     for (const g of G.sched) {
       if (g.playoff || g.open || !g.home || !g.away) continue;
       const sc = G.scores[g.id]; if (!sc) continue;
@@ -561,15 +499,15 @@ AGENTS.StandingsIntelligence = {
       }
 
       if (this._seasonComplete && rank === 1) {
-        labels[t] = { text: '🏆 League Champion', color: '#d97706', bg: '#fef9c3' };
+        labels[t] = { text:'🏆 League Champion', color:'#d97706', bg:'#fef9c3' };
       } else if (rank === 1 && grem > 0 && !ranked.slice(1).some(o => stats[o].pts + tgr[o] * 2 >= s.pts)) {
-        labels[t] = { text: '🥇 Clinched 1st', color: '#16a34a', bg: '#dcfce7' };
+        labels[t] = { text:'🥇 Clinched 1st', color:'#16a34a', bg:'#dcfce7' };
       } else if (clinched) {
-        labels[t] = { text: `✅ Playoffs Locked #${rank}`, color: '#2563eb', bg: '#dbeafe' };
+        labels[t] = { text:`✅ Playoffs Locked #${rank}`, color:'#2563eb', bg:'#dbeafe' };
       } else if (!canReach && grem > 0) {
-        labels[t] = { text: '❌ Eliminated', color: '#dc2626', bg: '#fee2e2' };
+        labels[t] = { text:'❌ Eliminated', color:'#dc2626', bg:'#fee2e2' };
       } else if (rank <= spots && grem > 0) {
-        labels[t] = { text: `🎯 Playoff Pos #${rank}`, color: '#7c3aed', bg: '#ede9fe' };
+        labels[t] = { text:`🎯 Playoff Pos #${rank}`, color:'#7c3aed', bg:'#ede9fe' };
       } else {
         labels[t] = null;
       }
@@ -586,7 +524,7 @@ AGENTS.StandingsIntelligence = {
 // Subscribes: schedule:saved, schedule:mutated, conflicts:found, conflicts:clear,
 //             season:complete, season:incomplete
 // Publishes:  health:scored
-// Conflict penalty applied in real time via bus — no polling
+// Conflict penalty applied in real time via bus
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.SeasonHealth = {
   _conflictPenalty: 0,
@@ -647,10 +585,10 @@ AGENTS.SeasonHealth = {
     const byeOut = lt.filter(t => tbc[t] === byeMax && byeMax - byeMin >= 2);
 
     const ms = [];
-    if (pct >= 25 && pct < 50)  ms.push({ label: '25% Complete',    icon: '📊' });
-    if (pct >= 50 && pct < 75)  ms.push({ label: '50% Halfway!',    icon: '⚾' });
-    if (pct >= 75 && pct < 100) ms.push({ label: '75% Almost Done', icon: '🏁' });
-    if (pct === 100 || this._seasonComplete) ms.push({ label: 'Season Complete!', icon: '🏆' });
+    if (pct >= 25 && pct < 50)  ms.push({ label:'25% Complete',    icon:'📊' });
+    if (pct >= 50 && pct < 75)  ms.push({ label:'50% Halfway!',    icon:'⚾' });
+    if (pct >= 75 && pct < 100) ms.push({ label:'75% Almost Done', icon:'🏁' });
+    if (pct === 100 || this._seasonComplete) ms.push({ label:'Season Complete!', icon:'🏆' });
 
     return {
       pct, total: all.length, scored: scored.length,
@@ -663,10 +601,10 @@ AGENTS.SeasonHealth = {
 
   _hs(r) {
     let s = 100;
-    if (r.openSlots > 0)              s -= Math.min(r.openSlots * 3, 20);
-    if (r.maxGames - r.minGames > 2)  s -= 15;
-    if (r.byeMax - r.byeMin >= 3)     s -= 10;
-    if (r.belowGpt.length)            s -= r.belowGpt.length * 5;
+    if (r.openSlots > 0)             s -= Math.min(r.openSlots * 3, 20);
+    if (r.maxGames - r.minGames > 2) s -= 15;
+    if (r.byeMax - r.byeMin >= 3)    s -= 10;
+    if (r.belowGpt.length)           s -= r.belowGpt.length * 5;
     s -= Math.min(r.conflictPenalty, 30);
     return Math.max(0, Math.min(100, s));
   },
@@ -691,24 +629,28 @@ AGENTS.SeasonHealth = {
                     font-size:11px;letter-spacing:0.8px;text-transform:uppercase;
                     display:flex;justify-content:space-between;align-items:center">
           <span>🤖 Season Health</span>
-          <span>${hi} ${hs}/100${r.conflictPenalty ? ` <span style="font-size:10px;opacity:0.7">(−${r.conflictPenalty} conflicts)</span>` : ''}</span>
+          <span>${hi} ${hs}/100${r.conflictPenalty
+            ? ` <span style="font-size:10px;opacity:0.7">(−${r.conflictPenalty} conflicts)</span>` : ''}</span>
         </div>
         <div style="padding:10px 12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#f9fafb">
-          ${this._m('Scored',     `${r.scored}/${r.total}`,        `${r.pct}%`)}
-          ${this._m('Open Slots', r.openSlots,                     r.openSlots > 0 ? '⚠' : '✓')}
-          ${this._m('Games',      `${r.minGames}–${r.maxGames}`,   r.maxGames - r.minGames > 2 ? '⚠' : '✓')}
-          ${this._m('Byes',       `${r.byeMin}–${r.byeMax}`,       r.byeMax - r.byeMin >= 2 ? '⚠' : '✓')}
+          ${this._m('Scored',     `${r.scored}/${r.total}`,      `${r.pct}%`)}
+          ${this._m('Open Slots', r.openSlots,                   r.openSlots > 0 ? '⚠' : '✓')}
+          ${this._m('Games',      `${r.minGames}–${r.maxGames}`, r.maxGames - r.minGames > 2 ? '⚠' : '✓')}
+          ${this._m('Byes',       `${r.byeMin}–${r.byeMax}`,     r.byeMax - r.byeMin >= 2 ? '⚠' : '✓')}
         </div>
         <div style="padding:4px 12px 8px;background:#f9fafb">
           <div style="height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${r.pct}%;background:${bc};border-radius:4px;transition:width 0.4s"></div>
           </div>
         </div>
-        ${r.belowGpt.length ? `<div style="padding:5px 12px;background:#fef9c3;font-size:11px;color:#92400e;border-top:1px solid #fde68a">
+        ${r.belowGpt.length ? `<div style="padding:5px 12px;background:#fef9c3;font-size:11px;
+          color:#92400e;border-top:1px solid #fde68a">
           ⚠ Below GPT (${r.gptInput}): ${r.belowGpt.join(', ')}</div>` : ''}
-        ${r.byeOutliers.length ? `<div style="padding:5px 12px;background:#fef3c7;font-size:11px;color:#b45309;border-top:1px solid #fde68a">
+        ${r.byeOutliers.length ? `<div style="padding:5px 12px;background:#fef3c7;font-size:11px;
+          color:#b45309;border-top:1px solid #fde68a">
           ⚠ Bye outliers: ${r.byeOutliers.join(', ')} (${r.byeMax} vs min ${r.byeMin})</div>` : ''}
-        ${r.milestones.length ? `<div style="padding:5px 12px;background:#f0fdf4;font-size:11px;color:#166534;border-top:1px solid #bbf7d0;font-weight:700">
+        ${r.milestones.length ? `<div style="padding:5px 12px;background:#f0fdf4;font-size:11px;
+          color:#166534;border-top:1px solid #bbf7d0;font-weight:700">
           ${r.milestones.map(m => `${m.icon} ${m.label}`).join(' · ')}</div>` : ''}
       </div>`;
   },
@@ -778,7 +720,7 @@ AGENTS.EndOfSeason = {
   _prompt() {
     const lt = G.teams.filter(t => t !== CROSSOVER);
     const stats = {};
-    for (const t of lt) stats[t] = { pts: 0, w: 0, l: 0, gp: 0 };
+    for (const t of lt) stats[t] = { pts:0, w:0, l:0, gp:0 };
     for (const g of G.sched) {
       if (g.playoff || g.open || !g.home || !g.away) continue;
       const sc = G.scores[g.id]; if (!sc) continue;
@@ -839,7 +781,7 @@ AGENTS.EndOfSeason = {
         </div>
       </div>`;
     document.body.appendChild(panel);
-    // Immediately trigger health to populate the open-slots checklist item
+    // Immediately populate the open-slots checklist item
     AgentBus.publish('health:scored', { report: AGENTS.SeasonHealth._compute() });
   },
 
@@ -854,9 +796,7 @@ AGENTS.EndOfSeason = {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// DEBUG PANEL
-// AGENTS.showDebug() — live event log + subscription map
-// AGENTS.hideDebug() — close
+// DEBUG PANEL — AGENTS.showDebug() / AGENTS.hideDebug()
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.showDebug = function () {
   let panel = document.getElementById('agent-bus-debug');
@@ -883,6 +823,7 @@ AGENTS.hideDebug = function () {
 // APP HOOKS — Bridge lifecycle events into AgentBus
 // ══════════════════════════════════════════════════════════════════════════════
 
+// saveData → schedule:saved
 (function _hookSaveData() {
   const _orig = window.saveData;
   if (typeof _orig !== 'function') return;
@@ -890,11 +831,15 @@ AGENTS.hideDebug = function () {
     _orig.apply(this, arguments);
     clearTimeout(window._agentSaveTimer);
     window._agentSaveTimer = setTimeout(() => {
-      AgentBus.publish('schedule:saved', { games: G.sched.length, scores: Object.keys(G.scores).length });
-    }, 700);
+      AgentBus.publish('schedule:saved', {
+        games: G.sched.length,
+        scores: Object.keys(G.scores).length
+      });
+    }, 700); // fires after saveData's own 600ms debounce settles
   };
 })();
 
+// genSched → schedule:generated
 (function _hookGenSched() {
   const _orig = window.genSched;
   if (typeof _orig !== 'function') return;
@@ -904,6 +849,7 @@ AGENTS.hideDebug = function () {
   };
 })();
 
+// showTab → trigger SeasonHealth on standings/admin
 (function _hookShowTab() {
   const _orig = window.showTab;
   if (typeof _orig !== 'function') return;
@@ -914,41 +860,23 @@ AGENTS.hideDebug = function () {
   };
 })();
 
+// openRainoutModal → rainout:opened
+// NOTE: rainout.js already calls AgentBus.publish('rainout:opened') internally.
+// This hook is a safety net for any other callers that bypass rainout.js.
 (function _hookRainoutModal() {
   const _orig = window.openRainoutModal;
   if (typeof _orig !== 'function') return;
   window.openRainoutModal = function (gameId) {
+    // Store gameId globally so agents can reference it
+    window._rainoutGameId = gameId;
     _orig.apply(this, arguments);
-    setTimeout(() => {
-      const modal = document.getElementById('rainout-modal');
-      if (!modal) return;
-      let rc = document.getElementById('agent-rainout-recs');
-      if (!rc) {
-        rc = document.createElement('div');
-        rc.id = 'agent-rainout-recs';
-        rc.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb';
-        (modal.querySelector('.modal-body') || modal.querySelector('div') || modal).appendChild(rc);
-      }
-      AgentBus.publish('rainout:opened', { gameId });
-    }, 100);
-  };
-})();
-
-(function _hookSelectMakeupDate() {
-  const _orig = window.selectMakeupDate;
-  if (typeof _orig !== 'function') return;
-  window.selectMakeupDate = function (date, diamond, time, lights) {
-    const gameId = window._rainoutGameId || null;
-    _orig.apply(this, arguments);
-    const makeupGame = [...G.sched].reverse().find(g => g.date === date && g.makeup);
-    AgentBus.publish('rainout:scheduled', { gameId, makeupId: makeupGame?.id || null, date });
-    AgentBus.publish('schedule:mutated',  { source: 'RainoutMakeup', date });
+    // rainout.js publishes rainout:opened itself — no duplicate publish needed here
   };
 })();
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BOOT
+// BOOT — Initialize all agents (registers all subscriptions)
 // ══════════════════════════════════════════════════════════════════════════════
 (function _boot() {
   AGENTS.ConflictDetector.init();
