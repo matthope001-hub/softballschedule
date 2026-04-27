@@ -35,8 +35,7 @@ function genSched(){
   for(const t of leagueTeams) teamGames[t]=0;
   const atCap=(t)=>gptInput!=null&&(teamGames[t]||0)>=gptInput;
 
-  // ── Pair history — tracks how many times each pair has played ─────────────
-  // Used to prefer less-played pairs each night (fairness), not to block slots
+  // ── Pair history ──────────────────────────────────────────────────────────
   const pairHistory={};
   const pairKey=(a,b)=>a<b?`${a}|${b}`:`${b}|${a}`;
   const pairCount=(a,b)=>pairHistory[pairKey(a,b)]||0;
@@ -46,7 +45,7 @@ function genSched(){
   const hcMap={};
   for(const t of G.teams) hcMap[t]=0;
 
-  // ── CrossOver bye nights: evenly distributed ──────────────────────────────
+  // ── CrossOver bye nights ──────────────────────────────────────────────────
   const coByeSet=new Set();
   if(d9&&cobyes>0){
     const clamped=Math.min(cobyes,nights.length);
@@ -63,31 +62,29 @@ function genSched(){
   const coOpponents=shuffle([...leagueTeams]);
   let coIdx=0;
 
-  // ── Deterministic hash ────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
   function stableHash(s){
     let h=0;
     for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0;
     return h;
   }
 
-  // ── Pick best available pair from eligible teams, preferring least-played ─
-  // NIGHT-FIRST: never blocks on pair exhaustion — always picks someone
-function pickPair(busy){
-  const avail=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t));
-  if(avail.length<2) return null;
-  let best=null,bestScore=Infinity;
-  for(let i=0;i<avail.length;i++){
-    for(let j=i+1;j<avail.length;j++){
-      const t1=avail[i],t2=avail[j];
-      // Prefer: fewer times faced, then fewest combined games played, then stable hash
-      const faced=pairCount(t1,t2);
-      const gamesPlayed=(teamGames[t1]||0)+(teamGames[t2]||0);
-      const score=faced*10000+gamesPlayed*100+stableHash(t1+t2);
-      if(score<bestScore){bestScore=score;best=[t1,t2];}
+  // Pick best pair — prefers least-faced, then fewest combined games, then hash
+  function pickPair(busy){
+    const avail=leagueTeams.filter(t=>!busy.has(t)&&!atCap(t));
+    if(avail.length<2) return null;
+    let best=null,bestScore=Infinity;
+    for(let i=0;i<avail.length;i++){
+      for(let j=i+1;j<avail.length;j++){
+        const t1=avail[i],t2=avail[j];
+        const faced=pairCount(t1,t2);
+        const gamesPlayed=(teamGames[t1]||0)+(teamGames[t2]||0);
+        const score=faced*10000+gamesPlayed*100+stableHash(t1+t2);
+        if(score<bestScore){bestScore=score;best=[t1,t2];}
+      }
     }
+    return best;
   }
-  return best;
-}
 
   const sched=[];
   const gameSeq={};
@@ -110,7 +107,7 @@ function pickPair(busy){
         if(!busy.has(c)&&!atCap(c)){oppA=c;coIdx=(coIdx+attempt+1)%n;break;}
       }
 
-      // oppB — Team HOME (CO away) @ T2, must differ from oppA
+      // oppB — Team HOME @ T2, must differ from oppA
       let oppB=null;
       for(let attempt=0;attempt<n;attempt++){
         const c=coOpponents[(coIdx+attempt)%n];
@@ -132,9 +129,9 @@ function pickPair(busy){
       }
     }
 
-    // ── DH diamonds (e.g. D12) ────────────────────────────────────────────
+    // ── DH diamonds (D12) ────────────────────────────────────────────────
     for(const dm of dhDiamonds){
-      const pair=pickPair(busy,null);
+      const pair=pickPair(busy);
       if(pair){
         const[t1,t2]=pair;
         const[h,a]=pickHA(t1,t2,hcMap);
@@ -156,9 +153,9 @@ function pickPair(busy){
       }
     }
 
-    // ── Single diamonds (e.g. D13, D14) — 6:30 only ──────────────────────
+    // ── Single diamonds (D13, D14) — 6:30 only ───────────────────────────
     for(const dm of singleDiamonds){
-      const pair=pickPair(busy,null);
+      const pair=pickPair(busy);
       if(pair){
         const[t1,t2]=pair;
         const[h,a]=pickHA(t1,t2,hcMap);
