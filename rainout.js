@@ -60,6 +60,7 @@ function renderRainoutModal(game) {
       </div>
     </div>`;
 }
+<div id="agent-rainout-recs"></div>
 
 function confirmRainout() {
   if (!_rainoutGameId) return;
