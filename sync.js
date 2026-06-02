@@ -1,5 +1,5 @@
 // ── HTOSPORTS SCORE SYNC ──────────────────────────────────────────────────────
-const HTO_PROXY     = 'https://hccsl-proxy.YOUR-SUBDOMAIN.workers.dev';
+const HTO_PROXY     = 'softballschedule.matt-hope001.workers.dev';
 const HTO_SCHED_URL = 'https://www.htosports.com/teams/default.asp?u=HCCS&s=softball&p=schedule&format=List&d=ALL';
 const SYNC_KEY      = 'hccsl_last_sync';
 const SYNC_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
