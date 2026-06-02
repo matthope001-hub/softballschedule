@@ -1,17 +1,15 @@
 // ── HTOSPORTS SCORE SYNC ──────────────────────────────────────────────────────
-const HTO_PROXY     = 'softballschedule.matt-hope001.workers.dev';
+const HTO_PROXY     = 'https://softballschedule.matt-hope001.workers.dev';
 const HTO_SCHED_URL = 'https://www.htosports.com/teams/default.asp?u=HCCS&s=softball&p=schedule&format=List&d=ALL';
 const SYNC_KEY      = 'hccsl_last_sync';
 const SYNC_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
-// Called on page load — silent unless scores actually update
 function maybeSyncNightly() {
   const last = parseInt(localStorage.getItem(SYNC_KEY) || '0', 10);
   if (Date.now() - last < SYNC_INTERVAL) return;
   syncScoresFromHTO(false);
 }
 
-// Admin button — verbose
 async function manualSync() {
   if (!isAdmin) { showPinModal(); return; }
   showToast('⏳ Fetching scores from htosports…');
@@ -46,50 +44,70 @@ async function syncScoresFromHTO(verbose = false) {
 }
 
 // ── PARSER ────────────────────────────────────────────────────────────────────
-// htosports list format — rows with: Date | Home | HomeScore | Away | AwayScore
+// Row structure (7 cells): [time, home, homeScore, 'vs.', away, awayScore, diamond]
+// Date rows have 1 cell: e.g. "Tuesday, June 2, 2026"
 function parseHTOSchedule(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const rows = doc.querySelectorAll('tr');
+  const rows = [...doc.querySelectorAll('tr')];
   const results = [];
   const yr = G.currentSeason || new Date().getFullYear();
+  let currentDate = null;
 
   for (const row of rows) {
     const cells = [...row.querySelectorAll('td')].map(td => td.textContent.trim());
-    if (cells.length < 5) continue;
 
-    const homeScore = parseInt(cells[2], 10);
-    const awayScore = parseInt(cells[4], 10);
-    if (isNaN(homeScore) || isNaN(awayScore)) continue;
+    // Date header row — 1 cell like "Tuesday, June 2, 2026"
+    if (cells.length === 1) {
+      const parsed = parseHTODate(cells[0], yr);
+      if (parsed) currentDate = parsed;
+      continue;
+    }
 
-    const isoDate = parseHTODate(cells[0], yr);
-    if (!isoDate) continue;
-
-    results.push({ date: isoDate, home: cells[1], away: cells[3], h: homeScore, a: awayScore });
+    // Game row — 7 cells: [time, home, homeScore, 'vs.', away, awayScore, diamond]
+    if (cells.length === 7 && cells[3] === 'vs.' && currentDate) {
+      const homeScore = cells[2].replace(/[WL]/g, '').trim();
+      const awayScore = cells[5].replace(/[WL]/g, '').trim();
+      const h = parseInt(homeScore, 10);
+      const a = parseInt(awayScore, 10);
+      if (isNaN(h) || isNaN(a)) continue; // unscored game
+      results.push({ date: currentDate, home: cells[1], away: cells[4], h, a });
+    }
   }
+
+  console.log(`[HTO Sync] Parsed ${results.length} scored games`);
   return results;
 }
 
+// ── DATE PARSER ───────────────────────────────────────────────────────────────
+// Handles "Tuesday, June 2, 2026" and "Tue, 6/2/26" style strings
 const _MONTHS = {
-  jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',
-  jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'
+  january:'01', february:'02', march:'03', april:'04', may:'05', june:'06',
+  july:'07', august:'08', september:'09', october:'10', november:'11', december:'12'
 };
 
 function parseHTODate(str, yr) {
-  const m = str.match(/([A-Za-z]+)\s+(\d{1,2})/);
-  if (!m) return null;
-  const mo = _MONTHS[m[1].substring(0,3).toLowerCase()];
-  if (!mo) return null;
-  return `${yr}-${mo}-${String(m[2]).padStart(2,'0')}`;
+  // "Tuesday, June 2, 2026"
+  const long = str.match(/([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
+  if (long) {
+    const mo = _MONTHS[long[1].toLowerCase()];
+    if (mo) return `${long[3]}-${mo}-${String(long[2]).padStart(2,'0')}`;
+  }
+  // "Tue, 6/2/26" or "6/2/2026"
+  const slash = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (slash) {
+    const y = slash[3].length === 2 ? '20' + slash[3] : slash[3];
+    return `${y}-${String(slash[1]).padStart(2,'0')}-${String(slash[2]).padStart(2,'0')}`;
+  }
+  return null;
 }
 
 // ── SCORE APPLIER ─────────────────────────────────────────────────────────────
-// Non-destructive: skips games already scored. Handles home/away flip.
 function applyHTOScores(htoGames) {
   let count = 0;
   for (const hto of htoGames) {
     const candidates = G.sched.filter(g => g.date === hto.date && !g.playoff);
     for (const g of candidates) {
-      if (G.scores[g.id]) continue; // already scored — never overwrite
+      if (G.scores[g.id]) continue; // never overwrite existing scores
       const hMatch = _fuzzy(hto.home, g.home) && _fuzzy(hto.away, g.away);
       const aMatch = _fuzzy(hto.home, g.away) && _fuzzy(hto.away, g.home);
       if (hMatch)      { G.scores[g.id] = { h: hto.h, a: hto.a }; count++; }
