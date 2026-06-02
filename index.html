@@ -382,7 +382,6 @@ function showToast(msg, duration){
   if(typeof window.showToast === 'function' && window.showToast !== arguments.callee){
     return window.showToast(msg, duration);
   }
-  // Simple console fallback
   console.log('Toast:', msg);
   alert(msg);
 }
@@ -433,7 +432,6 @@ function submitPin(){
     isAdmin = true;
     closePinModal();
     showToast('🔓 Admin mode on');
-    // Switch to admin tab directly
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     const adminTab = document.querySelector('.tab[onclick*="admin"]');
@@ -459,7 +457,6 @@ function submitTextPin(){
     isAdmin = true;
     closePinModal();
     showToast('🔓 Admin mode on');
-    // Switch to admin tab directly
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     const adminTab = document.querySelector('.tab[onclick*="admin"]');
@@ -539,6 +536,7 @@ function unlockAdmin(){
         </div>
       </div>
     </div>
+
     <div id="admin-unlocked" style="display:none">
       <div class="admin-subtabs">
         <button class="admin-subtab active" onclick="showAdminTab('scores',this)">Scores</button>
@@ -645,8 +643,12 @@ function unlockAdmin(){
             </div>
           </div>
           <div id="gpt-notice" style="margin-bottom:8px;font-size:12px"></div>
-          <button class="btn btn-primary" onclick="adminGuard(genSched)()">⚾ Generate Schedule</button>
-          <button class="btn" onclick="clearData()" style="color:var(--red);border-color:var(--red);margin-left:8px">🗑 Clear All Data</button>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+            <button class="btn btn-primary" onclick="adminGuard(genSched)()">⚾ Generate Schedule</button>
+            <button class="btn btn-secondary" onclick="manualSync()" style="gap:6px">🔄 Sync Scores from htosports</button>
+            <button class="btn" onclick="clearData()" style="color:var(--red);border-color:var(--red)">🗑 Clear All Data</button>
+          </div>
+          <div id="sync-status" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
         </div>
 
         <!-- ── RECORD CHAMPIONS ──────────────────────────────────────────── -->
@@ -969,6 +971,7 @@ function unlockAdmin(){
 <script src="rainout.js"></script>
 <script src="playoffs.js"></script>
 <script src="agents.js"></script>
+<script src="sync.js"></script>
 <script>
 // ── ADMIN MENU ────────────────────────────────────────────────────────────────
 var activeAdminTab = 'scores';
@@ -1061,4 +1064,3 @@ function refreshActiveAdminTab(){
 </script>
 </body>
 </html>
-  
