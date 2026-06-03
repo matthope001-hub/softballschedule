@@ -24,13 +24,40 @@ let G={
   sched:[],
   scores:{},
   playoffs:{seeded:false,format:'podrr',podA:[],podB:[],games:{},semis:{podA:{},podB:{}},finals:{podA:{home:null,away:null,score:null},podB:{home:null,away:null,score:null}}},
-  settings:{ss:'',se:'',days:[2]},
+  settings:{
+    ss:'',
+    se:'',
+    days:[2],
+    // crossoverTeams: maps each Tuesday D9 date to the actual visiting team name
+    // sourced from the external league schedule — update weekly to confirm
+    crossoverTeams:{
+      '2026-05-26':'Stingrays',
+      '2026-06-02':'The Walking Dead',
+      '2026-06-09':'Disco Turkeys',
+      '2026-06-16':'Chuggies',
+      '2026-06-23':'Pirates',
+      '2026-06-30':'RIPKaN',
+      '2026-07-07':'Why So Serious',
+      '2026-07-14':'Generals',
+      '2026-07-21':'Stingrays',
+      '2026-07-28':'The Walking Dead',
+      '2026-08-04':'Disco Turkeys',
+      '2026-08-11':'Chuggies',
+      '2026-08-18':'Pirates'
+    }
+  },
   currentSeason:2026,
   champions:null,
   seasonArchive:{}
 };
 
 const CROSSOVER='CrossOver';
+
+// ── CROSSOVER DISPLAY NAME HELPER ─────────────────────────────────────────────
+// Returns the real team name for a given date, or 'CrossOver' as fallback.
+function getCrossoverName(dateStr){
+  return (G.settings.crossoverTeams&&G.settings.crossoverTeams[dateStr])||CROSSOVER;
+}
 
 // ── DIAMOND HELPERS ───────────────────────────────────────────────────────────
 function getDiamonds(){ return G.diamonds; }
@@ -96,7 +123,7 @@ function refreshActiveAdminTab(){
   if(t==='scores'  &&typeof renderScores==='function')       renderScores();
   if(t==='edit'    &&typeof renderEdit==='function')         renderEdit();
   if(t==='playoffs'&&typeof renderPlayoffsAdmin==='function')renderPlayoffsAdmin();
-  if(t==='settings'&&typeof renderDiamonds==='function'){    renderTeams();renderDiamonds();updateGptNotice();}
+  if(t==='settings'&&typeof renderDiamonds==='function'){    renderTeams();renderDiamonds();updateGptNotice();renderCrossoverTeamsAdmin();}
 }
 
 // ── TIME FORMAT ───────────────────────────────────────────────────────────────
@@ -116,8 +143,6 @@ function updateSeasonHeader(){
 }
 
 // ── NEXT GAME ID ──────────────────────────────────────────────────────────────
-// PATCH: cache maxSeq per year — avoids scanning full G.sched on every call.
-// Cache is invalidated whenever G.sched changes length (genSched, addSlotGame, removeGame).
 const _gameIdCache={};
 function _invalidateGameIdCache(){ Object.keys(_gameIdCache).forEach(k=>delete _gameIdCache[k]); }
 
@@ -171,7 +196,6 @@ function onDayChange(i,cb){
     d.days=getSelectedDays();
     localStorage.setItem(STORAGE_KEY+'_backup',JSON.stringify(d));
   }catch(e){}
-  // PATCH: sync days to G.settings so _buildPayload never reads stale DOM value
   if(typeof syncSettingsToG==='function') syncSettingsToG();
   updateGptNotice();
 }
@@ -201,6 +225,61 @@ function generateSchedule(){
   if(!checkAdmin()) return;
   if(!confirm('Generate a new schedule? This will replace the current schedule and clear all scores.')) return;
   genSched();
+}
+
+// ── CROSSOVER TEAMS ADMIN ─────────────────────────────────────────────────────
+function renderCrossoverTeamsAdmin(){
+  const el=document.getElementById('co-teams-admin');
+  if(!el) return;
+  if(!G.settings.crossoverTeams) G.settings.crossoverTeams={};
+  const dates=Object.keys(G.settings.crossoverTeams).sort();
+  if(!dates.length){
+    el.innerHTML='<div style="font-size:13px;color:var(--muted)">No CrossOver dates configured.</div>';
+    return;
+  }
+  const today=toDateStr(new Date());
+  el.innerHTML=dates.map(date=>{
+    const name=G.settings.crossoverTeams[date]||'';
+    const isPast=date<today;
+    const isNext=!isPast&&dates.filter(d=>d>=today)[0]===date;
+    const d=new Date(date+'T12:00:00');
+    const label=d.toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'});
+    const badge=isNext
+      ?`<span style="font-size:10px;font-weight:700;background:var(--navy);color:#fff;padding:2px 7px;border-radius:10px;margin-left:6px">NEXT</span>`
+      :isPast
+      ?`<span style="font-size:10px;color:var(--muted);margin-left:6px">past</span>`
+      :'';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:12px;font-weight:700;min-width:110px;color:${isPast?'var(--muted)':'var(--text)'}">${label}${badge}</span>
+      <input type="text" value="${esc(name)}" placeholder="Team name..."
+        style="flex:1;padding:5px 10px;font-size:13px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit"
+        onchange="saveCrossoverTeam('${date}',this.value)" />
+    </div>`;
+  }).join('');
+}
+
+function saveCrossoverTeam(date,name){
+  if(!G.settings.crossoverTeams) G.settings.crossoverTeams={};
+  G.settings.crossoverTeams[date]=name.trim();
+  saveData();
+  showToast(`✓ ${date} → ${name.trim()||'(cleared)'}`);
+}
+
+function addCrossoverDate(){
+  const inp=document.getElementById('co-new-date');
+  const nameInp=document.getElementById('co-new-name');
+  if(!inp||!nameInp) return;
+  const date=inp.value;
+  const name=nameInp.value.trim();
+  if(!date){alert('Select a date.');return;}
+  if(!name){alert('Enter the team name.');return;}
+  if(!G.settings.crossoverTeams) G.settings.crossoverTeams={};
+  G.settings.crossoverTeams[date]=name;
+  inp.value='';
+  nameInp.value='';
+  saveData();
+  renderCrossoverTeamsAdmin();
+  showToast(`✓ Added ${date} → ${name}`);
 }
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
@@ -407,11 +486,9 @@ function applyRecommendedGames(n){
   }
 }
 
-// ── TOAST — queue-based, no message overwrite on rapid saves ─────────────────
-// PATCH: replaced single-node pattern with a queue so rapid saves don't clobber
-// each other. Each toast is its own element, appended and auto-removed.
+// ── TOAST — queue-based ───────────────────────────────────────────────────────
 (function(){
-  const TOAST_GAP=6; // px between stacked toasts
+  const TOAST_GAP=6;
   function _getContainer(){
     let c=document.getElementById('_toast_container');
     if(!c){
@@ -429,12 +506,10 @@ function applyRecommendedGames(n){
     t.style.cssText='background:rgba(12,42,69,0.93);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;font-family:var(--font,sans-serif);box-shadow:0 4px 16px rgba(0,0,0,0.25);opacity:0;transform:translateY(6px);transition:opacity 0.2s,transform 0.2s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center';
     t.textContent=msg;
     c.appendChild(t);
-    // Animate in
     requestAnimationFrame(()=>{
       t.style.opacity='1';
       t.style.transform='translateY(0)';
     });
-    // Animate out and remove
     setTimeout(()=>{
       t.style.opacity='0';
       t.style.transform='translateY(6px)';
@@ -443,7 +518,7 @@ function applyRecommendedGames(n){
   };
 })();
 
-// ── HEADER WEATHER (Turner Park, Hamilton ON · Open-Meteo, no API key) ────────
+// ── HEADER WEATHER ────────────────────────────────────────────────────────────
 async function initHeaderWeather(){
   const dateEl=document.getElementById('hw-date');
   const wxEl=document.getElementById('hw-weather');
