@@ -253,15 +253,21 @@ function _renderSchedGames(){
       const homeName=_resolveTeamName(g.home,g.date);
       const awayName=_resolveTeamName(g.away,g.date);
 
-      const badge=isPly
-        ?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>'
-        :isMak
-        ?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>'
-        :isCO
-        ?`<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px" title="Visiting team from external league">CO</span>`
-        :'';
-      const homeStyle=sc&&sc.h>sc.a?'font-weight:800;color:var(--navy)':'';
-      const awayStyle=sc&&sc.a>sc.h?'font-weight:800;color:var(--navy)':'';
+      const plyBadge=isPly?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>':'';
+      const makBadge2=isMak?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
+      const coBadge=`<span style="font-size:10px;background:#0369a1;color:#fff;padding:2px 6px;border-radius:3px;font-weight:800;margin-left:5px;vertical-align:middle" title="Visiting team from external league">CO</span>`;
+
+      const homeIsco=g.home===CROSSOVER;
+      const awayIsco=g.away===CROSSOVER;
+
+      const homeWin=sc&&sc.h>sc.a;
+      const awayWin=sc&&sc.a>sc.h;
+
+      // CO team gets blue highlight + badge attached directly to their name
+      const homeHtml=`<span style="${homeWin?'font-weight:800;color:var(--navy)':''}${homeIsco?';color:#0369a1;font-weight:700':''}">${esc(homeName)}${homeIsco?coBadge:''}</span>`;
+      const awayHtml=`<span style="${awayWin?'font-weight:800;color:var(--navy)':''}${awayIsco?';color:#0369a1;font-weight:700':''}">${esc(awayName)}${awayIsco?coBadge:''}</span>`;
+
+      const midBadge=plyBadge||makBadge2;
       const scoreHtml=sc
         ?`<span style="font-family:var(--mono);font-size:13px;font-weight:800;color:${sc.h>sc.a?'var(--navy)':sc.h<sc.a?'var(--muted)':'var(--text)'}">${sc.h}</span>
            <span style="color:var(--muted);margin:0 3px">–</span>
@@ -272,7 +278,7 @@ function _renderSchedGames(){
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||'TBD'}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
-        <span class="game-teams"><span style="${homeStyle}">${esc(homeName)}</span>${badge} ${scoreHtml} <span style="${awayStyle}">${esc(awayName)}</span></span>
+        <span class="game-teams">${homeHtml}${midBadge} ${scoreHtml} ${awayHtml}</span>
       </div>`;
     }
     html+=monthAccordion(month,inner,mi,'so',0);
