@@ -99,10 +99,16 @@ function renderLastResults(){
     const hw=sc.h>sc.a,aw=sc.a>sc.h;
     const homeName=_resolveTeamName(g.home,g.date);
     const awayName=_resolveTeamName(g.away,g.date);
+    // Use internal key for record lookup — CrossOver won't have a record entry
+    const homeRec=g.home===CROSSOVER?'':`(${fmtRec(g.home)})`;
+    const awayRec=g.away===CROSSOVER?'':`(${fmtRec(g.away)})`;
+    const homeIsco=g.home===CROSSOVER;
+    const awayIsco=g.away===CROSSOVER;
+    const coBadgeTkr=`<span style="font-size:9px;background:#0369a1;color:#fff;padding:1px 5px;border-radius:3px;font-weight:800;margin-left:4px;vertical-align:middle">CO</span>`;
     return`<span class="ticker-item">
-      <span class="${hw?'winner':'loser'}">${esc(homeName)} (${fmtRec(g.home)})</span>
+      <span class="${hw?'winner':'loser'}">${esc(homeName)}${homeIsco?coBadgeTkr:''} ${homeRec}</span>
       <span class="score">${sc.h}-${sc.a}</span>
-      <span class="${aw?'winner':'loser'}">${esc(awayName)} (${fmtRec(g.away)})</span>
+      <span class="${aw?'winner':'loser'}">${esc(awayName)}${awayIsco?coBadgeTkr:''} ${awayRec}</span>
       <span style="opacity:0.5">|</span>
       <span style="opacity:0.7;font-size:11px">${g.date}</span>
     </span>`;
