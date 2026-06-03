@@ -6,9 +6,6 @@ function capRuns(h,a){
   return{ch:h,ca:Math.min(a,h+CAP)};
 }
 
-// ── OPT 2: computeStandings() — single source of truth ───────────────────────
-// Returns { leagueTeams, stats, h2hStats, ranked, homeStats, awayStats,
-//           teamResults, regularSeasonGames, gp }
 function computeStandings(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
@@ -115,15 +112,11 @@ function computeStandings(){
 // ── RENDER STANDINGS ──────────────────────────────────────────────────────────
 function renderStandings(){
   const el=document.getElementById('sto');
-  const tabActive=document.getElementById('tab-standings')?.classList.contains('active');
-  if(!tabActive){if(el)el.dataset.stale='1';return;}
+  if(!el) return;
   if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
 
-  // OPT 2: single computation, shared result
   const{leagueTeams,stats,ranked,homeStats,awayStats,teamResults,regularSeasonGames,gp}=computeStandings();
 
-  // ── AGENT: StandingsIntelligence labels ───────────────────────────────────
-  // Safe guard: only call if agents.js is loaded
   const siLabels=(typeof AGENTS!=='undefined'&&AGENTS.StandingsIntelligence)
     ? AGENTS.StandingsIntelligence.getLabels()
     : {};
@@ -164,8 +157,6 @@ function renderStandings(){
       const arec=`${as2.w}-${as2.l}${as2.tie?'-'+as2.tie:''}`;
       const str=streak(t);
       const tieIcon=tied?`<td title="Tiebreaker applied" style="color:var(--orange);font-size:11px;text-align:center">TB</td>`:`<td></td>`;
-
-      // ── AGENT: StandingsIntelligence badge ──────────────────────────────
       const lbl=siLabels[t];
       const statusCell=lbl
         ?`<td style="white-space:nowrap">
@@ -174,7 +165,6 @@ function renderStandings(){
                          white-space:nowrap;display:inline-block">${lbl.text}</span>
           </td>`
         :`<td></td>`;
-
       return`<tr>
         <td class="rank">${idx+1}</td>
         <td style="font-weight:600">${esc(t)}</td>
@@ -194,9 +184,6 @@ function renderStandings(){
     }).join('')}</tbody>
   </table></div>`;
 
-  if(el.dataset.stale) delete el.dataset.stale;
-
-  // ── AGENT: notify bus that standings finished rendering ───────────────────
   if(typeof AgentBus!=='undefined'){
     AgentBus.publish('standings:rendered',{teams:leagueTeams.length,gp});
   }
