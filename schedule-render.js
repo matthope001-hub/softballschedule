@@ -2,7 +2,7 @@
 let schedFilterTeam=null;
 let schedFilterDiamond=null;
 
-// ── OPT 1+2: Debounce timer for score saves ───────────────────────────────────
+// ── Debounce timer for score saves ────────────────────────────────────────────
 let _scoreSaveTimer=null;
 
 function toggleAccordion(bodyId,arrId){
@@ -38,8 +38,6 @@ function byeTeams(dateStr){
   return byeList.length?`<span style="font-size:10px;background:var(--surface2);color:var(--muted);padding:1px 6px;border-radius:3px;margin-left:6px">Bye: ${byeList.join(', ')}</span>`:'';
 }
 
-// PATCH: season-aware sunset badge — derives unsafe/caution dates from current season year
-// rather than hardcoded 2026 strings, so it works correctly in future seasons.
 function sunsetBadge(dateStr){
   const yr=dateStr.slice(0,4);
   const UNSAFE=[`${yr}-09-15`,`${yr}-09-22`,`${yr}-09-29`];
@@ -47,6 +45,14 @@ function sunsetBadge(dateStr){
   if(UNSAFE.includes(dateStr))return`<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px">🌙 NO LIGHTS</span>`;
   if(CAUTION.includes(dateStr))return`<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px">⚠ LOW LIGHT</span>`;
   return'';
+}
+
+// ── CROSSOVER DISPLAY HELPER ──────────────────────────────────────────────────
+// Returns the real visiting team name for a game, falling back to 'CrossOver'.
+// Works for both home and away slots — CrossOver can appear in either.
+function _resolveTeamName(teamName, dateStr){
+  if(teamName===CROSSOVER) return getCrossoverName(dateStr);
+  return teamName;
 }
 
 function renderSeasonBanner(){
@@ -65,8 +71,6 @@ function renderSeasonBanner(){
   </div>`;
 }
 
-// ── OPT 2: Shared lightweight W/L record builder ──────────────────────────────
-// Called by renderLastResults only. Full standings use computeStandings() in standings.js.
 function _quickRecords(){
   const rec={};
   for(const t of G.teams) rec[t]={w:0,l:0};
@@ -93,10 +97,12 @@ function renderLastResults(){
   const tickerItems=scored.map(g=>{
     const sc=G.scores[g.id];
     const hw=sc.h>sc.a,aw=sc.a>sc.h;
+    const homeName=_resolveTeamName(g.home,g.date);
+    const awayName=_resolveTeamName(g.away,g.date);
     return`<span class="ticker-item">
-      <span class="${hw?'winner':'loser'}">${esc(g.home)} (${fmtRec(g.home)})</span>
+      <span class="${hw?'winner':'loser'}">${esc(homeName)} (${fmtRec(g.home)})</span>
       <span class="score">${sc.h}-${sc.a}</span>
-      <span class="${aw?'winner':'loser'}">${esc(g.away)} (${fmtRec(g.away)})</span>
+      <span class="${aw?'winner':'loser'}">${esc(awayName)} (${fmtRec(g.away)})</span>
       <span style="opacity:0.5">|</span>
       <span style="opacity:0.7;font-size:11px">${g.date}</span>
     </span>`;
@@ -242,12 +248,17 @@ function _renderSchedGames(){
       }
       const sc=G.scores[g.id];
       const isCO=g.crossover,isPly=g.playoff,isMak=g.makeup;
+
+      // Resolve real team names for display
+      const homeName=_resolveTeamName(g.home,g.date);
+      const awayName=_resolveTeamName(g.away,g.date);
+
       const badge=isPly
         ?'<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🏆 PLY</span>'
         :isMak
         ?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>'
         :isCO
-        ?'<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">CO</span>'
+        ?`<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px" title="Visiting team from external league">CO</span>`
         :'';
       const homeStyle=sc&&sc.h>sc.a?'font-weight:800;color:var(--navy)':'';
       const awayStyle=sc&&sc.a>sc.h?'font-weight:800;color:var(--navy)':'';
@@ -261,7 +272,7 @@ function _renderSchedGames(){
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||'TBD'}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
-        <span class="game-teams"><span style="${homeStyle}">${esc(g.home)}</span>${badge} ${scoreHtml} <span style="${awayStyle}">${esc(g.away)}</span></span>
+        <span class="game-teams"><span style="${homeStyle}">${esc(homeName)}</span>${badge} ${scoreHtml} <span style="${awayStyle}">${esc(awayName)}</span></span>
       </div>`;
     }
     html+=monthAccordion(month,inner,mi,'so',0);
@@ -287,7 +298,6 @@ function _renderSchedGames(){
 }
 
 // ── SCORES ────────────────────────────────────────────────────────────────────
-// PATCH: removed dead `el` variable — innerHTML is assigned via the `sco` reference below.
 function renderScores(){
   const sco=document.getElementById('sco');
   if(!sco)return;
@@ -316,12 +326,16 @@ function renderScores(){
       const isCO=g.crossover;
       const wxBadge=sc?.wx?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🌧 WX</span>':'';
       const makBadge=g.makeup?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
-      // OPT 1: oninput (not onchange) — fires on every keystroke; saveScore is debounced internally
+
+      // Resolve real team names for score entry display
+      const homeName=_resolveTeamName(g.home,g.date);
+      const awayName=_resolveTeamName(g.away,g.date);
+
       inner+=`<div class="score-row${isCO?' co':''}" id="srow_${g.id}">
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||''}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
-        <span class="game-teams">${esc(g.home)}${wxBadge}${makBadge} vs ${esc(g.away)}</span>
+        <span class="game-teams">${esc(homeName)}${wxBadge}${makBadge} vs ${esc(awayName)}</span>
         <span class="score-inputs">
           <input type="number" class="si" min="0" max="99" id="sih_${g.id}" value="${hVal}" oninput="saveScore('${g.id}',this,'h')" placeholder="H"/>
           <span style="color:var(--muted);font-size:11px;margin:0 2px">–</span>
@@ -351,7 +365,7 @@ function renderScores(){
   }
 }
 
-// ── SCORE SAVE — OPT 1: debounced, no DOM rebuild ────────────────────────────
+// ── SCORE SAVE — debounced, no DOM rebuild ────────────────────────────────────
 function saveScore(id,input,side){
   if(!isAdmin){showToast('🔒 Unlock Admin to enter scores');return;}
   const val=parseInt(input.value);
@@ -372,7 +386,7 @@ function saveScore(id,input,side){
   },600);
 }
 
-// ── OPT 3: Surgical row update — no full renderScores() rebuild ───────────────
+// ── Surgical row update — no full renderScores() rebuild ──────────────────────
 function _patchScoreRow(id){
   const row=document.getElementById('srow_'+id);
   if(!row) return false;
@@ -387,7 +401,9 @@ function _patchScoreRow(id){
     if(g){
       const wxBadge=sc?.wx?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🌧 WX</span>':'';
       const makBadge=g.makeup?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
-      teamsSpan.innerHTML=`${esc(g.home)}${wxBadge}${makBadge} vs ${esc(g.away)}`;
+      const homeName=_resolveTeamName(g.home,g.date);
+      const awayName=_resolveTeamName(g.away,g.date);
+      teamsSpan.innerHTML=`${esc(homeName)}${wxBadge}${makBadge} vs ${esc(awayName)}`;
     }
   }
   return true;
