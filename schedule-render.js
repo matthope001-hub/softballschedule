@@ -1,9 +1,81 @@
 // ── SCHEDULE RENDER ───────────────────────────────────────────────────────────
 let schedFilterTeam=null;
 let schedFilterDiamond=null;
-
-// ── Debounce timer for score saves ────────────────────────────────────────────
 let _scoreSaveTimer=null;
+
+// ── Per-day weather forecast cache ────────────────────────────────────────────
+// { date:'YYYY-MM-DD', icon:'⛅', label:'Partly Cloudy', tmax:22, tmin:14, precip:0.4 }
+let _wxCache=null; // null=not fetched, []=fetched (may be empty on error)
+
+const _WMO_DAY={
+  0:['☀️','Clear'],
+  1:['🌤','Mostly Clear'],2:['⛅','Partly Cloudy'],3:['☁️','Overcast'],
+  45:['🌫','Fog'],48:['🌫','Icy Fog'],
+  51:['🌦','Lt Drizzle'],53:['🌦','Drizzle'],55:['🌧','Hvy Drizzle'],
+  61:['🌧','Lt Rain'],63:['🌧','Rain'],65:['🌧','Hvy Rain'],
+  71:['🌨','Lt Snow'],73:['🌨','Snow'],75:['❄️','Hvy Snow'],77:['🌨','Snow Grains'],
+  80:['🌦','Showers'],81:['🌧','Showers'],82:['⛈','Hvy Showers'],
+  85:['🌨','Snow Showers'],86:['❄️','Hvy Snow Showers'],
+  95:['⛈','Thunderstorm'],96:['⛈','T-Storm+Hail'],99:['⛈','T-Storm+Hail']
+};
+
+async function _fetchGameDayForecasts(){
+  if(_wxCache!==null) return _wxCache;
+  try{
+    const url='https://api.open-meteo.com/v1/forecast'
+      +'?latitude=43.2557&longitude=-79.8711'
+      +'&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum'
+      +'&temperature_unit=celsius&timezone=America%2FToronto&forecast_days=16';
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d=await res.json();
+    _wxCache=(d.daily.time||[]).map((date,i)=>{
+      const code=d.daily.weathercode[i];
+      const [icon,label]=_WMO_DAY[code]||['🌡','Unknown'];
+      return{
+        date,
+        icon,
+        label,
+        tmax:Math.round(d.daily.temperature_2m_max[i]),
+        tmin:Math.round(d.daily.temperature_2m_min[i]),
+        precip:+(d.daily.precipitation_sum[i]||0).toFixed(1)
+      };
+    });
+  }catch(e){
+    console.warn('Game-day forecast fetch failed:',e);
+    _wxCache=[];
+  }
+  return _wxCache;
+}
+
+// Inject weather badges into all .day-head elements that have a data-date attr
+function _injectDayForecasts(){
+  if(!_wxCache||!_wxCache.length) return;
+  const byDate={};
+  for(const w of _wxCache) byDate[w.date]=w;
+
+  document.querySelectorAll('.day-head[data-date]').forEach(el=>{
+    const d=el.getAttribute('data-date');
+    const w=byDate[d];
+    if(!w) return;
+    if(el.querySelector('.wx-day-badge')) return; // already injected
+    const rainWarn=w.precip>=2.5
+      ?'background:#fef3c7;color:#92400e;'
+      :'background:rgba(255,255,255,0.08);color:inherit;';
+    const badge=document.createElement('span');
+    badge.className='wx-day-badge';
+    badge.title=`${w.label} · ${w.tmax}°/${w.tmin}° · ${w.precip}mm precip`;
+    badge.style.cssText=`font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px;display:inline-flex;align-items:center;gap:3px;${rainWarn}`;
+    badge.innerHTML=`${w.icon} ${w.tmax}°<span style="opacity:0.55;font-weight:400">/${w.tmin}°</span>${w.precip>=2.5?` <span style="font-size:9px">⚠ ${w.precip}mm</span>`:''}`;
+    el.appendChild(badge);
+  });
+}
+
+// Fetch forecasts then inject — called after any schedule render
+async function _refreshDayForecasts(){
+  await _fetchGameDayForecasts();
+  _injectDayForecasts();
+}
 
 function toggleAccordion(bodyId,arrId){
   const body=document.getElementById(bodyId);
@@ -47,10 +119,7 @@ function sunsetBadge(dateStr){
   return'';
 }
 
-// ── CROSSOVER DISPLAY HELPER ──────────────────────────────────────────────────
-// Returns the real visiting team name for a game, falling back to 'CrossOver'.
-// Works for both home and away slots — CrossOver can appear in either.
-function _resolveTeamName(teamName, dateStr){
+function _resolveTeamName(teamName,dateStr){
   if(teamName===CROSSOVER) return getCrossoverName(dateStr);
   return teamName;
 }
@@ -99,7 +168,6 @@ function renderLastResults(){
     const hw=sc.h>sc.a,aw=sc.a>sc.h;
     const homeName=_resolveTeamName(g.home,g.date);
     const awayName=_resolveTeamName(g.away,g.date);
-    // Use internal key for record lookup — CrossOver won't have a record entry
     const homeRec=g.home===CROSSOVER?'':`(${fmtRec(g.home)})`;
     const awayRec=g.away===CROSSOVER?'':`(${fmtRec(g.away)})`;
     const homeIsco=g.home===CROSSOVER;
@@ -249,13 +317,13 @@ function _renderSchedGames(){
     let lastDate='';
     for(const g of monthMap[month]){
       if(g.date!==lastDate){
-        inner+=`<div class="day-head">${fmtDate(g.date)}${sunsetBadge(g.date)}${byeTeams(g.date)}</div>`;
+        // data-date attr enables weather badge injection
+        inner+=`<div class="day-head" data-date="${g.date}">${fmtDate(g.date)}${sunsetBadge(g.date)}${byeTeams(g.date)}</div>`;
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
       const isCO=g.crossover,isPly=g.playoff,isMak=g.makeup;
 
-      // Resolve real team names for display
       const homeName=_resolveTeamName(g.home,g.date);
       const awayName=_resolveTeamName(g.away,g.date);
 
@@ -265,11 +333,9 @@ function _renderSchedGames(){
 
       const homeIsco=g.home===CROSSOVER;
       const awayIsco=g.away===CROSSOVER;
-
       const homeWin=sc&&sc.h>sc.a;
       const awayWin=sc&&sc.a>sc.h;
 
-      // CO team gets blue highlight + badge attached directly to their name
       const homeHtml=`<span style="${homeWin?'font-weight:800;color:var(--navy)':''}${homeIsco?';color:#0369a1;font-weight:700':''}">${esc(homeName)}${homeIsco?coBadge:''}</span>`;
       const awayHtml=`<span style="${awayWin?'font-weight:800;color:var(--navy)':''}${awayIsco?';color:#0369a1;font-weight:700':''}">${esc(awayName)}${awayIsco?coBadge:''}</span>`;
 
@@ -307,6 +373,9 @@ function _renderSchedGames(){
     const arr=document.getElementById('arr_so_m0');
     if(body){body.classList.add('open');if(arr)arr.textContent='▲';}
   }
+
+  // Inject forecasts async — won't block render
+  _refreshDayForecasts();
 }
 
 // ── SCORES ────────────────────────────────────────────────────────────────────
@@ -329,7 +398,7 @@ function renderScores(){
     let lastDate='';
     for(const g of monthMap[month]){
       if(g.date!==lastDate){
-        inner+=`<div class="day-head">${fmtDate(g.date)}${byeTeams(g.date)}</div>`;
+        inner+=`<div class="day-head" data-date="${g.date}">${fmtDate(g.date)}${byeTeams(g.date)}</div>`;
         lastDate=g.date;
       }
       const sc=G.scores[g.id];
@@ -339,7 +408,6 @@ function renderScores(){
       const wxBadge=sc?.wx?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🌧 WX</span>':'';
       const makBadge=g.makeup?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
 
-      // Resolve real team names for score entry display
       const homeName=_resolveTeamName(g.home,g.date);
       const awayName=_resolveTeamName(g.away,g.date);
 
@@ -375,6 +443,8 @@ function renderScores(){
     const arr=document.getElementById('arr_sco_m0');
     if(body){body.classList.add('open');if(arr)arr.textContent='▲';}
   }
+
+  _refreshDayForecasts();
 }
 
 // ── SCORE SAVE — debounced, no DOM rebuild ────────────────────────────────────
