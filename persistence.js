@@ -1,7 +1,6 @@
 // ── PERSISTENCE — CLOUD ONLY (JSONBin) ───────────────────────────────────────
 const JSONBIN_BIN_ID    = '69d7a4c036566621a894eed9';
 const JSONBIN_WRITE_KEY = '$2a$10$0Hbc5Bc9ABqnRlT3.dmE6OURp.z8twcL0yy4bSGoCACQOTb7Z5fJu';
-const JSONBIN_READ_KEY  = '$2a$10$C92oSSIavphdJdlHmYlu4usOllGAQJgkZ5y59MF7NXuDb3pf3Br6m';
 const JSONBIN_URL       = () => `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 // ADMIN_PIN and isAdmin are defined in index.html (needed early for PIN modal)
@@ -131,13 +130,16 @@ async function _flushToCloud() {
 }
 
 // ── LOAD ──────────────────────────────────────────────────────────────────────
+// PATCH: removed X-Access-Key header. The bin has no Access Key configured
+// (JSONBin dashboard confirms "No Access Keys Found"), so sending a bogus
+// X-Access-Key caused JSONBin to reject the request with 401 Unauthorized.
+// X-Master-Key alone is valid for read+write on bins you own.
 async function loadData() {
   showToast('⏳ Loading from cloud…');
   try {
     const res=await fetch(JSONBIN_URL()+'/latest',{
       headers:{
-        'X-Master-Key': JSONBIN_WRITE_KEY,
-        'X-Access-Key': JSONBIN_READ_KEY
+        'X-Master-Key': JSONBIN_WRITE_KEY
       }
     });
     if(!res.ok){ console.warn(`JSONBin load: HTTP ${res.status}`); throw new Error(`HTTP ${res.status}`); }
