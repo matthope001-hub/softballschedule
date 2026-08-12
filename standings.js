@@ -6,6 +6,68 @@ function capRuns(h,a){
   return{ch:h,ca:Math.min(a,h+CAP)};
 }
 
+// ── SHARED H2H + RANKING ──────────────────────────────────────────────────────
+// PATCH: added — playoffs.js calls these directly (getRegularSeasonRanking,
+// podRRStandings) but they were never defined here, causing
+// "ReferenceError: _buildH2H is not defined" whenever the Playoffs tab rendered.
+// Games passed in must have {home, away, date, time?, _sc:{h,a}}.
+function _buildH2H(teams,games){
+  const h2hStats={};
+  for(const t of teams){
+    h2hStats[t]={};
+    for(const u of teams) h2hStats[t][u]={pts:0,games:[]};
+  }
+  const sorted=[...games].sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.time||'').localeCompare(b.time||''));
+  for(const g of sorted){
+    if(!h2hStats[g.home]||!h2hStats[g.away]) continue;
+    const sc=g._sc;
+    if(!sc) continue;
+    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
+    h2hStats[g.home][g.away].games.push({date:g.date,homePts:hw?2:tie?1:0});
+    h2hStats[g.away][g.home].games.push({date:g.date,homePts:aw?2:tie?1:0});
+    if(hw)h2hStats[g.home][g.away].pts+=2;
+    else if(aw)h2hStats[g.away][g.home].pts+=2;
+    else{h2hStats[g.home][g.away].pts+=1;h2hStats[g.away][g.home].pts+=1;}
+  }
+  return h2hStats;
+}
+
+function _rankTeams(teams,stats,h2hStats){
+  function stableRand(a,b){
+    let h=0;
+    for(let i=0;i<a.length;i++) h=(Math.imul(31,h)+a.charCodeAt(i))|0;
+    for(let i=0;i<b.length;i++) h=(Math.imul(31,h)+b.charCodeAt(i))|0;
+    return h;
+  }
+  function h2hWinner(a,b){
+    const ab=h2hStats[a][b],ba=h2hStats[b][a];
+    if(ab.pts!==ba.pts) return ab.pts>ba.pts?a:b;
+    const ag=ab.games,bg=ba.games;
+    if(ag.length&&bg.length){
+      const lastA=ag[ag.length-1],lastB=bg[bg.length-1];
+      const lastDate=lastA.date>lastB.date?lastA.date:lastB.date;
+      const aLast=ag.filter(g=>g.date===lastDate);
+      const bLast=bg.filter(g=>g.date===lastDate);
+      if(aLast.length&&bLast.length){
+        const aLastPts=aLast[aLast.length-1].homePts;
+        const bLastPts=bLast[bLast.length-1].homePts;
+        if(aLastPts!==bLastPts) return aLastPts>bLastPts?a:b;
+      }
+    }
+    return stableRand(a,b)>0?a:b;
+  }
+  return [...teams].map(t=>({team:t,tied:false})).sort((x,y)=>{
+    const a=x.team,b=y.team;
+    if(stats[b].pts!==stats[a].pts) return stats[b].pts-stats[a].pts;
+    const winner=h2hWinner(a,b);
+    x.tied=true;y.tied=true;
+    return winner===a?-1:1;
+  });
+}
+
+// ── OPT 2: computeStandings() — single source of truth ───────────────────────
+// Returns { leagueTeams, stats, h2hStats, ranked, homeStats, awayStats,
+//           teamResults, regularSeasonGames, gp }
 function computeStandings(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
@@ -112,11 +174,15 @@ function computeStandings(){
 // ── RENDER STANDINGS ──────────────────────────────────────────────────────────
 function renderStandings(){
   const el=document.getElementById('sto');
-  if(!el) return;
+  const tabActive=document.getElementById('tab-standings')?.classList.contains('active');
+  if(!tabActive){if(el)el.dataset.stale='1';return;}
   if(!G.teams.length){el.innerHTML='<div class="empty">Add teams to get started</div>';return;}
 
+  // OPT 2: single computation, shared result
   const{leagueTeams,stats,ranked,homeStats,awayStats,teamResults,regularSeasonGames,gp}=computeStandings();
 
+  // ── AGENT: StandingsIntelligence labels ───────────────────────────────────
+  // Safe guard: only call if agents.js is loaded
   const siLabels=(typeof AGENTS!=='undefined'&&AGENTS.StandingsIntelligence)
     ? AGENTS.StandingsIntelligence.getLabels()
     : {};
@@ -157,6 +223,8 @@ function renderStandings(){
       const arec=`${as2.w}-${as2.l}${as2.tie?'-'+as2.tie:''}`;
       const str=streak(t);
       const tieIcon=tied?`<td title="Tiebreaker applied" style="color:var(--orange);font-size:11px;text-align:center">TB</td>`:`<td></td>`;
+
+      // ── AGENT: StandingsIntelligence badge ──────────────────────────────
       const lbl=siLabels[t];
       const statusCell=lbl
         ?`<td style="white-space:nowrap">
@@ -165,6 +233,7 @@ function renderStandings(){
                          white-space:nowrap;display:inline-block">${lbl.text}</span>
           </td>`
         :`<td></td>`;
+
       return`<tr>
         <td class="rank">${idx+1}</td>
         <td style="font-weight:600">${esc(t)}</td>
@@ -184,6 +253,9 @@ function renderStandings(){
     }).join('')}</tbody>
   </table></div>`;
 
+  if(el.dataset.stale) delete el.dataset.stale;
+
+  // ── AGENT: notify bus that standings finished rendering ───────────────────
   if(typeof AgentBus!=='undefined'){
     AgentBus.publish('standings:rendered',{teams:leagueTeams.length,gp});
   }
