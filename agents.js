@@ -428,6 +428,17 @@ AGENTS.RainoutRecovery = {
 // Subscribes: schedule:saved, schedule:mutated, season:complete, season:incomplete
 // Publishes:  (consumed directly via getLabels() from standings.js)
 // Cache invalidated on every data-change event
+//
+// PATCH: getLabels() previously showed "Clinched"/"Playoffs Locked"/"Eliminated"
+// badges based purely on chasing the points leader. That didn't match the
+// league's actual playoff format — the 2-Pod Round Robin — where every team
+// makes playoffs; they just land in POD A (top 5) or POD B (bottom 4). Being
+// outside the top 4 in the old logic showed "Eliminated," which was misleading
+// since nobody is actually excluded from playoffs under this format.
+// Now getLabels() shows which pod each team is projected for (or, once
+// playoffs are seeded, which pod they're actually placed in), with a
+// "(Locked)" suffix once a team can no longer cross the POD A/B cutoff line
+// regardless of remaining results.
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.StandingsIntelligence = {
   _seasonComplete: false,
@@ -447,6 +458,24 @@ AGENTS.StandingsIntelligence = {
     const lt = G.teams.filter(t => t !== CROSSOVER);
     if (lt.length < 2) return {};
 
+    const labels = {};
+
+    // ── Already seeded: show each team's ACTUAL pod, straight from G.playoffs ──
+    if (G.playoffs && G.playoffs.seeded && (G.playoffs.podA?.length || G.playoffs.podB?.length)) {
+      for (const t of lt) {
+        if (G.playoffs.podA?.includes(t)) {
+          labels[t] = { text:'🅰️ POD A', color:'#1d4ed8', bg:'#dbeafe' };
+        } else if (G.playoffs.podB?.includes(t)) {
+          labels[t] = { text:'🅱️ POD B', color:'#7c3aed', bg:'#ede9fe' };
+        } else {
+          labels[t] = null;
+        }
+      }
+      this._cache = labels;
+      return labels;
+    }
+
+    // ── Not seeded yet: project live from current regular-season standings ──
     const stats = {};
     for (const t of lt) stats[t] = { gp:0, w:0, l:0, tie:0, pts:0 };
     for (const g of G.sched) {
@@ -480,36 +509,39 @@ AGENTS.StandingsIntelligence = {
       return pd !== 0 ? pd : (stats[b].w - stats[b].l) - (stats[a].w - stats[a].l);
     });
 
-    const spots = Math.min(4, lt.length);
-    const leader = ranked[0];
-    const leaderPts = stats[leader].pts;
-    const labels = {};
+    const podASize = Math.min(5, ranked.length); // POD A = top 5, per league format
 
     for (let i = 0; i < ranked.length; i++) {
       const t = ranked[i];
       const s = stats[t];
       const rank = i + 1;
       const maxPoss = s.pts + tgr[t] * 2;
-      const canReach = maxPoss >= leaderPts;
+      const inPodA = rank <= podASize;
 
-      let clinched = false;
-      if (rank <= spots && spots < ranked.length) {
-        const bubble = ranked[spots];
-        clinched = bubble ? (stats[bubble].pts + tgr[bubble] * 2) < s.pts : true;
-      }
+      // Locked into POD A: even if the first team just outside POD A wins
+      // every remaining game, they still can't catch this team's points.
+      const bubble = ranked[podASize]; // first team just outside POD A, if any
+      const podALocked = inPodA && (bubble
+        ? (stats[bubble].pts + tgr[bubble] * 2) < s.pts
+        : true); // no bubble team exists — POD A size >= total teams
+
+      // Locked into POD B: even winning out, this team can't catch the
+      // last POD A spot's current points.
+      const lastPodASpot = ranked[podASize - 1];
+      const podBLocked = !inPodA && lastPodASpot
+        ? maxPoss < stats[lastPodASpot].pts
+        : false;
 
       if (this._seasonComplete && rank === 1) {
         labels[t] = { text:'🏆 League Champion', color:'#d97706', bg:'#fef9c3' };
-      } else if (rank === 1 && grem > 0 && !ranked.slice(1).some(o => stats[o].pts + tgr[o] * 2 >= s.pts)) {
-        labels[t] = { text:'🥇 Clinched 1st', color:'#16a34a', bg:'#dcfce7' };
-      } else if (clinched) {
-        labels[t] = { text:`✅ Playoffs Locked #${rank}`, color:'#2563eb', bg:'#dbeafe' };
-      } else if (!canReach && grem > 0) {
-        labels[t] = { text:'❌ Eliminated', color:'#dc2626', bg:'#fee2e2' };
-      } else if (rank <= spots && grem > 0) {
-        labels[t] = { text:`🎯 Playoff Pos #${rank}`, color:'#7c3aed', bg:'#ede9fe' };
+      } else if (inPodA && (podALocked || grem === 0)) {
+        labels[t] = { text:'✅ POD A (Locked)', color:'#1d4ed8', bg:'#dbeafe' };
+      } else if (inPodA) {
+        labels[t] = { text:`🅰️ Proj. POD A #${rank}`, color:'#1d4ed8', bg:'#dbeafe' };
+      } else if (podBLocked || grem === 0) {
+        labels[t] = { text:'✅ POD B (Locked)', color:'#7c3aed', bg:'#ede9fe' };
       } else {
-        labels[t] = null;
+        labels[t] = { text:`🅱️ Proj. POD B #${rank}`, color:'#7c3aed', bg:'#ede9fe' };
       }
     }
 
