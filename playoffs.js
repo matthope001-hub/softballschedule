@@ -1,27 +1,43 @@
 // ── PLAYOFFS ──────────────────────────────────────────────────────────────────
 
 // ── REGULAR SEASON RANKING (for seeding) ─────────────────────────────────────
-// PATCH: replaced inline tiebreak implementation with shared _buildH2H() +
-// _rankTeams() from standings.js — single source of truth for tiebreak logic.
+// PATCH: fixed to match computeStandings() in standings.js exactly. Previously
+// this filtered out !g.crossover entirely, so CrossOver results were excluded
+// from playoff seeding points even though they DO count toward each league
+// team's W/L/T record and points in the Standings tab (per league rule).
+// That mismatch caused two teams with identical records to show different
+// point totals between the Standings tab and the Playoffs tab.
+// Now: each side of a game is credited independently if it's a league team,
+// exactly like computeStandings() does — CrossOver itself never gets a stats
+// entry (it's excluded from leagueTeams), so it never appears in seeding,
+// but games against CrossOver still count for the league team's side.
 function getRegularSeasonRanking(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
   for(const t of leagueTeams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
 
-  const regularGames=G.sched.filter(g=>!g.playoff&&!g.open&&!g.crossover&&G.scores[g.id]);
+  const regularGames=G.sched.filter(g=>!g.playoff&&!g.open&&G.scores[g.id]);
   for(const g of regularGames){
-    if(!stats[g.home]||!stats[g.away]) continue;
     const sc=G.scores[g.id];
     const{ch,ca}=capRuns(sc.h,sc.a);
-    stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
-    stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
-    const hw=sc.h>sc.a,aw=sc.a>sc.h,tie=sc.h===sc.a;
-    if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
-    else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
-    else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
+    if(stats[g.home]!==undefined){
+      stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
+      if(sc.h>sc.a){stats[g.home].w++;stats[g.home].pts+=2;}
+      else if(sc.a>sc.h) stats[g.home].l++;
+      else{stats[g.home].tie++;stats[g.home].pts++;}
+    }
+    if(stats[g.away]!==undefined){
+      stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
+      if(sc.a>sc.h){stats[g.away].w++;stats[g.away].pts+=2;}
+      else if(sc.h>sc.a) stats[g.away].l++;
+      else{stats[g.away].tie++;stats[g.away].pts++;}
+    }
   }
 
-  // Attach scores as _sc for _buildH2H shape compatibility
+  // Attach scores as _sc for _buildH2H shape compatibility.
+  // _buildH2H internally skips any game where either side isn't in the
+  // teams list passed to it, so CrossOver games are naturally excluded
+  // from head-to-head tiebreak data (matching computeStandings()).
   const scoredGames=regularGames.map(g=>({...g,_sc:G.scores[g.id]}));
   const h2h=_buildH2H(leagueTeams,scoredGames);
   const ranked=_rankTeams(leagueTeams,stats,h2h);
@@ -743,4 +759,21 @@ function removePlayoffSchedule(plyId){
   G.sched=G.sched.filter(g=>g.plyId!==plyId);
   saveData();renderPlayoffs();renderPlayoffsAdmin();renderSched();renderScores();
   showToast('📅 Playoff game unscheduled');
+}
+
+// ── LIVE PRE-SEED PREVIEW ─────────────────────────────────────────────────────
+// PATCH: added — the pod preview (before seeding) previously only recomputed
+// when the user navigated back into the Playoffs tab, since saveScore() never
+// called renderPlayoffs(). Subscribing to the same 'standings:rendered' event
+// that fires after every score save keeps the pre-seed pod order/points live
+// without requiring the user to leave and reopen the tab.
+if(typeof AgentBus!=='undefined'&&typeof AgentBus.subscribe==='function'){
+  AgentBus.subscribe('standings:rendered',function(){
+    try{
+      if(!G.playoffs||!G.playoffs.seeded){
+        renderPlayoffs();
+        renderPlayoffsAdmin();
+      }
+    }catch(e){}
+  });
 }
