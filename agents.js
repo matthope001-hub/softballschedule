@@ -128,7 +128,6 @@ AGENTS.ConflictDetector = {
     AgentBus.subscribe('schedule:saved',     'ConflictDetector', () => this.run());
     AgentBus.subscribe('schedule:mutated',   'ConflictDetector', () => this.run());
     AgentBus.subscribe('optimizer:complete', 'ConflictDetector', () => this.run());
-    // Re-scan when rainout modal opens so warning appears immediately if conflicts exist
     AgentBus.subscribe('rainout:opened',     'ConflictDetector', () => this.run());
   },
 
@@ -287,8 +286,6 @@ AGENTS.ConflictDetector = {
 // AGENT 2: SCHEDULE OPTIMIZER
 // Subscribes: schedule:generated
 // Publishes:  optimizer:complete, schedule:mutated
-// Reacts to:  conflicts:found → flags post-optimization conflicts in panel
-//             conflicts:clear → clears that flag
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.ScheduleOptimizer = {
   init() {
@@ -400,15 +397,10 @@ AGENTS.ScheduleOptimizer = {
 // ══════════════════════════════════════════════════════════════════════════════
 // AGENT 3: RAINOUT RECOVERY
 // Rule 8.0: no makeups. Agent only shows a conflict warning inside the modal.
-// Subscribes: rainout:opened, conflicts:found, conflicts:clear
-// Publishes:  nothing (makeups not applicable)
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.RainoutRecovery = {
   init() {
-    // No slot recommendations — Rule 8.0, rainouts are 7-7 final, no makeup
-    AgentBus.subscribe('rainout:opened', 'RainoutRecovery', () => {
-      // Container exists in modal but stays hidden unless conflicts are present
-    });
+    AgentBus.subscribe('rainout:opened', 'RainoutRecovery', () => {});
     AgentBus.subscribe('conflicts:found', 'RainoutRecovery', ({ violations }) => {
       const el = document.getElementById('agent-rainout-recs');
       if (!el) return;
@@ -427,18 +419,8 @@ AGENTS.RainoutRecovery = {
 // AGENT 4: STANDINGS INTELLIGENCE
 // Subscribes: schedule:saved, schedule:mutated, season:complete, season:incomplete
 // Publishes:  (consumed directly via getLabels() from standings.js)
-// Cache invalidated on every data-change event
 //
-// PATCH: getLabels() previously showed "Clinched"/"Playoffs Locked"/"Eliminated"
-// badges based purely on chasing the points leader. That didn't match the
-// league's actual playoff format — the 2-Pod Round Robin — where every team
-// makes playoffs; they just land in POD A (top 5) or POD B (bottom 4). Being
-// outside the top 4 in the old logic showed "Eliminated," which was misleading
-// since nobody is actually excluded from playoffs under this format.
-// Now getLabels() shows which pod each team is projected for (or, once
-// playoffs are seeded, which pod they're actually placed in), with a
-// "(Locked)" suffix once a team can no longer cross the POD A/B cutoff line
-// regardless of remaining results.
+// Pod split: top 4 → POD A, bottom 4 → POD B (4+4 format, 8 league teams).
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.StandingsIntelligence = {
   _seasonComplete: false,
@@ -460,7 +442,7 @@ AGENTS.StandingsIntelligence = {
 
     const labels = {};
 
-    // ── Already seeded: show each team's ACTUAL pod, straight from G.playoffs ──
+    // ── Already seeded: show each team's ACTUAL pod from G.playoffs ──────────
     if (G.playoffs && G.playoffs.seeded && (G.playoffs.podA?.length || G.playoffs.podB?.length)) {
       for (const t of lt) {
         if (G.playoffs.podA?.includes(t)) {
@@ -475,7 +457,7 @@ AGENTS.StandingsIntelligence = {
       return labels;
     }
 
-    // ── Not seeded yet: project live from current regular-season standings ──
+    // ── Not seeded yet: project from current regular-season standings ─────────
     const stats = {};
     for (const t of lt) stats[t] = { gp:0, w:0, l:0, tie:0, pts:0 };
     for (const g of G.sched) {
@@ -495,6 +477,7 @@ AGENTS.StandingsIntelligence = {
       }
     }
 
+    // Remaining games per team
     const tgr = {};
     for (const t of lt) tgr[t] = 0;
     for (const g of G.sched) {
@@ -509,7 +492,8 @@ AGENTS.StandingsIntelligence = {
       return pd !== 0 ? pd : (stats[b].w - stats[b].l) - (stats[a].w - stats[a].l);
     });
 
-    const podASize = Math.min(5, ranked.length); // POD A = top 5, per league format
+    // ── 4+4 split: POD A = seeds 1–4, POD B = seeds 5–8 ─────────────────────
+    const podASize = Math.min(4, ranked.length);
 
     for (let i = 0; i < ranked.length; i++) {
       const t = ranked[i];
@@ -518,15 +502,13 @@ AGENTS.StandingsIntelligence = {
       const maxPoss = s.pts + tgr[t] * 2;
       const inPodA = rank <= podASize;
 
-      // Locked into POD A: even if the first team just outside POD A wins
-      // every remaining game, they still can't catch this team's points.
-      const bubble = ranked[podASize]; // first team just outside POD A, if any
+      // POD A locked: the first team outside POD A can't catch this team's pts
+      const bubble = ranked[podASize] || null;
       const podALocked = inPodA && (bubble
         ? (stats[bubble].pts + tgr[bubble] * 2) < s.pts
-        : true); // no bubble team exists — POD A size >= total teams
+        : true);
 
-      // Locked into POD B: even winning out, this team can't catch the
-      // last POD A spot's current points.
+      // POD B locked: even winning out, can't reach the last POD A spot's pts
       const lastPodASpot = ranked[podASize - 1];
       const podBLocked = !inPodA && lastPodASpot
         ? maxPoss < stats[lastPodASpot].pts
@@ -556,7 +538,6 @@ AGENTS.StandingsIntelligence = {
 // Subscribes: schedule:saved, schedule:mutated, conflicts:found, conflicts:clear,
 //             season:complete, season:incomplete
 // Publishes:  health:scored
-// Conflict penalty applied in real time via bus
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.SeasonHealth = {
   _conflictPenalty: 0,
@@ -701,8 +682,6 @@ AGENTS.SeasonHealth = {
 // AGENT 6: END-OF-SEASON AUTOMATION
 // Subscribes: schedule:saved
 // Publishes:  season:complete, season:incomplete
-// Reacts to:  conflicts:found → warns in EOS panel before finalizing
-//             health:scored   → updates open-slot checklist item live
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.EndOfSeason = {
   _fired: false,
@@ -799,7 +778,7 @@ AGENTS.EndOfSeason = {
           <strong>End-of-Season Checklist:</strong>
           <div id="eos-check-openslots">☐ Checking open slots…</div>
           <div>☐ Record champion in Hall of Champions tab</div>
-          <div>☐ Confirm POD A (league) and POD B (tier B) winners</div>
+          <div>☐ Confirm POD A and POD B winners</div>
           <div>☐ Archive season via Admin → Settings</div>
           <div>☐ Clear schedule for next season</div>
         </div>
@@ -813,7 +792,6 @@ AGENTS.EndOfSeason = {
         </div>
       </div>`;
     document.body.appendChild(panel);
-    // Immediately populate the open-slots checklist item
     AgentBus.publish('health:scored', { report: AGENTS.SeasonHealth._compute() });
   },
 
@@ -828,7 +806,7 @@ AGENTS.EndOfSeason = {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// DEBUG PANEL — AGENTS.showDebug() / AGENTS.hideDebug()
+// DEBUG PANEL
 // ══════════════════════════════════════════════════════════════════════════════
 AGENTS.showDebug = function () {
   let panel = document.getElementById('agent-bus-debug');
@@ -855,7 +833,6 @@ AGENTS.hideDebug = function () {
 // APP HOOKS — Bridge lifecycle events into AgentBus
 // ══════════════════════════════════════════════════════════════════════════════
 
-// saveData → schedule:saved
 (function _hookSaveData() {
   const _orig = window.saveData;
   if (typeof _orig !== 'function') return;
@@ -867,11 +844,10 @@ AGENTS.hideDebug = function () {
         games: G.sched.length,
         scores: Object.keys(G.scores).length
       });
-    }, 700); // fires after saveData's own 600ms debounce settles
+    }, 700);
   };
 })();
 
-// genSched → schedule:generated
 (function _hookGenSched() {
   const _orig = window.genSched;
   if (typeof _orig !== 'function') return;
@@ -881,7 +857,6 @@ AGENTS.hideDebug = function () {
   };
 })();
 
-// showTab → trigger SeasonHealth on standings/admin
 (function _hookShowTab() {
   const _orig = window.showTab;
   if (typeof _orig !== 'function') return;
@@ -892,23 +867,18 @@ AGENTS.hideDebug = function () {
   };
 })();
 
-// openRainoutModal → rainout:opened
-// NOTE: rainout.js already calls AgentBus.publish('rainout:opened') internally.
-// This hook is a safety net for any other callers that bypass rainout.js.
 (function _hookRainoutModal() {
   const _orig = window.openRainoutModal;
   if (typeof _orig !== 'function') return;
   window.openRainoutModal = function (gameId) {
-    // Store gameId globally so agents can reference it
     window._rainoutGameId = gameId;
     _orig.apply(this, arguments);
-    // rainout.js publishes rainout:opened itself — no duplicate publish needed here
   };
 })();
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BOOT — Initialize all agents (registers all subscriptions)
+// BOOT
 // ══════════════════════════════════════════════════════════════════════════════
 (function _boot() {
   AGENTS.ConflictDetector.init();
