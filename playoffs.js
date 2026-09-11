@@ -1,16 +1,6 @@
 // ── PLAYOFFS ──────────────────────────────────────────────────────────────────
 
 // ── REGULAR SEASON RANKING (for seeding) ─────────────────────────────────────
-// PATCH: fixed to match computeStandings() in standings.js exactly. Previously
-// this filtered out !g.crossover entirely, so CrossOver results were excluded
-// from playoff seeding points even though they DO count toward each league
-// team's W/L/T record and points in the Standings tab (per league rule).
-// That mismatch caused two teams with identical records to show different
-// point totals between the Standings tab and the Playoffs tab.
-// Now: each side of a game is credited independently if it's a league team,
-// exactly like computeStandings() does — CrossOver itself never gets a stats
-// entry (it's excluded from leagueTeams), so it never appears in seeding,
-// but games against CrossOver still count for the league team's side.
 function getRegularSeasonRanking(){
   const leagueTeams=G.teams.filter(t=>t!==CROSSOVER);
   const stats={};
@@ -34,10 +24,6 @@ function getRegularSeasonRanking(){
     }
   }
 
-  // Attach scores as _sc for _buildH2H shape compatibility.
-  // _buildH2H internally skips any game where either side isn't in the
-  // teams list passed to it, so CrossOver games are naturally excluded
-  // from head-to-head tiebreak data (matching computeStandings()).
   const scoredGames=regularGames.map(g=>({...g,_sc:G.scores[g.id]}));
   const h2h=_buildH2H(leagueTeams,scoredGames);
   const ranked=_rankTeams(leagueTeams,stats,h2h);
@@ -45,7 +31,6 @@ function getRegularSeasonRanking(){
 }
 
 // ── POD ROUND ROBIN STANDINGS ─────────────────────────────────────────────────
-// PATCH: replaced inline tiebreak with shared _buildH2H() + _rankTeams().
 function podRRStandings(teams,pfx){
   const stats={};
   for(const t of teams) stats[t]={w:0,l:0,tie:0,pts:0,rf:0,ra:0,gp:0};
@@ -58,16 +43,15 @@ function podRRStandings(teams,pfx){
     const{h,a}=g.score;const{ch,ca}=capRuns(h,a);
     stats[g.home].gp++;stats[g.home].rf+=ch;stats[g.home].ra+=ca;
     stats[g.away].gp++;stats[g.away].rf+=ca;stats[g.away].ra+=ch;
-    const hw=h>a,aw=a>h,tie=h===a;
+    const hw=h>a,aw=a>h;
     if(hw){stats[g.home].w++;stats[g.home].pts+=2;stats[g.away].l++;}
     else if(aw){stats[g.away].w++;stats[g.away].pts+=2;stats[g.home].l++;}
     else{stats[g.home].tie++;stats[g.home].pts++;stats[g.away].tie++;stats[g.away].pts++;}
   }
 
-  // Playoff games use g.score.h/a directly — map to _sc shape for _buildH2H
   const scoredGames=sortedGames.filter(g=>g.score).map(g=>({
     ...g,
-    date:g.date||g.id, // use game id as date proxy for ordering when date absent
+    date:g.date||g.id,
     _sc:{h:g.score.h,a:g.score.a}
   }));
   const h2h=_buildH2H(teams,scoredGames);
@@ -84,13 +68,12 @@ function winnerOf(score,home,away){
 }
 
 // ── STANDINGS TABLE (shared by public + admin) ────────────────────────────────
-function _buildStandingsTable(standing,rrPlayed,rrTotal,isPodA,rrDone){
+function _buildStandingsTable(standing,rrPlayed,rrTotal){
   let h=`<div style="font-size:11px;color:var(--muted);margin-bottom:10px">${rrPlayed}/${rrTotal} round robin games played</div>`;
   h+=`<table class="st" style="margin-bottom:12px"><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>RF</th><th>RA</th><th>Diff</th></tr></thead><tbody>`;
   h+=standing.map((s,i)=>{
     const diff=s.rf-s.ra;
-    const elim=isPodA&&i===4&&rrDone;
-    return`<tr style="${elim?'opacity:0.45;text-decoration:line-through':''}${i===0?';background:#f0f9ff':''}">
+    return`<tr style="${i===0?';background:#f0f9ff':''}">
       <td class="rank">${i+1}</td>
       <td style="font-weight:600">${esc(s.team)}</td>
       <td class="rec">${s.w}-${s.l}${s.tie?'-'+s.tie:''}</td>
@@ -169,7 +152,6 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
   const rrDone=rrPlayed===rrTotal;
   const fin=G.playoffs.finals[podKey];
   const semis=G.playoffs.semis[podKey];
-  const isPodA=pfx==='PA';
   const sm1=semis.s1||{home:'TBD',away:'TBD',score:null};
   const sm2=semis.s2||{home:'TBD',away:'TBD',score:null};
   const semi1winner=winnerOf(sm1.score,sm1.home,sm1.away);
@@ -215,7 +197,7 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
   }
 
   let h=`<div class="card"><div class="card-title">${esc(podLabel)}</div>`;
-  h+=_buildStandingsTable(standing,rrPlayed,rrTotal,isPodA,rrDone);
+  h+=_buildStandingsTable(standing,rrPlayed,rrTotal);
 
   h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px">Round Robin Results</div>`;
   h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:16px">`;
@@ -227,9 +209,6 @@ function renderPodPublic(podLabel,pfx,podKey,seeds){
   if(!rrDone){
     h+=`<div class="notice">Round robin in progress — ${rrPlayed}/${rrTotal} games complete.</div>`;
   } else {
-    if(isPodA){
-      h+=`<div class="notice" style="background:#fff0f0;border-color:var(--red);margin-bottom:10px">⛔ ${esc(standing[4]?.team||'5th')} eliminated after round robin.</div>`;
-    }
     h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Semi-Finals</div>`;
     h+=`<table style="width:100%;border-collapse:collapse;margin-bottom:10px">`;
     h+=pubGameRow(podKey+'_s1',sm1.home,sm1.away,sm1.score,'Semi 1 · 1v4');
@@ -263,7 +242,6 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
   const rrDone=rrPlayed===rrTotal;
   const semis=G.playoffs.semis[podKey];
   const fin=G.playoffs.finals[podKey];
-  const isPodA=pfx==='PA';
   const s1=standing[0]?.team,s2=standing[1]?.team,s3=standing[2]?.team,s4=standing[3]?.team;
 
   let stateChanged=false;
@@ -284,7 +262,7 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
   const champion=winnerOf(fin.score,fin.home,fin.away);
 
   let h=`<div class="card"><div class="card-title">${esc(podLabel)}</div>`;
-  h+=_buildStandingsTable(standing,rrPlayed,rrTotal,isPodA,rrDone);
+  h+=_buildStandingsTable(standing,rrPlayed,rrTotal);
 
   h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Round Robin Games</div>`;
   h+=`<table class="gt" style="margin-bottom:12px">`;
@@ -306,46 +284,8 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
   h+=`<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Elimination Bracket</div>`;
   if(!rrDone){
     h+=`<div class="notice">Complete all round robin games to unlock the bracket.</div>`;
-  } else if(isPodA){
-    h+=`<div class="notice" style="background:#fff0f0;border-color:var(--red)">⛔ ${esc(standing[4]?.team||'5th')} is eliminated after the round robin.</div>`;
-    h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">Semi-Finals</div>`;
-    h+=`<table class="gt" style="margin-bottom:10px">`;
-    [{key:'s1',g:sm1,label:'1 vs 4'},{key:'s2',g:sm2,label:'2 vs 3'}].forEach(({key,g,label})=>{
-      const winner=winnerOf(g.score,g.home,g.away);
-      const plyId=`${podKey}_${key}`;
-      h+=`<tr class="${g.score?'':'empty-slot'}">
-        <td class="g-num"><span class="gnum">${label}</span></td>
-        <td class="g-home" style="font-weight:600${winner===g.home?';color:var(--navy)':''}">${esc(g.home||'TBD')}</td>
-        <td class="g-vs">vs</td>
-        <td class="g-away" style="font-weight:600${winner===g.away?';color:var(--navy)':''}">${esc(g.away||'TBD')}</td>
-        ${scoreInput(`psh_${podKey}_${key}`,`psa_${podKey}_${key}`,g.score?g.score.h:'',g.score?g.score.a:'',`saveSemiScore('${podKey}','${key}')`)}
-        <td class="g-sc ${g.score?'scored':''}">${winner?'✓ '+esc(winner):g.score?'Tie':'—'}</td>
-        ${g.home?schedBtn(plyId,g.home||'',g.away||''):'<td></td>'}
-      </tr>`;
-    });
-    h+=`</table>`;
-    h+=`<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px">${podLabel} Final</div>`;
-    if(!semi1winner||!semi2winner){
-      h+=`<div class="notice">Complete both semi-finals to determine the finalists.</div>`;
-    } else {
-      h+=`<table class="gt" style="margin-bottom:10px"><tr class="${fin.score?'':'empty-slot'}">
-        <td class="g-num"><span class="gnum">FINAL</span></td>
-        <td class="g-home" style="font-weight:700;color:var(--navy)">${esc(fin.home||'TBD')}</td>
-        <td class="g-vs">vs</td>
-        <td class="g-away" style="font-weight:700;color:var(--navy)">${esc(fin.away||'TBD')}</td>
-        ${scoreInput('pfh_'+podKey,'pfa_'+podKey,fin.score?fin.score.h:'',fin.score?fin.score.a:'',`saveFinalScore('${podKey}')`)}
-        <td class="g-sc ${fin.score?'scored':''}">${champion?'🏆 '+esc(champion):fin.score?'Tie':'—'}</td>
-        ${fin.home?schedBtn(`${podKey}_final`,fin.home||'',fin.away||''):'<td></td>'}
-      </tr></table>`;
-      if(champion){
-        h+=`<div style="padding:14px 16px;background:linear-gradient(135deg,var(--navy),var(--navy2));border-radius:var(--r);color:#fff;text-align:center;margin-bottom:10px">
-          <div style="font-size:11px;font-weight:600;opacity:0.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">${podLabel} Champion</div>
-          <div style="font-size:24px;font-weight:800">🏆 ${esc(champion)}</div>
-        </div>`;
-      }
-    }
   } else {
-    const finGame={home:fin.home||(semi1winner||'TBD'),away:fin.away||(semi2winner||'TBD'),score:fin.score};
+    // Both pods: all 4 teams advance to semis — no elimination after RR
     const connector=`<svg width="48" height="240" viewBox="0 0 48 240" style="flex-shrink:0">
       <path d="M0 60 H24 V180 H0" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
       <path d="M24 120 H48" fill="none" stroke="#cdd3dd" stroke-width="1.5"/>
@@ -357,7 +297,7 @@ function renderPodAdmin(podLabel,pfx,podKey,seeds){
       </div>
       ${connector}
       <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-        ${_bracketGame(`${podLabel} Final`,finGame,podKey,'final',`${podKey}_final`,`pfh_${podKey}`,`pfa_${podKey}`,`saveFinalScore('${podKey}')`)}
+        ${_bracketGame(`${podLabel} Final`,{home:fin.home||(semi1winner||'TBD'),away:fin.away||(semi2winner||'TBD'),score:fin.score},podKey,'final',`${podKey}_final`,`pfh_${podKey}`,`pfa_${podKey}`,`saveFinalScore('${podKey}')`)}
         ${champion?`<div style="margin-top:4px;padding:10px 16px;background:linear-gradient(135deg,#0d1b2e,#1e3057);border-radius:8px;color:#fff;text-align:center;min-width:160px">
           <div style="font-size:10px;opacity:0.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Champion</div>
           <div style="font-size:18px;font-weight:800">🏆 ${esc(champion)}</div>
@@ -393,7 +333,24 @@ function renderPlayoffs(){
     }else if(p.format==='doubleelim8'){
       bracketPreview=`<div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm);margin-top:10px"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">8-Team Double Elimination</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Winner's Bracket QF — 1v8, 2v7, 3v6, 4v5</div><div>② Loser's Bracket — WB losers drop down</div><div>③ Finals — WB winner vs LB winner (bracket reset if needed)</div></div></div>`;
     }else{
-      bracketPreview=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD A — Top 5 Teams</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Round Robin — each team plays the other 4 once (10 games)</div><div>② 5th place is <strong>eliminated</strong></div><div>③ Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div><div>④ POD A Final</div></div></div><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD B — Bottom 4 Teams</div><div style="font-size:13px;color:var(--text);display:grid;gap:3px"><div>① Round Robin — each team plays the other 3 once (6 games)</div><div>② Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div><div>③ POD B Final</div></div></div></div>`;
+      bracketPreview=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
+          <div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD A — Seeds 1–4</div>
+          <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
+            <div>① Round Robin — each team plays the other 3 once (6 games)</div>
+            <div>② Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div>
+            <div>③ POD A Final</div>
+          </div>
+        </div>
+        <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
+          <div style="font-weight:700;color:var(--navy);margin-bottom:6px">POD B — Seeds 5–8</div>
+          <div style="font-size:13px;color:var(--text);display:grid;gap:3px">
+            <div>① Round Robin — each team plays the other 3 once (6 games)</div>
+            <div>② Semi-Finals — Seed 1 vs 4 · Seed 2 vs 3</div>
+            <div>③ POD B Final</div>
+          </div>
+        </div>
+      </div>`;
     }
     el.innerHTML=`<div class="card"><div class="card-title">Playoffs — ${fmt.label}</div><div class="notice">Playoffs have not been seeded yet. Make sure all regular season scores are entered first.</div><div style="font-size:13px;color:var(--muted);margin-top:8px">${formatDesc}</div>${ranked.length>=6?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0">${ranked.slice(0,8).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="padding:10px;background:var(--surface2);border-radius:var(--r-sm);display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">${r.pts}pts</span></div>`;}).join('')}</div>`:''} ${bracketPreview}</div>`;
     return;
@@ -404,8 +361,8 @@ function renderPlayoffs(){
   else if(p.format==='singleelim8') html+=renderSingleElim8Public(p);
   else if(p.format==='doubleelim8') html+=renderDoubleElim8Public(p);
   else{
-    html+=renderPodPublic('POD A — Top 5','PA','podA',p.podA);
-    html+=renderPodPublic('POD B — Bottom 4','PB','podB',p.podB);
+    html+=renderPodPublic('POD A — Seeds 1–4','PA','podA',p.podA);
+    html+=renderPodPublic('POD B — Seeds 5–8','PB','podB',p.podB);
   }
   el.innerHTML=html;
 }
@@ -418,16 +375,19 @@ function renderPlayoffsAdmin(){
   if(!p.seeded){
     const ranked=getRegularSeasonRanking();
     const hasScores=G.sched.some(g=>G.scores[g.id]);
-    el.innerHTML=`<div class="card"><div class="card-title">Playoffs — Setup</div><div class="notice">Seeding is pulled from final regular season standings. Make sure all regular season scores are entered first.</div>${ranked.length>=9?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD A — Top 5</div>${ranked.slice(0,5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}</div><div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD B — Bottom 4</div>${ranked.slice(5).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}</div></div>`:''}
+    el.innerHTML=`<div class="card"><div class="card-title">Playoffs — Setup</div><div class="notice">Seeding is pulled from final regular season standings. Make sure all regular season scores are entered first.</div>${ranked.length>=8?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD A — Seeds 1–4</div>${ranked.slice(0,4).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}</div>
+      <div style="padding:12px;background:var(--surface2);border-radius:var(--r-sm)"><div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:6px">POD B — Seeds 5–8</div>${ranked.slice(4).map(r=>{const t=r.tied?` <span style="color:var(--orange);font-size:10px">TB</span>`:'';return`<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${r.seed}. ${esc(r.team)}${t}</span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">(${r.w}-${r.l}${r.tie?'-'+r.tie:''}) <strong style="color:var(--navy)">${r.pts}pts</strong></span></div>`;}).join('')}</div>
+    </div>`:''}
       <div style="margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:var(--r-sm)">
         <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px">Select Playoff Format</label>
         <select id="playoff-format" style="width:100%;padding:8px 12px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--white);color:var(--text);cursor:pointer" onchange="onPlayoffFormatChange()">
-          <option value="podrr">2-Pod Round Robin — 15 games (current)</option>
+          <option value="podrr">2-Pod Round Robin — 16 games (current)</option>
           <option value="top6byes">Top 6 with Byes — 5 games (most efficient)</option>
           <option value="singleelim8">8-Team Single Elim — 7 games (everyone in)</option>
           <option value="doubleelim8">8-Team Double Elim — 15 games (most fair)</option>
         </select>
-        <div id="playoff-format-desc" style="margin-top:8px;font-size:12px;color:var(--text2)">2 pods of 4-5 teams play round robin → 1v4, 2v3 semis → finals. 5th place in each pod eliminated.</div>
+        <div id="playoff-format-desc" style="margin-top:8px;font-size:12px;color:var(--text2)">2 pods of 4 teams play round robin → 1v4, 2v3 semis → finals. All 8 teams participate.</div>
       </div>
       <button class="btn btn-primary" onclick="seedPlayoffs()">🏆 Seed Playoffs from Standings</button>
       ${!hasScores?'<div style="margin-top:8px;font-size:12px;color:var(--muted)">⚠ No scores entered yet — standings may not reflect final order</div>':''}
@@ -442,8 +402,8 @@ function renderPlayoffsAdmin(){
   else if(p.format==='singleelim8') html+=renderSingleElim8Admin(p);
   else if(p.format==='doubleelim8') html+=renderDoubleElim8Admin(p);
   else{
-    html+=renderPodAdmin('POD A — Top 5','PA','podA',p.podA);
-    html+=renderPodAdmin('POD B — Bottom 4','PB','podB',p.podB);
+    html+=renderPodAdmin('POD A — Seeds 1–4','PA','podA',p.podA);
+    html+=renderPodAdmin('POD B — Seeds 5–8','PB','podB',p.podB);
   }
   el.innerHTML=html;
 }
@@ -542,10 +502,10 @@ function renderDoubleElim8Admin(p){
 
 // ── PLAYOFF FORMATS ───────────────────────────────────────────────────────────
 const PLAYOFF_FORMATS={
-  top6byes:{label:'Top 6 with Byes',games:5,desc:'Wild Card (3v6, 4v5) → Semis (1,2 + winners) → Finals'},
-  singleelim8:{label:'8-Team Single Elim',games:7,desc:'Quarterfinals → Semifinals → Finals (3rd place game)'},
-  doubleelim8:{label:'8-Team Double Elim',games:15,desc:'Winner+Losers brackets → Finals (up to 15 games)'},
-  podrr:{label:'2-Pod Round Robin',games:15,desc:'2 pods of 4-5 teams → Semis → Finals (current)'}
+  top6byes:   {label:'Top 6 with Byes',    games:5,  desc:'Wild Card (3v6, 4v5) → Semis (1,2 + winners) → Finals'},
+  singleelim8:{label:'8-Team Single Elim', games:7,  desc:'Quarterfinals → Semifinals → Finals (3rd place game)'},
+  doubleelim8:{label:'8-Team Double Elim', games:15, desc:'Winner+Losers brackets → Finals (up to 15 games)'},
+  podrr:      {label:'2-Pod Round Robin',  games:16, desc:'2 pods of 4 teams → Semis → Finals (all 8 teams)'}
 };
 
 function getSelectedPlayoffFormat(){
@@ -569,10 +529,11 @@ function seedPlayoffs(){
     seedMsg+=`All 8 Teams:\n${ranked.slice(0,8).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
     seedMsg+=`\n\nQuarterfinals: 1v8, 2v7, 3v6, 4v5`;
   }else{
-    const podA=ranked.slice(0,5).map(r=>r.team);
-    const podB=ranked.slice(5).map(r=>r.team);
-    seedMsg+=`POD A (Top 5):\n${ranked.slice(0,5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
-    seedMsg+=`\n\nPOD B (Bottom ${podB.length}):\n${ranked.slice(5).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
+    // 4+4 split
+    const podA=ranked.slice(0,4).map(r=>r.team);
+    const podB=ranked.slice(4,8).map(r=>r.team);
+    seedMsg+=`POD A (Seeds 1–4):\n${ranked.slice(0,4).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
+    seedMsg+=`\n\nPOD B (Seeds 5–8):\n${ranked.slice(4,8).map(r=>`  ${r.seed}. ${r.team} ${recStr(r)}`).join('\n')}`;
   }
   seedMsg+=`\n\nThis will create ${fmt.games} games and reset any existing playoff data.`;
   if(!confirm(seedMsg)) return;
@@ -604,8 +565,9 @@ function seedPlayoffs(){
     semis={wb:{home:null,away:null,score:null},lb:{home:null,away:null,score:null}};
     finals={home:null,away:null,score:null};
   }else{
-    podA=ranked.slice(0,5).map(r=>r.team);
-    podB=ranked.slice(5).map(r=>r.team);
+    // ── podrr: 4+4 ───────────────────────────────────────────────────────────
+    podA=ranked.slice(0,4).map(r=>r.team);
+    podB=ranked.slice(4,8).map(r=>r.team);
     function rrGames(teams,pfx){
       const g={};let n=1;
       for(let i=0;i<teams.length;i++)
@@ -762,11 +724,6 @@ function removePlayoffSchedule(plyId){
 }
 
 // ── LIVE PRE-SEED PREVIEW ─────────────────────────────────────────────────────
-// PATCH: added — the pod preview (before seeding) previously only recomputed
-// when the user navigated back into the Playoffs tab, since saveScore() never
-// called renderPlayoffs(). Subscribing to the same 'standings:rendered' event
-// that fires after every score save keeps the pre-seed pod order/points live
-// without requiring the user to leave and reopen the tab.
 if(typeof AgentBus!=='undefined'&&typeof AgentBus.subscribe==='function'){
   AgentBus.subscribe('standings:rendered',function(){
     try{
