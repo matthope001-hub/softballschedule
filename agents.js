@@ -241,6 +241,17 @@ AGENTS.ConflictDetector = {
         v.push({ type:'INVALID_DIAMOND', sev:'error',
           msg:`Game ${g.id} on ${g.date}: Diamond 1 does not exist` });
 
+    // 7. Run differential cap violations (>7 runs between teams)
+    const cap = typeof CAP !== 'undefined' ? CAP : 7;
+    for (const g of G.sched) {
+      const sc = G.scores[g.id];
+      if (!sc || sc.wx) continue;
+      const diff = Math.abs(sc.h - sc.a);
+      if (diff > cap)
+        v.push({ type:'RUN_CAP', sev:'warn',
+          msg:`Game ${g.id} on ${g.date}: ${g.home} ${sc.h}–${sc.a} ${g.away} — run diff +${diff} exceeds +${cap} cap (standings use capped values)` });
+    }
+
     return v;
   },
 
