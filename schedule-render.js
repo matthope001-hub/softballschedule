@@ -428,11 +428,12 @@ function renderScores(){
 
       const capViolation=sc&&!sc.wx&&Math.abs(sc.h-sc.a)>CAP;
       const capBadge=capViolation?`<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:4px" title="Run differential exceeds +7 cap — standings will use capped values">⚠ +${Math.abs(sc.h-sc.a)} diff</span>`:'';
+      const syncBadge=sc?.src==='hto'?`<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:4px" title="Score synced automatically from htosports">⟳ HTO</span>`:'';
       inner+=`<div class="score-row${isCO?' co':''}${capViolation?' cap-violation':''}" id="srow_${g.id}" style="${capViolation?'background:#fff5f5;border-left:3px solid #dc2626;':''}">
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||''}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
-        <span class="game-teams">${esc(homeName)}${wxBadge}${makBadge}${capBadge} vs ${esc(awayName)}</span>
+        <span class="game-teams">${esc(homeName)}${wxBadge}${makBadge}${capBadge}${syncBadge} vs ${esc(awayName)}</span>
         <span class="score-inputs">
           <input type="number" class="si" min="0" max="99" id="sih_${g.id}" value="${hVal}" oninput="saveScore('${g.id}',this,'h')" placeholder="H" style="${capViolation?'border-color:#dc2626;':''}"/>
           <span style="color:var(--muted);font-size:11px;margin:0 2px">–</span>
@@ -500,9 +501,12 @@ function _patchScoreRow(id){
     if(g){
       const wxBadge=sc?.wx?'<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">🌧 WX</span>':'';
       const makBadge=g.makeup?'<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px">↻ MAKEUP</span>':'';
+      const capViolation=sc&&!sc.wx&&Math.abs(sc.h-sc.a)>CAP;
+      const capBadge=capViolation?`<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:4px">⚠ +${Math.abs(sc.h-sc.a)} diff</span>`:'';
+      const syncBadge=sc?.src==='hto'?'<span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:4px">⟳ HTO</span>':'';
       const homeName=_resolveTeamName(g.home,g.date);
       const awayName=_resolveTeamName(g.away,g.date);
-      teamsSpan.innerHTML=`${esc(homeName)}${wxBadge}${makBadge} vs ${esc(awayName)}`;
+      teamsSpan.innerHTML=`${esc(homeName)}${wxBadge}${makBadge}${capBadge}${syncBadge} vs ${esc(awayName)}`;
     }
   }
   return true;
