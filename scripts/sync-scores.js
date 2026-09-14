@@ -173,8 +173,8 @@ function applyScores(record, htoGames) {
         matchIdx = i;
         // Store score as h=home team score, a=away team score in G.sched terms
         scores[g.id] = direct
-          ? { h: hto.h, a: hto.a }
-          : { h: hto.a, a: hto.h };
+          ? { h: hto.h, a: hto.a, src: 'hto' }
+          : { h: hto.a, a: hto.h, src: 'hto' };
         break;
       }
     }
