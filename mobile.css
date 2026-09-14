@@ -22,6 +22,34 @@
   top: var(--header-h) !important;
 }
 
+/* ── 2b. TAB BAR — 2-row wrap on mobile, no side scroll ────────
+   4 tabs per row × 2 rows = all 8 always visible, no scrolling. */
+@media (max-width: 680px) {
+  .tabs {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    padding: 6px 8px !important;
+    gap: 4px !important;
+  }
+  .tab {
+    flex: 1 1 calc(25% - 4px) !important; /* 4 per row */
+    min-width: 0 !important;
+    justify-content: center !important;
+    font-size: 11.5px !important;
+    padding: 7px 4px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
+@media (max-width: 400px) {
+  .tab {
+    font-size: 11px !important;
+    padding: 6px 2px !important;
+  }
+}
+
 /* ── 3. SAFE BOTTOM PADDING — clear iOS home indicator ─────────  */
 .main {
   padding-bottom: max(60px, env(safe-area-inset-bottom) + 60px);
@@ -44,6 +72,7 @@
   #agent-eos-panel {
     width: calc(100vw - 24px) !important;
     max-width: 420px;
+    /* keep centered — override inline transform */
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
     max-height: 90vh;
@@ -83,6 +112,7 @@
     font-size: 9px !important;
     padding: 1px 4px !important;
   }
+  /* Stack bye teams below weather on very small screens */
   .day-head {
     flex-direction: row;
     flex-wrap: wrap;
@@ -91,13 +121,21 @@
 
 /* ── 6. GAME ROWS — hide low-priority columns on mobile ─────────  */
 @media (max-width: 480px) {
+  /* Hide game ID on very small screens — saves ~42px */
   .game-row .game-id,
   .score-row .score-id { display: none; }
+
+  /* Shrink time badge */
   .game-time { min-width: 40px; font-size: 10px; }
+
+  /* Diamond badge smaller */
   .game-diamond { padding: 2px 6px; font-size: 9px; }
+
+  /* Teams take remaining space */
   .game-teams { font-size: 13px; }
 }
 @media (max-width: 360px) {
+  /* Also hide time — only diamond + teams visible */
   .game-row .game-time { display: none; }
 }
 
@@ -105,7 +143,7 @@
 input.si {
   min-height: 44px !important;
   min-width: 48px !important;
-  font-size: 16px !important;
+  font-size: 16px !important; /* prevent iOS auto-zoom on focus */
   text-align: center;
   border-radius: 8px;
   touch-action: manipulation;
@@ -118,7 +156,7 @@ input[type="password"],
 input[type="email"],
 select,
 textarea {
-  font-size: 16px !important;
+  font-size: 16px !important; /* iOS zooms when < 16px */
   touch-action: manipulation;
 }
 
@@ -165,9 +203,11 @@ textarea {
 .st-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  /* Ensure it doesn't clip the sticky column shadow */
   position: relative;
 }
 @media (max-width: 680px) {
+  /* Sticky first column (rank) + second column (team name) */
   .st td:nth-child(1),
   .st th:nth-child(1) {
     position: sticky;
@@ -178,7 +218,7 @@ textarea {
   .st td:nth-child(2),
   .st th:nth-child(2) {
     position: sticky;
-    left: 28px;
+    left: 28px; /* rank col width */
     z-index: 2;
     background: var(--surface, #fff);
     box-shadow: 2px 0 4px rgba(0,0,0,0.06);
@@ -189,12 +229,15 @@ textarea {
   .st thead th:nth-child(2) {
     background: var(--brand, #1d2d50);
   }
+  /* Hide lower-priority columns on small screens */
   .st .pct,
   .st th:nth-child(5) { display: none; }
 }
 @media (max-width: 480px) {
+  /* Also hide Last 10 and streak on very small */
   .st .l10, .st th:nth-child(12),
   .st .strk, .st th:nth-child(13) { display: none; }
+  /* Tighter padding */
   .st td, .st th { padding: 8px 4px; font-size: 11px; }
 }
 
@@ -229,11 +272,13 @@ textarea {
     min-width: 0 !important;
     flex: none !important;
   }
+  /* Season settings grid */
   #admin-settings .row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
+  /* But fully stack if only 1 or very wide field */
   #admin-settings .row > .field:only-child {
     grid-column: 1 / -1;
   }
@@ -245,6 +290,13 @@ textarea {
 }
 
 /* ── 14. PLAYOFF BRACKET — horizontal scroll ───────────────────  */
+/* The bracket SVG connector + flex container needs scroll, not clip */
+.ply-bracket-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+/* Target the inline bracket divs rendered by renderPodAdmin */
 #ply > div > div[style*="overflow-x"],
 #ply-admin > div > div[style*="overflow-x"],
 #ply > .card > div[style*="overflow-x"],
@@ -252,6 +304,7 @@ textarea {
   -webkit-overflow-scrolling: touch;
 }
 @media (max-width: 560px) {
+  /* Shrink bracket team chips so they don't require 480px+ */
   div[style*="min-width:160px"] {
     min-width: 130px !important;
   }
@@ -267,21 +320,27 @@ textarea {
     padding: 16px;
     width: 95vw;
   }
+  /* Numpad buttons larger touch targets */
   #pin-modal .btn { min-height: 48px; font-size: 20px !important; }
 }
 
 /* ── 16. CROSSOVER ADMIN CARD — date+input wrap ─────────────────  */
 @media (max-width: 560px) {
+  #admin-settings .card div[style*="display:flex"][style*="flex-wrap:wrap"] {
+    flex-direction: column;
+  }
   #co-new-date,
   #co-new-name { width: 100% !important; }
 }
 
 /* ── 17. CHAMPION ADMIN — year + pod fields ─────────────────────  */
 @media (max-width: 480px) {
-  #champ-year, #champ-poda, #champ-podb,
-  #new-season-year, #new-season-champ-poda, #new-season-champ-podb {
-    width: 100% !important;
-  }
+  #champ-year,
+  #champ-poda,
+  #champ-podb,
+  #new-season-year,
+  #new-season-champ-poda,
+  #new-season-champ-podb { width: 100% !important; }
 }
 
 /* ── 18. ACCORDION HEAD — full-width tap target ─────────────────  */
@@ -312,8 +371,12 @@ textarea {
   #hw-date { font-size: 11px; }
 }
 
-/* ── 21. TICKER — don't clip ────────────────────────────────────  */
+/* ── 21. TICKER — pause on touch, don't clip ────────────────────  */
+.ticker-bar {
+  -webkit-overflow-scrolling: touch;
+}
 .ticker-content {
+  /* Add extra space so last item isn't clipped at screen edge */
   padding-right: 40px;
 }
 
@@ -331,6 +394,7 @@ textarea {
     flex: 0 0 auto;
     margin-left: auto;
   }
+  /* WX buttons stay on same line as inputs */
   .wx-btn { flex-shrink: 0; }
 }
 
@@ -370,7 +434,8 @@ html, body {
   overflow-x: hidden;
   max-width: 100vw;
 }
-.st-wrap, #edi,
+/* But allow scroll within designated containers */
+.st-wrap, #edi, .ply-bracket-scroll,
 div[style*="overflow-x:auto"],
 div[style*="overflow-x: auto"] {
   overflow-x: auto;
