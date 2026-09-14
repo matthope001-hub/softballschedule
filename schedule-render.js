@@ -25,7 +25,8 @@ async function _fetchGameDayForecasts(){
     const url='https://api.open-meteo.com/v1/forecast'
       +'?latitude=43.2557&longitude=-79.8711'
       +'&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum'
-      +'&temperature_unit=celsius&timezone=America%2FToronto&forecast_days=16';
+      +',precipitation_probability_max,windspeed_10m_max'
+      +'&temperature_unit=celsius&windspeed_unit=kmh&timezone=America%2FToronto&forecast_days=16';
     const res=await fetch(url);
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const d=await res.json();
@@ -38,7 +39,9 @@ async function _fetchGameDayForecasts(){
         label,
         tmax:Math.round(d.daily.temperature_2m_max[i]),
         tmin:Math.round(d.daily.temperature_2m_min[i]),
-        precip:+(d.daily.precipitation_sum[i]||0).toFixed(1)
+        precip:+(d.daily.precipitation_sum[i]||0).toFixed(1),
+        rainPct:Math.round(d.daily.precipitation_probability_max[i]||0),
+        wind:Math.round(d.daily.windspeed_10m_max[i]||0)
       };
     });
   }catch(e){
@@ -59,14 +62,26 @@ function _injectDayForecasts(){
     const w=byDate[d];
     if(!w) return;
     if(el.querySelector('.wx-day-badge')) return; // already injected
-    const rainWarn=w.precip>=2.5
-      ?'background:#fef3c7;color:#92400e;'
-      :'background:rgba(255,255,255,0.08);color:inherit;';
+
+    // Severity: red=likely rain/storm, amber=possible rain or high wind, else subtle
+    const isRainy=w.rainPct>=60||w.precip>=5;
+    const isWarning=(!isRainy)&&(w.rainPct>=30||w.wind>=40);
+    const bg=isRainy?'#fee2e2':isWarning?'#fef3c7':'rgba(0,0,0,0.06)';
+    const fg=isRainy?'#991b1b':isWarning?'#92400e':'inherit';
+
+    // Rain % shown inline if ≥30%
+    const rainInline=w.rainPct>=30
+      ?`<span style="opacity:0.85">🌧${w.rainPct}%</span>`
+      :'';
+
+    // Wind shown inline always
+    const windIcon=w.wind>=50?'💨':w.wind>=30?'🌬':'';
+    const windInline=`<span style="opacity:0.75">${windIcon}${w.wind}km/h</span>`;
+
     const badge=document.createElement('span');
     badge.className='wx-day-badge';
-    badge.title=`${w.label} · ${w.tmax}°/${w.tmin}° · ${w.precip}mm precip`;
-    badge.style.cssText=`font-size:10px;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:6px;display:inline-flex;align-items:center;gap:3px;${rainWarn}`;
-    badge.innerHTML=`${w.icon} ${w.tmax}°<span style="opacity:0.55;font-weight:400">/${w.tmin}°</span>${w.precip>=2.5?` <span style="font-size:9px">⚠ ${w.precip}mm</span>`:''}`;
+    badge.style.cssText=`font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;margin-left:6px;display:inline-flex;align-items:center;gap:5px;background:${bg};color:${fg};`;
+    badge.innerHTML=`${w.icon} <span style="font-weight:700">${w.tmax}°<span style="opacity:0.55;font-weight:400">/${w.tmin}°</span></span>${windInline}${rainInline}${w.precip>0?`<span style="opacity:0.75">${w.precip}mm</span>`:''}`;
     el.appendChild(badge);
   });
 }
@@ -411,15 +426,17 @@ function renderScores(){
       const homeName=_resolveTeamName(g.home,g.date);
       const awayName=_resolveTeamName(g.away,g.date);
 
-      inner+=`<div class="score-row${isCO?' co':''}" id="srow_${g.id}">
+      const capViolation=sc&&!sc.wx&&Math.abs(sc.h-sc.a)>CAP;
+      const capBadge=capViolation?`<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:3px;font-weight:700;margin-left:4px" title="Run differential exceeds +7 cap — standings will use capped values">⚠ +${Math.abs(sc.h-sc.a)} diff</span>`:'';
+      inner+=`<div class="score-row${isCO?' co':''}${capViolation?' cap-violation':''}" id="srow_${g.id}" style="${capViolation?'background:#fff5f5;border-left:3px solid #dc2626;':''}">
         <span class="game-id">#${g.id}</span>
         <span class="game-time">${g.time||''}</span>
         <span class="game-diamond">${getDiamondName(g.diamond)}</span>
-        <span class="game-teams">${esc(homeName)}${wxBadge}${makBadge} vs ${esc(awayName)}</span>
+        <span class="game-teams">${esc(homeName)}${wxBadge}${makBadge}${capBadge} vs ${esc(awayName)}</span>
         <span class="score-inputs">
-          <input type="number" class="si" min="0" max="99" id="sih_${g.id}" value="${hVal}" oninput="saveScore('${g.id}',this,'h')" placeholder="H"/>
+          <input type="number" class="si" min="0" max="99" id="sih_${g.id}" value="${hVal}" oninput="saveScore('${g.id}',this,'h')" placeholder="H" style="${capViolation?'border-color:#dc2626;':''}"/>
           <span style="color:var(--muted);font-size:11px;margin:0 2px">–</span>
-          <input type="number" class="si" min="0" max="99" id="sia_${g.id}" value="${aVal}" oninput="saveScore('${g.id}',this,'a')" placeholder="A"/>
+          <input type="number" class="si" min="0" max="99" id="sia_${g.id}" value="${aVal}" oninput="saveScore('${g.id}',this,'a')" placeholder="A" style="${capViolation?'border-color:#dc2626;':''}"/>
         </span>
         <button class="wx-btn" title="Weather cancellation (7–7 tie)" onclick="saveWeather('${g.id}')">🌧</button>
         <button class="wx-btn" title="Rainout + Reschedule makeup game" onclick="openRainoutModal('${g.id}')" style="margin-left:4px">🌧+📅</button>
