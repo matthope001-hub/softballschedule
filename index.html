@@ -518,6 +518,7 @@ function unlockAdmin(){
           <div id="gpt-notice" style="margin-bottom:10px;font-size:12px"></div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <button class="btn btn-primary" onclick="adminGuard(genSched)()">⚾ Generate Schedule</button>
+            <button class="btn btn-secondary" onclick="adminGuard(extendSched)()">➕ Extend Schedule</button>
             <button class="btn btn-secondary" onclick="manualSync()">🔄 Sync Scores from htosports</button>
             <button class="btn" onclick="clearData()" style="color:var(--red);border-color:var(--red)">🗑 Clear All Data</button>
           </div>
@@ -808,6 +809,7 @@ function unlockAdmin(){
 <script src="champions.js"></script>
 <script src="persistence.js"></script>
 <script src="schedule-gen.js"></script>
+<script src="extend-sched.js"></script>
 <script src="schedule-render.js"></script>
 <script src="weather-days.js"></script>
 <script src="exports.js"></script>
