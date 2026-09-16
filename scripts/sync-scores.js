@@ -143,19 +143,24 @@ async function saveBin(record) {
 }
 
 // ── APPLY SCORES ──────────────────────────────────────────────────────────────
-// Only fills blanks — never overwrites existing scores.
-// HTO lists away first, home second — matched against G.sched which stores home/away.
+// - If no score exists: write it, tag src:'hto'
+// - If score exists and matches HTO: skip
+// - If score exists and DIFFERS: overwrite, tag src:'hto', log the discrepancy
+// - Never touches weather games (sc.wx === true)
 function applyScores(record, htoGames) {
   const sched  = record.sched  || [];
   const scores = record.scores || {};
-  let count = 0;
+  let newCount      = 0;
+  let overrideCount = 0;
   const usedHTO = new Set();
 
   for (const g of sched) {
     if (g.playoff || g.open || !g.home || !g.away) continue;
-    if (scores[g.id]) continue; // never overwrite
+    const existing = scores[g.id];
+    if (existing?.wx) continue; // never touch weather games
 
     let matchIdx = -1;
+    let newScore  = null;
 
     // Pass 1: date + diamond + teams
     for (let i = 0; i < htoGames.length; i++) {
@@ -163,37 +168,30 @@ function applyScores(record, htoGames) {
       const hto = htoGames[i];
       if (hto.date !== g.date) continue;
       if (hto.diamond && g.diamond && hto.diamond !== g.diamond) continue;
-
-      // HTO home = hto.home, HTO away = hto.away
-      // G.sched home = g.home, G.sched away = g.away
       const direct  = fuzzy(hto.home, g.home) && fuzzy(hto.away, g.away);
       const flipped = fuzzy(hto.home, g.away) && fuzzy(hto.away, g.home);
-
       if (direct || flipped) {
         matchIdx = i;
-        // Store score as h=home team score, a=away team score in G.sched terms
-        scores[g.id] = direct
+        newScore = direct
           ? { h: hto.h, a: hto.a, src: 'hto' }
           : { h: hto.a, a: hto.h, src: 'hto' };
         break;
       }
     }
 
-    // Pass 2: date + teams, no diamond check
+    // Pass 2: date + teams only
     if (matchIdx === -1) {
       for (let i = 0; i < htoGames.length; i++) {
         if (usedHTO.has(i)) continue;
         const hto = htoGames[i];
         if (hto.date !== g.date) continue;
-
         const direct  = fuzzy(hto.home, g.home) && fuzzy(hto.away, g.away);
         const flipped = fuzzy(hto.home, g.away) && fuzzy(hto.away, g.home);
-
         if (direct || flipped) {
           matchIdx = i;
-          scores[g.id] = direct
-            ? { h: hto.h, a: hto.a }
-            : { h: hto.a, a: hto.h };
+          newScore = direct
+            ? { h: hto.h, a: hto.a, src: 'hto' }
+            : { h: hto.a, a: hto.h, src: 'hto' };
           break;
         }
       }
@@ -201,20 +199,31 @@ function applyScores(record, htoGames) {
 
     if (matchIdx === -1) continue;
     usedHTO.add(matchIdx);
-    count++;
-    console.log(`  ✓ Game ${g.id}: ${g.home} ${scores[g.id].h}–${scores[g.id].a} ${g.away}`);
-  }
 
-  // Log any HTO games that didn't match anything in the schedule
-  for (let i = 0; i < htoGames.length; i++) {
-    if (!usedHTO.has(i)) {
-      const hto = htoGames[i];
-      console.log(`  ✗ No match: ${hto.date} ${hto.home} ${hto.h}–${hto.a} ${hto.away} D${hto.diamond}`);
+    if (!existing) {
+      scores[g.id] = newScore;
+      newCount++;
+      console.log(`  ✓ NEW   Game ${g.id}: ${g.home} ${newScore.h}\u2013${newScore.a} ${g.away}`);
+    } else if (existing.h !== newScore.h || existing.a !== newScore.a) {
+      console.log(`  ⚠ DIFF  Game ${g.id}: stored ${existing.h}\u2013${existing.a} → HTO ${newScore.h}\u2013${newScore.a} (${g.home} vs ${g.away} on ${g.date})`);
+      scores[g.id] = newScore;
+      overrideCount++;
+    } else {
+      if (!existing.src) scores[g.id].src = 'hto';
     }
   }
 
-  return { scores, count };
+  for (let i = 0; i < htoGames.length; i++) {
+    if (!usedHTO.has(i)) {
+      const hto = htoGames[i];
+      console.log(`  ✗ NO MATCH: ${hto.date} ${hto.home} ${hto.h}\u2013${hto.a} ${hto.away} D${hto.diamond}`);
+    }
+  }
+
+  console.log(`Summary: ${newCount} new · ${overrideCount} corrected`);
+  return { scores, count: newCount + overrideCount };
 }
+
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 async function main() {
