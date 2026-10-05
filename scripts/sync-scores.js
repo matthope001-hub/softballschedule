@@ -1,7 +1,7 @@
 // scripts/sync-scores.js
 // Runs on GitHub Actions (real IP — not blocked by htosports).
 // HTO row structure: [time, away, awayScore+W/L/T, 'vs.', home, homeScore+W/L/T, location]
-// Note: HTO lists AWAY team first, HOME team second.
+// Away is listed first, home second on htosports.
 
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
@@ -10,10 +10,11 @@ const HTO_URL      = 'https://www.htosports.com/teams/default.asp?u=HCCS&s=softb
 const BIN_ID       = process.env.JSONBIN_BIN_ID    || '69d7a4c036566621a894eed9';
 const WRITE_KEY    = process.env.JSONBIN_WRITE_KEY  || '$2a$10$0Hbc5Bc9ABqnRlT3.dmE6OURp.z8twcL0yy4bSGoCACQOTb7Z5fJu';
 const JSONBIN_BASE = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const CROSSOVER    = '__CROSSOVER__';
 
 const MONTHS = {
-  january:'01', february:'02', march:'03', april:'04', may:'05', june:'06',
-  july:'07', august:'08', september:'09', october:'10', november:'11', december:'12'
+  january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',
+  july:'07',august:'08',september:'09',october:'10',november:'11',december:'12'
 };
 
 // ── FETCH ─────────────────────────────────────────────────────────────────────
@@ -35,10 +36,6 @@ async function fetchHTO() {
 }
 
 // ── PARSE ─────────────────────────────────────────────────────────────────────
-// HTO row: [time, away, awayScore, 'vs.', home, homeScore, location]
-// Scores have W/L/T suffix: "7L", "12W", "19T" — strip the letter.
-// Date rows: single cell like "Tuesday, May 26, 2026"
-// Week rows: single cell like "Mon, 5/25/26 to Sun, 5/31/26Week 1" — skip
 function parseHTOSchedule(html) {
   const $ = cheerio.load(html);
   const results = [];
@@ -47,28 +44,24 @@ function parseHTOSchedule(html) {
   $('tr').each((_, row) => {
     const cells = $(row).find('td').map((_, td) => $(td).text().trim()).get();
 
-    // Single-cell row: either a week header or a date
     if (cells.length === 1) {
       const parsed = parseDate(cells[0]);
       if (parsed) currentDate = parsed;
       return;
     }
 
-    // Game row: exactly 7 cells with 'vs.' in position 3
     if (cells.length === 7 && cells[3] === 'vs.' && currentDate) {
-      // HTO: away=cells[1], awayScore=cells[2], home=cells[4], homeScore=cells[5]
       const awayScore = parseInt(cells[2].replace(/[^0-9]/g, ''), 10);
       const homeScore = parseInt(cells[5].replace(/[^0-9]/g, ''), 10);
       if (isNaN(awayScore) || isNaN(homeScore)) return; // unplayed
 
-      // Diamond: "Turner Park #12" → 12
       const dMatch = cells[6].match(/#(\d+)/);
       const diamond = dMatch ? parseInt(dMatch[1], 10) : null;
 
       results.push({
         date:    currentDate,
-        away:    cells[1],
-        home:    cells[4],
+        away:    cells[1],  // HTO: away listed first
+        home:    cells[4],  // HTO: home listed second
         a:       awayScore,
         h:       homeScore,
         diamond,
@@ -78,19 +71,16 @@ function parseHTOSchedule(html) {
   });
 
   console.log(`Parsed ${results.length} scored games from htosports`);
-  results.forEach(g => console.log(`  ${g.date} | ${g.away} ${g.a}–${g.h} ${g.home} | D${g.diamond} ${g.time}`));
   return results;
 }
 
 // ── DATE PARSER ───────────────────────────────────────────────────────────────
 function parseDate(str) {
-  // "Tuesday, May 26, 2026"
   const long = str.match(/([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
   if (long) {
     const mo = MONTHS[long[1].toLowerCase()];
     if (mo) return `${long[3]}-${mo}-${String(long[2]).padStart(2, '0')}`;
   }
-  // "05/26/2026" or "5/26/26"
   const slash = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (slash) {
     const y = slash[3].length === 2 ? '20' + slash[3] : slash[3];
@@ -111,6 +101,11 @@ function fuzzy(a, b) {
   const n = s => s.toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
   const na = n(a), nb = n(b);
   return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+// Resolve crossover placeholder to display name
+function isCrossover(name) {
+  return name === CROSSOVER || fuzzy(name, 'crossover') || fuzzy(name, 'stingrays') || fuzzy(name, 'walking dead');
 }
 
 // ── JSONBIN ───────────────────────────────────────────────────────────────────
@@ -143,69 +138,128 @@ async function saveBin(record) {
 }
 
 // ── APPLY SCORES ──────────────────────────────────────────────────────────────
-// - If no score exists: write it, tag src:'hto'
-// - If score exists and matches HTO: skip
-// - If score exists and DIFFERS: overwrite, tag src:'hto', log the discrepancy
-// - Never touches weather games (sc.wx === true)
+// Matching strategy (in order):
+//   Pass 1: date + diamond + time + both teams (exact fuzzy)
+//   Pass 2: date + diamond + time (team-agnostic — fills open slots or corrects mismatched assignments)
+//   Pass 3: date + teams only (no diamond)
+//
+// For Pass 2 matches: also updates g.home/g.away to match HTO's actual teams.
+// Never touches weather games (wx:true).
+// Overwrites if HTO differs and logs the discrepancy.
 function applyScores(record, htoGames) {
   const sched  = record.sched  || [];
   const scores = record.scores || {};
   let newCount      = 0;
   let overrideCount = 0;
+  let teamFixCount  = 0;
   const usedHTO = new Set();
 
   for (const g of sched) {
-    if (g.playoff || g.open || !g.home || !g.away) continue;
+    if (g.playoff || !g.home || !g.away) continue;
     const existing = scores[g.id];
     if (existing?.wx) continue; // never touch weather games
 
     let matchIdx = -1;
     let newScore  = null;
+    let passUsed  = 0;
 
-    // Pass 1: date + diamond + teams
+    // Pass 1: date + diamond + time + teams
     for (let i = 0; i < htoGames.length; i++) {
       if (usedHTO.has(i)) continue;
       const hto = htoGames[i];
       if (hto.date !== g.date) continue;
       if (hto.diamond && g.diamond && hto.diamond !== g.diamond) continue;
-      const direct  = fuzzy(hto.home, g.home) && fuzzy(hto.away, g.away);
-      const flipped = fuzzy(hto.home, g.away) && fuzzy(hto.away, g.home);
-      if (direct || flipped) {
-        matchIdx = i;
-        newScore = direct
-          ? { h: hto.h, a: hto.a, src: 'hto' }
-          : { h: hto.a, a: hto.h, src: 'hto' };
+      if (hto.time && g.time && hto.time !== g.time) continue;
+
+      const gHomeIsCO = isCrossover(g.home);
+      const gAwayIsCO = isCrossover(g.away);
+      const htoHomeIsCO = isCrossover(hto.home);
+      const htoAwayIsCO = isCrossover(hto.away);
+
+      const directHome = gHomeIsCO ? htoHomeIsCO : fuzzy(hto.home, g.home);
+      const directAway = gAwayIsCO ? htoAwayIsCO : fuzzy(hto.away, g.away);
+      const flipHome   = gHomeIsCO ? htoAwayIsCO : fuzzy(hto.away, g.home);
+      const flipAway   = gAwayIsCO ? htoHomeIsCO : fuzzy(hto.home, g.away);
+
+      if (directHome && directAway) {
+        matchIdx = i; passUsed = 1;
+        newScore = { h: hto.h, a: hto.a, src: 'hto' };
+        break;
+      }
+      if (flipHome && flipAway) {
+        matchIdx = i; passUsed = 1;
+        newScore = { h: hto.a, a: hto.h, src: 'hto' };
         break;
       }
     }
 
-    // Pass 2: date + teams only
+    // Pass 2: date + diamond + time only (team-agnostic — fixes open/mismatched slots)
     if (matchIdx === -1) {
       for (let i = 0; i < htoGames.length; i++) {
         if (usedHTO.has(i)) continue;
         const hto = htoGames[i];
         if (hto.date !== g.date) continue;
-        const direct  = fuzzy(hto.home, g.home) && fuzzy(hto.away, g.away);
-        const flipped = fuzzy(hto.home, g.away) && fuzzy(hto.away, g.home);
-        if (direct || flipped) {
-          matchIdx = i;
-          newScore = direct
-            ? { h: hto.h, a: hto.a, src: 'hto' }
-            : { h: hto.a, a: hto.h, src: 'hto' };
+        if (hto.diamond && g.diamond && hto.diamond !== g.diamond) continue;
+        if (hto.time && g.time && hto.time !== g.time) continue;
+        matchIdx = i; passUsed = 2;
+        // HTO home/away order is canonical — store as-is
+        newScore = { h: hto.h, a: hto.a, src: 'hto' };
+        break;
+      }
+    }
+
+    // Pass 3: date + teams, no diamond/time check
+    if (matchIdx === -1) {
+      for (let i = 0; i < htoGames.length; i++) {
+        if (usedHTO.has(i)) continue;
+        const hto = htoGames[i];
+        if (hto.date !== g.date) continue;
+
+        const gHomeIsCO = isCrossover(g.home);
+        const gAwayIsCO = isCrossover(g.away);
+        const htoHomeIsCO = isCrossover(hto.home);
+        const htoAwayIsCO = isCrossover(hto.away);
+
+        const directHome = gHomeIsCO ? htoHomeIsCO : fuzzy(hto.home, g.home);
+        const directAway = gAwayIsCO ? htoAwayIsCO : fuzzy(hto.away, g.away);
+        const flipHome   = gHomeIsCO ? htoAwayIsCO : fuzzy(hto.away, g.home);
+        const flipAway   = gAwayIsCO ? htoHomeIsCO : fuzzy(hto.home, g.away);
+
+        if (directHome && directAway) {
+          matchIdx = i; passUsed = 3;
+          newScore = { h: hto.h, a: hto.a, src: 'hto' };
+          break;
+        }
+        if (flipHome && flipAway) {
+          matchIdx = i; passUsed = 3;
+          newScore = { h: hto.a, a: hto.h, src: 'hto' };
           break;
         }
       }
     }
 
     if (matchIdx === -1) continue;
+    const hto = htoGames[matchIdx];
     usedHTO.add(matchIdx);
+
+    // Pass 2: update team assignments to match HTO's actual teams
+    if (passUsed === 2) {
+      const oldHome = g.home, oldAway = g.away;
+      g.home = isCrossover(hto.home) ? CROSSOVER : hto.home;
+      g.away = isCrossover(hto.away) ? CROSSOVER : hto.away;
+      g.open = false;
+      if (oldHome !== g.home || oldAway !== g.away) {
+        console.log(`  🔧 TEAM FIX Game ${g.id} ${g.date}: ${oldHome} vs ${oldAway} → ${g.home} vs ${g.away}`);
+        teamFixCount++;
+      }
+    }
 
     if (!existing) {
       scores[g.id] = newScore;
       newCount++;
-      console.log(`  ✓ NEW   Game ${g.id}: ${g.home} ${newScore.h}\u2013${newScore.a} ${g.away}`);
+      console.log(`  ✓ NEW   [P${passUsed}] Game ${g.id} ${g.date}: ${g.home} ${newScore.h}–${newScore.a} ${g.away}`);
     } else if (existing.h !== newScore.h || existing.a !== newScore.a) {
-      console.log(`  ⚠ DIFF  Game ${g.id}: stored ${existing.h}\u2013${existing.a} → HTO ${newScore.h}\u2013${newScore.a} (${g.home} vs ${g.away} on ${g.date})`);
+      console.log(`  ⚠ DIFF  [P${passUsed}] Game ${g.id} ${g.date}: stored ${existing.h}–${existing.a} → HTO ${newScore.h}–${newScore.a} (${g.home} vs ${g.away})`);
       scores[g.id] = newScore;
       overrideCount++;
     } else {
@@ -213,17 +267,17 @@ function applyScores(record, htoGames) {
     }
   }
 
+  // Log unmatched HTO games
   for (let i = 0; i < htoGames.length; i++) {
     if (!usedHTO.has(i)) {
       const hto = htoGames[i];
-      console.log(`  ✗ NO MATCH: ${hto.date} ${hto.home} ${hto.h}\u2013${hto.a} ${hto.away} D${hto.diamond}`);
+      console.log(`  ✗ NO MATCH: ${hto.date} ${hto.home} ${hto.h}–${hto.a} ${hto.away} D${hto.diamond} ${hto.time}`);
     }
   }
 
-  console.log(`Summary: ${newCount} new · ${overrideCount} corrected`);
-  return { scores, count: newCount + overrideCount };
+  console.log(`Summary: ${newCount} new · ${overrideCount} corrected · ${teamFixCount} team assignments fixed`);
+  return { scores, sched, count: newCount + overrideCount + teamFixCount };
 }
-
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 async function main() {
@@ -236,7 +290,7 @@ async function main() {
       process.exit(0);
     }
 
-    const { scores, count } = applyScores(record, htoGames);
+    const { scores, sched, count } = applyScores(record, htoGames);
 
     if (count === 0) {
       console.log('No new scores to write — JSONBin unchanged.');
@@ -244,8 +298,9 @@ async function main() {
     }
 
     record.scores = scores;
+    record.sched  = sched; // save updated team assignments
     await saveBin(record);
-    console.log(`✓ Done — ${count} score(s) written to JSONBin`);
+    console.log(`✓ Done — ${count} change(s) written to JSONBin`);
 
   } catch (e) {
     console.error('Sync failed:', e.message);
